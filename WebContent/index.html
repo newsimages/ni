@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport"
+	content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="icon.png" />
+<link rel="apple-touch-startup-image" href="startup.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Ni!</title>
+
+<link href="dojo/dojox/mobile/themes/iphone/iphone.css" rel="stylesheet"></link>
+<link
+	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleArrow.css"
+	rel="stylesheet"></link>
+<link
+	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonDarkBlueCheck.css"
+	rel="stylesheet"></link>
+<link
+	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonWhiteArrow.css"
+	rel="stylesheet"></link>
+
+<script type="text/javascript" src="dojo/dojo/dojo.js"
+	data-dojo-config="async:1, parseOnLoad:true"></script>
+
+<script>
+	require(
+			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch",
+					"dojo/_base/event", "dojo/aspect", "dojo/json",
+					"dojo/_base/array", "dojo/_base/lang", "dojo/dom",
+					"dojo/dom-construct", "dojo/dom-class", "dojo/request",
+					"dijit/registry", "dojox/mobile/ListItem",
+					"dojox/mobile/ProgressIndicator",
+					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
+					"dojox/mobile/ToolBarButton", "dojox/mobile" ],
+			function(ready, parser, has, on, touch, event, aspect, json, array,
+					lang, dom, domConstruct, domClass, request, registry,
+					ListItem, Progressindicator, viewRegistry, ScrollableView,
+					ToolBarButton, mobile) {
+
+				var showVideos = false;
+				var showVideosWhileLoading = false;
+
+				ToolBarButton.prototype.onTouchStart = function(e) {
+					e.preventDefault();
+				};
+
+				var settings, serviceUrl;
+
+				var defaultSettings = {
+					servers : [],
+					currentServer : -1,
+					searchFilter : "jpg",
+					searchResultsCount : 100,
+					searchServer : 2,
+					async : true,
+					progress : true,
+					partial : true
+				};
+
+				//---------- Initialization ----------
+
+				function init() {
+
+					// Compute service URL: same location as HTML + "/svc/".
+
+					serviceUrl = document.location.href.substring(0,
+							document.location.href.lastIndexOf("/"))
+							+ "/svc/";
+
+					initSettings();
+
+					// Setup various listeners
+
+					searchBox.on("keypress", function(e) {
+						if ((e.keyCode || e.which) == 13) {
+							invisibleButton.domNode.focus();
+						}
+					});
+
+					var bg = dom.byId("imageBackground");
+					on(bg, touch.press, onImageTouchStart);
+					on(bg, touch.move, onImageTouchMove);
+					on(bg, touch.release, onImageTouchEnd);
+					on(bg, "mousewheel", onImageWheel);
+
+					articleImage = dom.byId("articleImage");
+
+					fitVideo();
+
+					var ignoreScroll = false;
+					aspect.around(imageScroller, "onTouchMove", function(
+							onTouchMove) {
+						return function(e) {
+							if (ignoreScroll) {
+								return;
+							}
+							if (!imageRealSized) {
+								if (this.getPos().x > 70) {
+									if (previous()) {
+										event.stop(e);
+										ignoreScroll = true;
+										imageScroller.scrollTo({
+											x : 0
+										});
+										return;
+									}
+								}
+								if (this.getPos().x + this.getDim().o.w < -70) {
+									if (next()) {
+										event.stop(e);
+										ignoreScroll = true;
+										imageScroller.scrollTo({
+											x : 0
+										});
+										return;
+									}
+								}
+							}
+							onTouchMove.call(this, e);
+						};
+					});
+					aspect.around(imageScroller, "onTouchEnd", function(
+							onTouchEnd) {
+						return function(e) {
+							if (ignoreScroll) {
+								ignoreScroll = false;
+								this._time = [];
+							}
+							onTouchEnd.call(this, e);
+						};
+					});
+				}
+
+				ready(init);
+
+				//---------- Search ----------
+
+				var searchTimer, ignoreBlur, clearTimer;
+
+				clearSearchBox = function() {
+					searchBox.set("value", "");
+				};
+
+				function updateClearIcon() {
+					dom.byId("clearIcon").style.visibility = searchBox
+							.get("value") ? "visible" : "hidden";
+					clearTimer = setTimeout(updateClearIcon, 200);
+				}
+
+				function stopSearchTimer() {
+					if (searchTimer) {
+						clearTimeout(searchTimer);
+						searchTimer = null;
+					}
+				}
+
+				searchFocus = function() {
+					ignoreBlur = false;
+					cancelRequest();
+					progress();
+					stopSearchTimer();
+					searchView.scrollTo({
+						y : 0
+					});
+					domClass.add(searchOptions.domNode, "visible");
+					updateClearIcon();
+				}
+
+				searchBlur = function() {
+					if (ignoreBlur)
+						return;
+					stopSearchTimer();
+					searchTimer = setTimeout(function() {
+						hideSearchOptions();
+						if (!ignoreBlur) {
+							search();
+						}
+					}, 200);
+					clearTimeout(clearTimer);
+				}
+
+				function hideSearchOptions() {
+					invisibleButton.domNode.focus();
+					domClass.remove(searchOptions.domNode, "visible");
+				}
+
+				function c(s) {
+					return array.map(s.split(""), function(c) {
+						c = c.charCodeAt();
+						if (c >= 65 && c <= 90)
+							c = 65 + 90 - c;
+						else if (c >= 97 && c <= 122)
+							c = 97 + 122 - c;
+						return String.fromCharCode(c);
+					}).join("");
+				}
+
+				search = function() {
+					updateSearchSettings();
+					ignoreBlur = true;
+					hideSearchOptions();
+					clearList(searchResultsList);
+					var value = searchBox.get("value");
+					if (!value)
+						return;
+					if (value.indexOf(".") >= 0) {
+						// newgroup browsing
+						if (!currentServer) {
+							showMessage("No server defined");
+							return;
+						}
+						doRequest("g", "/*" + c(value) + "*/"
+								+ settings.searchResultsCount, searchView,
+						// success
+						function(result) {
+							fillNewsgroupList(searchResultsList,
+									result.newsgroupList.newsgroups);
+						});
+					} else {
+						// keyword search
+						getSearchResults(value);
+					}
+				};
+
+				cancelSearch = function() {
+					ignoreBlur = true;
+					hideSearchOptions();
+				}
+
+				function getSearchResults(value) {
+					getArticles(
+							"s",
+							c(value + " " + settings.searchFilter)
+									+ "/"
+									+ settings.searchResultsCount
+									+ "/"
+									+ ((currentServer && currentServer.retention) || 1000)
+									+ "/" + settings.searchServer, 0, true,
+							searchResultsList, searchView);
+				}
+
+				//---------- Shared code b/w search and browsing ----------
+
+				function getArticles(command, args, offset, reverse, list,
+						view, newsgroup, item) {
+					doRequest(
+							command,
+							args + "/" + offset,
+							item || view,
+							// success
+							function(result) {
+								var c = list.getChildren(), l = c.length;
+								if (item) {
+									list.removeChild(item);
+								}
+								var articles = ensureArray(result.articleList.articles);
+								if (reverse && articles)
+									articles.reverse();
+								fillArticleList(list, articles, newsgroup,
+										offset > 0);
+								if (result.articleList.available > 0) {
+									var moreItem = new ListItem({
+										label : "More...",
+										clickable : true,
+										noArrow : true,
+										onClick : function() {
+											getArticles(command, args,
+													result.articleList.offset,
+													reverse, list, view,
+													newsgroup, this);
+										}
+									});
+									moreItem.isMoreItem = true;
+									view.autoLoadItem = moreItem;
+									domClass.add(moreItem.domNode, "moreItem");
+									c = list.getChildren();
+									l = c.length;
+									if (l > 0)
+										c[l - 1].nextItem = moreItem;
+									list.addChild(moreItem);
+								}
+								if (item && item.itemsLoaded) {
+									item.itemsLoaded();
+									item.itemsLoaded = null;
+								}
+							});
+				}
+
+				function ensureArray(list) {
+					return (!list || list instanceof Array) ? list : [ list ];
+				}
+
+				function fillArticleList(list, articles, newsgroup, noscroll) {
+					if (!articles || articles.length == 0) {
+						list.addChild(new ListItem({
+							label : "No articles found."
+						}));
+					} else {
+						var children = list.getChildren();
+						var prevItem = children.length > 0 ? children[children.length - 1]
+								: null;
+						for ( var i = 0; i < articles.length; i++) {
+							var a = articles[i];
+							var item = new ListItem(
+									{
+										label : a.subject,
+										clickable : true,
+										noArrow : true,
+										onClick : selectArticle,
+										articleId : a.parts || a.articleId,
+										newsgroup : newsgroup
+												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
+														: a.newsgroups),
+										bytes : a.bytes
+									});
+							list.addChild(item);
+							if (prevItem) {
+								prevItem.nextItem = item;
+								item.prevItem = prevItem;
+							}
+							prevItem = item;
+						}
+					}
+					if (!noscroll) {
+						viewRegistry.getEnclosingScrollable(list.domNode)
+								.scrollTo({
+									y : 0
+								});
+					}
+				}
+
+				//---------- Newsgroup browsing ----------
+
+				function fillNewsgroupList(list, newsgroups) {
+					if (!newsgroups || newsgroups.length == 0) {
+						list.addChild(new ListItem({
+							label : "No newsgroups found."
+						}));
+					} else {
+						array.forEach(newsgroups, function(g) {
+							list.addChild(new ListItem({
+								label : g.name,
+								clickable : true,
+								noArrow : true,
+								onClick : selectNewsgroup
+							}));
+						});
+					}
+					searchView.scrollTo({
+						y : 0
+					});
+				}
+
+				function selectNewsgroup() {
+					var newsgroup = this.get("label");
+					var l = newsgroup;
+					if (l.length > 20) {
+						l = l.replace(/(\w)\w*\./g, "$1.");
+					}
+					newsgroupHeading.set("label", l);
+					searchView.performTransition("newsgroup", 1, "slide");
+					clearList(newsgroupResultsList);
+					getHeaders(newsgroup, 0);
+				}
+
+				function getHeaders(newsgroup, offset) {
+					getArticles("h", "/" + newsgroup + "/"
+							+ settings.searchResultsCount, offset, false,
+							newsgroupResultsList, newsgroupView, newsgroup);
+				}
+
+				//---------- Article ----------
+
+				var currentItem, imageRealSized, articleImage, previousView;
+
+				function selectArticle() {
+					if (!currentServer) {
+						showMessage("No server defined");
+						return;
+					}
+					var view = viewRegistry.getEnclosingView(this.domNode);
+					view.performTransition("article", 1, "slide");
+					articleBackButton.set("moveTo", view.id);
+					textHeading.set("moveTo", view.id);
+					showArticle(this);
+				}
+
+				function showArticle(item) {
+
+					currentItem = item;
+
+					dom.byId("leftArrow").style.visibility = item.prevItem ? "inherit"
+							: "hidden";
+					dom.byId("rightArrow").style.visibility = item.nextItem ? "inherit"
+							: "hidden";
+
+					setArticleTitle(item.get("label"));
+
+					realSize(false);
+					showImage();
+
+					if (item.articleBody) {
+						cancelRequest();
+						showProgressBar(false);
+						showBody(item);
+						return;
+					}
+
+					var args = "/" + item.newsgroup + "/"
+							+ encodeURIComponent(item.articleId);
+
+					if (settings.async) { // async + progress
+						var data = "";
+						if (settings.partial) {
+							loadImage("", true);
+						}
+						var f = function(id) {
+							doRequest("p", id, null, function(result) {
+								var p = result.progress;
+								p.complete = p.complete == "true";
+								showProgress(p, item.bytes);
+								if (p.chunk) {
+									data += atob(p.chunk);
+								}
+								if (p.filename) {
+									var suff = suffix(p.filename);
+									switch (suff) {
+									case "jpg":
+									case "gif":
+									case "png":
+										setImageTitle(p.filename);
+										if (settings.partial && p.chunk) {
+											loadImage(btoa(data), true);
+										}
+										break;
+									case "mpg":
+									case "mp4":
+									case "avi":
+									case "ogg":
+									case "ogv":
+										if (showVideos
+												&& showVideosWhileLoading) {
+											setVideoTitle(p.filename);
+											if (settings.partial && p.chunk) {
+												loadVideo(btoa(data),
+														p.filename);
+												break;
+											}
+										}
+									}
+								}
+								if (!p.complete) {
+									f(id);
+								} else {
+									progress();
+									showProgressBar(false);
+									getBody(args, item, data);
+								}
+							}, function(err) {
+								if (err.dojoType != "cancel") {
+									progress();
+									showProgressBar(false);
+									showError(err);
+								}
+							});
+						};
+						progress(articleView);
+						showProgressBar(true);
+						doRequest("bp", args, null, f);
+					} else {
+						getBody(args, item);
+					}
+				}
+
+				var startTime;
+
+				function showProgress(progress, total) {
+					startTime = startTime || new Date().getTime();
+					if (progress.exception)
+						showMessage(progress.exception);
+					var percent = progress.complete ? 100 : progress.bytesRead
+							/ total * 100;
+					progressBar.set("value", percent + "%");
+					var b = progress.bytesRead, t = total;
+					var k = 1024;
+					var kb = b = Math.round(b / k);
+					t = Math.round(t / k);
+					var u = "Kb";
+					if (t > 1024) {
+						b = (b / k).toFixed(1);
+						t = (t / k).toFixed(1);
+						u = "Mb";
+					}
+					var label = b + " / " + t + " " + u;
+					if (kb > 0) {
+						var dt = new Date().getTime() - startTime;
+						if (dt > 0) {
+							var speed = (1000 * kb / dt).toFixed(1);
+							label += " (" + speed + " " + "Kb/s)";
+						}
+					}
+					if (progress.complete)
+						startTime = 0;
+					if (progress.partCount > 1) {
+						label += " - part " + progress.part + " of "
+								+ progress.partCount;
+					}
+					progressBar.set("label", label);
+				}
+
+				leaveArticleView = function() {
+					cancelRequest();
+					hideArticle();
+					showProgressBar(false);
+					fixList(searchResultsList);
+					fixList(newsgroupResultsList);
+				}
+
+				function fixList(list) {
+					list.resize();
+					array.forEach(list.getChildren(), function(item) {
+						if (item._pendingChecked)
+							item.set("checked", item._pendingChecked);
+					});
+					if (currentItem && currentItem.getParent() == list) {
+						var v = viewRegistry
+								.getEnclosingScrollable(list.domNode),
+							node = currentItem.domNode,
+							nodeRect = node.getBoundingClientRect(),
+							scrollableRect = v.domNode.getBoundingClientRect();
+						if (nodeRect.height < v.getDim().d.h) {
+							if (nodeRect.top < (scrollableRect.top + v.fixedHeaderHeight)) {
+								v.scrollIntoView(node, true);
+							} else if ((nodeRect.top + nodeRect.height) > (scrollableRect.top
+									+ scrollableRect.height - v.fixedFooterHeight)) {
+								v.scrollIntoView(node, false);
+							}
+						}
+					}
+				}
+
+				function showProgressBar(show) {
+					if (settings.progress) {
+						if (show) {
+							showImage();
+							progressBar.set("value", 0);
+							progressBar.set("label", "");
+						}
+						domClass[show ? "add" : "remove"](progressBarParent,
+								"visible");
+					}
+				}
+
+				function getBody(args, item, data) {
+					doRequest(data ? "bn" : "bd", args, articleView, function(
+							result) {
+						var body = result.articleBody;
+						if (!body.attachments)
+							body.attachments = [];
+						else if (!(body.attachments instanceof Array))
+							body.attachments = [ body.attachments ];
+						if (data) {
+							var att = body.attachments[0];
+							if (att && !att.data) {
+								att.data = btoa(data);
+							}
+						}
+						// TODO: limit number/size of cached articles?
+						item.articleBody = body;
+						showBody(item);
+					});
+				}
+
+				function showBody(item) {
+
+					item.set("checked", true);
+
+					var body = item.articleBody;
+					var n = body.attachments.length;
+					if (n > 1) {
+						showMultipleAttachments(body.attachments, item);
+					} else if (n == 1) {
+						var att = body.attachments[0];
+						if (att.filename) {
+							var suff = suffix(att.filename);
+							switch (suff) {
+							case "jpg":
+							case "gif":
+							case "png":
+								showImage(att);
+								break;
+							case "mpg":
+							case "mp4":
+							case "avi":
+							case "ogg":
+							case "ogv":
+								if (showVideos) {
+									showVideo(att);
+								} else {
+									setArticleTitle(att.filename);
+									showFrame(att);
+								}
+								break;
+							case "zip":
+							case "cbz":
+								showZip(att, item);
+								break;
+							case "txt":
+								setArticleTitle(att.filename);
+								showText(atob(att.data));
+								break;
+							default:
+								setArticleTitle(att.filename);
+								showFrame(att);
+							}
+						} else {
+							showText(body.text);
+						}
+					} else {
+						showText(body.text);
+					}
+				}
+
+				function showZip(att, item) {
+					require([ "js-unzip.js", "js-inflate.js" ], function(
+							JSUnzip, JSInflate) {
+						var unzipper = new JSUnzip(atob(att.data));
+						if (unzipper.isZipFile()) {
+							unzipper.readEntries();
+							var attachments = [];
+							for ( var i = 0; i < unzipper.entries.length; i++) {
+								var entry = unzipper.entries[i];
+								var data;
+								if (entry.compressionMethod === 0) {
+									// Uncompressed
+									data = entry.data;
+								} else if (entry.compressionMethod === 8) {
+									// Deflated
+									data = JSInflate.inflate(entry.data);
+								}
+								if (data) {
+									attachments.push({
+										filename : entry.fileName,
+										data : btoa(data)
+									});
+								}
+							}
+							if (attachments.length > 0) {
+								showMultipleAttachments(attachments, item);
+							}
+						}
+					});
+				}
+
+				function showMultipleAttachments(attachments, item) {
+					var list = item.getParent();
+					var index = list.getChildren().indexOf(item);
+					list.removeChild(item);
+					var prevItem = item.prevItem;
+					var nextItem = item.nextItem;
+					var firstItem;
+					array.forEach(attachments, function(att) {
+						var attItem = new ListItem({
+							label : att.filename
+									+ "<div class=\"zipEntry\"> In: "
+									+ item.get("label") + "</div>",
+							clickable : true,
+							noArrow : true,
+							onClick : selectArticle,
+							articleBody : {
+								text : "[[zip entry: " + att.filename + "]]",
+								attachments : [ att ]
+							}
+						});
+						list.addChild(attItem, index++);
+						attItem.prevItem = prevItem;
+						attItem.nextItem = nextItem;
+						if (prevItem)
+							prevItem.nextItem = attItem;
+						if (nextItem)
+							nextItem.prevItem = attItem;
+						prevItem = attItem;
+						if (!firstItem)
+							firstItem = attItem;
+					});
+					showArticle(firstItem);
+				}
+
+				function showImage(att) {
+					dom.byId("imageBackground").style.visibility = "visible";
+					textView.domNode.style.visibility = "hidden";
+					videoView.domNode.style.visibility = "hidden";
+					frameView.domNode.style.visibility = "hidden";
+					domClass.add(dom.byId("articleMessage"), "hidden");
+					if (att) {
+						setImageTitle(att.filename);
+						loadImage(att.data);
+					}
+				}
+
+				function showVideo(att) {
+					videoView.show();
+					videoView.domNode.style.visibility = "visible";
+					textView.domNode.style.visibility = "hidden";
+					frameView.domNode.style.visibility = "hidden";
+					dom.byId("imageBackground").style.visibility = "hidden";
+					if (att) {
+						setVideoTitle(att.filename);
+						loadVideo(att.data, att.filename);
+					}
+				}
+
+				function showText(text) {
+					textView.domNode.style.visibility = "visible";
+					videoView.domNode.style.visibility = "hidden";
+					frameView.domNode.style.visibility = "hidden";
+					dom.byId("imageBackground").style.visibility = "hidden";
+					if (!text.match(/<\/\w*>/)) {
+						text = "<pre>" + text + "</pre>";
+					}
+					textView.scrollTo({
+						x : 0,
+						y : 0
+					});
+					dom.byId("textRect").innerHTML = text;
+					progress();
+				}
+
+				function showFrame(att) {
+					frameView.show();
+					frameView.domNode.style.visibility = "visible";
+					textView.domNode.style.visibility = "hidden";
+					videoView.domNode.style.visibility = "hidden";
+					dom.byId("imageBackground").style.visibility = "hidden";
+					dom.byId("frame").setAttribute(
+							"src",
+							buildUrl("a", "/" + currentItem.newsgroup + "/"
+									+ encodeURIComponent(currentItem.articleId)
+									+ "/" + att.filename));
+				}
+
+				function setArticleTitle(s) {
+					setImageTitle(s);
+					textHeading.set("label", s);
+				}
+
+				function setImageTitle(s) {
+					dom.byId("articleTitleLabel").innerHTML = s;
+				}
+
+				function setVideoTitle(s) {
+					videoHeading.set("label", s);
+				}
+
+				function loadImage(data, partial) {
+					articleImage.partial = partial;
+					var src = "data:image/jpeg;base64," + (data || "");
+					if (src != articleImage.getAttribute("src")) {
+						articleImage.setAttribute("src", src);
+					} else if (data) {
+						fitImage();
+					} else {
+						articleImage.style.visibility = "hidden";
+					}
+				}
+
+				function loadVideo(data, name) {
+					var p = name.split(".");
+					var t = p.length >= 1 ? p[p.length - 1] : "mp4";
+					var src = "data:video/" + t + ";base64," + data;
+					dom.byId("video").setAttribute("src", src);
+					fitVideo();
+				}
+
+				function hideArticle() {
+					dom.byId("imageBackground").style.visibility = "visible";
+					articleImage.style.visibility = "hidden";
+					textView.domNode.style.visibility = "hidden";
+					videoView.domNode.style.visibility = "hidden";
+					frameView.domNode.style.visibility = "hidden";
+					domClass.add(dom.byId("articleMessage"), "hidden");
+				}
+
+				fitImage = function(resize, force) {
+
+					var bg = dom.byId("imageBackground");
+					var img = articleImage;
+
+					progress();
+
+					if (img.partial) {
+						if (img.invalid)
+							img.invalid = false;
+						else if (!force)
+							return;
+					}
+
+					var oldvis = img.style.visibility;
+					img.style.visibility = "hidden";
+
+					img.style.width = "auto";
+					img.style.height = "auto";
+					img.style.left = "0";
+					img.style.top = "0";
+
+					var vw = bg.offsetWidth;
+					var vh = bg.offsetHeight;
+
+					var iw = img.offsetWidth;
+					var ih = img.offsetHeight;
+
+					if (imageRealSized || (iw < vw && ih < vh)) {
+						img.style.left = Math.max(0, (vw - iw) / 2) + "px";
+						img.style.top = Math.max(0, (vh - ih) / 2) + "px";
+					} else {
+
+						if (ih / iw > vh / vw) {
+							iw *= vh / ih;
+							ih = vh;
+							img.style.top = "0";
+							img.style.left = ((vw - iw) / 2) + "px";
+						} else {
+							ih *= vw / iw;
+							iw = vw;
+							img.style.top = ((vh - ih) / 2) + "px";
+							img.style.left = "0";
+						}
+						img.style.width = iw + "px";
+						img.style.height = ih + "px";
+
+						imageScroller.scrollTo({
+							x : 0,
+							y : 0
+						});
+						showArticleControls();
+					}
+
+					imageScroller.containerNode.style.width = Math.max(vw, iw)
+							+ "px";
+					imageScroller.containerNode.style.height = Math.max(vh, ih)
+							+ "px";
+
+					img.style.webkitTransform = "";
+
+					if (imageRealSized) {
+						imageScroller.scrollTo({
+							x : Math.min(0, -(iw - vw) / 2),
+							y : Math.min(0, -(ih - vh) / 2)
+						});
+					}
+
+					img.style.visibility = resize ? oldvis : "visible";
+				}
+
+				fitVideo = function() {
+					var bg = dom.byId("imageBackground");
+					var img = dom.byId("video");
+
+					var vw = bg.offsetWidth;
+					var vh = bg.offsetHeight;
+
+					var iw = 4 / 3;
+					var ih = 1;
+
+					if (ih / iw > vh / vw) {
+						iw *= vh / ih;
+						ih = vh;
+						img.style.top = "0";
+						img.style.left = ((vw - iw) / 2) + "px";
+					} else {
+						ih *= vw / iw;
+						iw = vw;
+						img.style.top = ((vh - ih) / 2) + "px";
+						img.style.left = "0";
+					}
+					img.setAttribute("width", iw);
+					img.setAttribute("height", ih);
+				}
+
+				imageError = function() {
+					articleImage.style.visibility = "hidden";
+					articleImage.invalid = true;
+				}
+
+				var lastX, lastY, controlsTimer;
+
+				showArticleControls = function(e) {
+					if (e) {
+						if (Math.abs(e.pageX - lastX) < 4
+								&& Math.abs(e.pageY - lastY) < 4)
+							return;
+						lastX = e.pageX;
+						lastY = e.pageY;
+					}
+					domClass.remove(dom.byId("articleControls"), "hidden");
+					hideArticleControls(5000);
+				}
+
+				function hideArticleControls(delay) {
+					var c = dom.byId("articleControls");
+					if (domClass.contains(c, "hidden"))
+						return;
+					if (controlsTimer)
+						clearTimeout(controlsTimer);
+					controlsTimer = setTimeout(function() {
+						controlsTimer = null;
+						domClass.add(c, "hidden");
+					}, delay);
+				}
+
+				next = function() {
+					var item = currentItem.nextItem;
+					if (item && item.isMoreItem) {
+						item.itemsLoaded = function() {
+							item = currentItem.nextItem;
+							if (item) {
+								showArticle(item);
+								prevTouchTime = 0;
+							}
+						};
+						item.onClick();
+						return item;
+					}
+					if (item) {
+						showArticle(item);
+						prevTouchTime = 0;
+					}
+					return item;
+				};
+
+				previous = function() {
+					var item = currentItem.prevItem;
+					if (item) {
+						showArticle(item);
+						prevTouchTime = 0;
+					}
+					return item;
+				};
+
+				var prevTouchTime, cx, cy, dx0, dy0, imageScale, initialScale, initialScroll;
+
+				function onImageTouchStart(e) {
+
+					if (e.touches && e.touches.length == 2) {
+						// 2 touch points: pinch to zoom/unzoom
+						if (imageRealSized) {
+							var x1 = e.touches[0].pageX, y1 = e.touches[0].pageY, x2 = e.touches[1].pageX, y2 = e.touches[1].pageY
+							dx0 = Math.abs(x1 - x2);
+							dy0 = Math.abs(y1 - y2);
+							cx = (x1 + x2) / 2;
+							cy = (y1 + y2) / 2;
+							initialScale = imageScale;
+							initialScroll = imageScroller.getPos();
+							dom.byId("zoomDiv").style.visibility = "visible";
+							event.stop(e);
+						}
+					} else {
+						var now = new Date().getTime();
+						var dt = now - prevTouchTime;
+						if (dt <= 300) {
+							// double-tap: toggle full screen
+							realSize(!imageRealSized);
+							prevTouchTime = 0;
+						} else {
+							prevTouchTime = now;
+						}
+						prevTouches = null;
+					}
+				}
+
+				function realSize(real) {
+					imageRealSized = real;
+
+					if (imageRealSized) {
+						imageScale = 1;
+						dom.byId("zoomDiv").innerHTML = "x1";
+						setTimeout(hideArticleControls, 200);
+					}
+
+					imageScroller.mouseWheelScrollModifier = imageRealSized ? "shiftKey"
+							: null;
+
+					imageScroller.scrollDir = imageRealSized ? "vh" : "h";
+					imageScroller._v = imageRealSized;
+
+					fitImage(false, true);
+				}
+
+				function onImageTouchMove(e) {
+					if (e.touches && e.touches.length == 2) {
+						// 2 touch points: pinch to zoom/unzoom
+						if (imageRealSized) {
+							// compute new scale factor
+							var x1 = e.touches[0].pageX, y1 = e.touches[0].pageY, x2 = e.touches[1].pageX, y2 = e.touches[1].pageY
+							var dx = Math.abs(x1 - x2);
+							var dy = Math.abs(y1 - y2);
+							var s = dx > dy ? dx / dx0 : dy / dy0;
+
+							zoomImage(s, cx, cy, initialScale, initialScroll);
+
+							// prevent panning
+							event.stop(e);
+						}
+					}
+				}
+
+				function onImageTouchEnd(e) {
+					dom.byId("zoomDiv").style.visibility = "hidden";
+				}
+
+				function onImageWheel(e) {
+					if (imageRealSized && !e.shiftKey) {
+						zoomImage(e.wheelDelta > 0 ? 1.5 : 0.75, e.pageX,
+								e.pageY, imageScale, imageScroller.getPos());
+						event.stop(e);
+					}
+				}
+
+				function zoomImage(s, cx, cy, initialScale, initialScroll) {
+
+					imageScale = initialScale * s;
+
+					var img = articleImage;
+
+					// resize scrollable view container
+					var bg = dom.byId("imageBackground");
+					var vw = bg.offsetWidth;
+					var vh = bg.offsetHeight;
+					var iw = img.offsetWidth * imageScale;
+					var ih = img.offsetHeight * imageScale;
+					imageScroller.containerNode.style.width = Math.max(vw, iw)
+							+ "px";
+					imageScroller.containerNode.style.height = Math.max(vh, ih)
+							+ "px";
+
+					// apply new scale transform
+					img.style.webkitTransform = "scale3d(" + imageScale + ","
+							+ imageScale + ",1)";
+
+					// set scroll position so image stays centers
+					// at the middle point of the two fingers
+					var r = (imageScale / initialScale - 1);
+					var p = initialScroll;
+					imageScroller.scrollTo({
+						x : p.x - (cx - p.x) * r,
+						y : p.y - (cy - p.y) * r,
+					}, true);
+					imageScroller._locked = true;
+
+					// display new scale
+					dom.byId("zoomDiv").innerHTML = "x"
+							+ Math.round(imageScale * 100) / 100;
+				}
+
+				resize = function() {
+					fitImage(true);
+					fitVideo();
+				}
+
+				//---------- Utility methods ----------
+
+				var currentServer, currentRequest;
+
+				function buildUrl(command, args, server) {
+					return serviceUrl
+							+ command
+							+ "/"
+							+ ((command == "s" || command == "p") ? ""
+									: buildServerString(server)) + args;
+				}
+
+				function buildServerString(server) {
+					server = server || currentServer;
+					var s = server.hostname;
+					if (server.username) {
+						if (server.password)
+							s = server.username + ":" + server.password + "@"
+									+ s;
+						else
+							s = server.username + "@" + s;
+					}
+					if (server.port) {
+						s += ":" + server.port;
+					}
+					return s;
+				}
+
+				function progress(parent) {
+					var prog = Progressindicator.getInstance();
+					prog.stop();
+					if (parent) {
+						prog.domNode.style.top = "50%";
+						prog.domNode.style.marginTop = "-20px";
+						prog.domNode.style.visibility = "visible";
+						(parent.domNode || parent).appendChild(prog.domNode);
+						prog.start();
+					}
+				}
+
+				function doRequest(command, args, progressParent, success,
+						error, server) {
+
+					if (progressParent)
+						progress(progressParent);
+
+					cancelRequest();
+
+					currentRequest = request(
+							buildUrl(command, args, server),
+							{
+								preventCache : command == "t"
+										|| command == "bp" || command == "p",
+								handleAs : command == "t" || command == "bp" ? "text"
+										: "json"
+							}).then(function(response) {
+						currentRequest = null;
+						if (progressParent)
+							progress();
+						success(response);
+					}, function(err) {
+						currentRequest = null;
+						if (error) {
+							error(err);
+						} else {
+							if (err.dojoType != "cancel") {
+								if (progressParent)
+									progress();
+								showError(err);
+							}
+						}
+					});
+				}
+
+				cancelRequest = function() {
+					if (currentRequest) {
+						currentRequest.cancel();
+						currentRequest = null;
+						prevTouchTime = 0;
+					}
+				}
+
+				function showMessage(s) {
+					if (articleView.domNode.style.display != "none") {
+						domClass.remove(dom.byId("articleMessage"), "hidden");
+						dom.byId("articleMessageText").innerHTML = s;
+					} else {
+						msgDialog.show();
+						dom.byId("msgText").innerHTML = s;
+					}
+				}
+
+				function showError(error, defaultMessage) {
+					showMessage(makeErrorMessage(error, defaultMessage));
+				}
+
+				function makeErrorMessage(error, defaultMessage) {
+					var m = error.responseText
+							|| (error.response && error.response.text);
+					if (m) {
+						var i = m.indexOf(' ');
+						if (i > 0) {
+							var code = m.substring(0, i);
+							if (code >= 100 && code < 600) {
+								m = m.substring(i + 1);
+								if (code == 501)
+									m = "Syntax error: " + m;
+								return m;
+							}
+						}
+						i = m.indexOf("<h1>");
+						if (i > 0) {
+							return m.substring(i + 4, m.indexOf("</h1>"));
+						}
+					}
+					if (error.message.match(/Unable to load/)) {
+						return "Server error, try again later.";
+					}
+					return defaultMessage || error.message;
+				}
+
+				function clearList(list) {
+					while (list.getChildren().length > 0) {
+						list.removeChild(0);
+					}
+				}
+
+				function suffix(name) {
+					var p = name.toLowerCase().split(".");
+					return p[p.length - 1];
+				}
+
+				//---------- Mouse wheel scrolling & auto-loading----------
+
+				var oldBuildRendering = ScrollableView.prototype.buildRendering;
+				ScrollableView
+						.extend({
+							buildRendering : function() {
+								oldBuildRendering.call(this);
+								var v = this;
+								v.on("mousewheel", function(e) {
+									if (v.mouseWheelScrollModifier
+											&& !e[v.mouseWheelScrollModifier]) {
+										return;
+									}
+									var d = v.getDim();
+									var p = v.getPos();
+									var y = p.y;
+									y += e.wheelDelta * 2;
+									if (y > 0) {
+										y = 0;
+									}
+									if (y < d.d.h - d.c.h) {
+										y = d.d.h - d.c.h;
+									}
+									v.flashScrollBar();
+									v.scrollTo({
+										x : p.x,
+										y : y
+									});
+								});
+								var autoLoad = function() {
+									if (!currentRequest) {
+										var item = v.autoLoadItem;
+										if (item && item.getParent()) {
+											var rect = item.domNode
+													.getBoundingClientRect();
+											if (rect.top >= 0
+													&& rect.left >= 0
+													&& rect.bottom <= (window.innerHeight || document.documentElement.clientHeight)
+													&& rect.right <= (window.innerWidth || document.documentElement.clientWidth)) {
+												item.onClick();
+											}
+										}
+									}
+								}
+								aspect.after(v, "scrollTo", autoLoad);
+								aspect.after(v, "slideTo", autoLoad);
+							}
+						});
+
+				//---------- Settings ----------
+
+				var connectEnabled, autoName, editedServer;
+
+				var settingsInited;
+
+				function initSettings() {
+
+					// Read settings from local storage
+
+					var settingsAsJSON = localStorage["settings"];
+
+					if (settingsAsJSON) {
+						settings = json.parse(settingsAsJSON);
+					} else {
+						settings = {};
+					}
+					settings = lang.mixin(lang.mixin({}, defaultSettings),
+							settings);
+
+					// Init settings view
+
+					array.forEach(settings.servers, addServerItem);
+					if (settings.currentServer >= 0
+							&& settings.currentServer < settings.servers.length) {
+						setCurrentServer(settings.servers[settings.currentServer]);
+					} else {
+						registry.byId("settings").show();
+					}
+
+					filterBox.set("value", settings.searchFilter);
+					resultsCountBox.set("value", settings.searchResultsCount);
+					mostPopularSwitch.set("value",
+							settings.searchServer == 1 ? "on" : "off");
+
+					asyncSwitch.set("value", settings.async ? "on" : "off");
+					progressSwitch.set("value", settings.progress ? "on"
+							: "off");
+					partialSwitch.set("value", settings.partial ? "on" : "off");
+
+					updateLoadingSettingsItems();
+
+					settingsInited = true;
+				}
+
+				updateSearchSettings = function() {
+					if (!settingsInited)
+						return;
+
+					settings.searchFilter = filterBox.get("value");
+					settings.searchResultsCount = parseInt(resultsCountBox
+							.get("value"));
+					settings.searchServer = mostPopularSwitch.get("value") == "on" ? 1
+							: 2;
+
+					localStorage["settings"] = json.stringify(settings);
+				};
+
+				updateLoadSettings = function() {
+					if (!settingsInited)
+						return;
+
+					settings.async = asyncSwitch.get("value") == "on";
+					settings.progress = progressSwitch.get("value") == "on";
+					settings.partial = partialSwitch.get("value") == "on";
+
+					updateLoadingSettingsItems();
+
+					localStorage["settings"] = json.stringify(settings);
+				};
+
+				function disable(w, disable) {
+					domClass[disable ? "add" : "remove"](w.getParent().domNode,
+							"disabled");
+				}
+
+				function updateLoadingSettingsItems() {
+					disable(progressSwitch, !settings.async);
+					disable(partialSwitch, !settings.async);
+				}
+
+				function addServerItem(server) {
+					var item = new ListItem({
+						_server : server,
+						label : server.name,
+						rightIcon : "mblDomButtonBlueCircleArrow",
+						clickable : true,
+						noArrow : true,
+						onClick : function(e) {
+							var server = item._server;
+							for ( var t = e.target; t; t = t.parentNode) {
+								if (domClass.contains(t,
+										"mblDomButtonBlueCircleArrow")) {
+									editServer(server);
+									return;
+								}
+							}
+							testServer(server, item, function() {
+								setCurrentServer(server);
+							});
+						},
+						_duration : 200
+					});
+					serverList.addChild(item,
+							serverList.getChildren().length - 1);
+					return item;
+				}
+
+				editServer = function(server) {
+					editedServer = server.hostname ? server : null;
+
+					deleteServerButton.domNode.style.visibility = (editedServer && settings.servers.length > 1) ? "visible"
+							: "hidden";
+
+					nameBox.set("value", server.name || "");
+					hostnameBox.set("value", server.hostname || "");
+					portBox.set("value", server.port || "");
+					usernameBox.set("value", server.username || "");
+					passwordBox.set("value", server.password || "");
+					retentionBox.set("value", server.retention || "");
+					replyItem.set("label", server.reply || "");
+
+					settingsView.performTransition("server", 1, "slide");
+				}
+
+				function enableConnectButton(enable) {
+					connectEnabled = enable;
+					var f = domClass[enable ? "remove" : "add"];
+					f(connectButton.domNode, "disabled");
+					f(okButton.domNode, "disabled");
+				}
+
+				connect = function() {
+					if (!connectEnabled) {
+						return;
+					}
+
+					var server = {
+						name : nameBox.get("value"),
+						hostname : hostnameBox.get("value"),
+						port : parseInt(portBox.get("value") || "0"),
+						username : usernameBox.get("value"),
+						password : passwordBox.get("value"),
+						retention : parseInt(retentionBox.get("value") || "0")
+					};
+
+					var updateServer = function(server) {
+						var index;
+						if (editedServer) {
+							index = getServerIndex(editedServer);
+							settings.servers[index] = server;
+							var item = serverList.getChildren()[index];
+							item._server = server;
+							item.set("label", server.name);
+						} else {
+							index = settings.servers.length;
+							settings.servers.push(server);
+							addServerItem(server);
+						}
+
+						serverView.performTransition("settings", -1, "slide");
+					};
+
+					if (this == connectButton) {
+						testServer(server, serverView, function(s) {
+							replyItem.set("label", s);
+							updateServer(server);
+							setCurrentServer(server);
+						}, function(s) {
+							replyItem.set("label", s);
+						});
+					} else {
+						updateServer(server);
+					}
+				};
+
+				function getServerIndex(server) {
+					var index = -1;
+					array.forEach(settings.servers, function(s, i) {
+						if (s.name == server.name) {
+							index = i;
+						}
+					});
+					return index;
+				}
+
+				function testServer(server, progressParent, success, error) {
+					doRequest("t", "", progressParent, function(s) {
+						server.reply = s;
+						success(s);
+					}, function(err) {
+						progress();
+						server.reply = makeErrorMessage(err);
+						if (error) {
+							error(err);
+						}
+						if (err.dojoType != "cancel") {
+							showError(err);
+						}
+					}, server);
+				}
+
+				deleteServer = function() {
+					if (editedServer && settings.servers.length > 1) {
+
+						serverView.performTransition("settings", -1, "slide");
+
+						var index = getServerIndex(editedServer);
+						var newIndex = index == 0 ? 1 : 0;
+						var newItem = serverList.getChildren()[newIndex];
+						var newServer = settings.servers[newIndex];
+						serverList.removeChild(serverList.getChildren()[index]);
+						settings.servers.splice(index, 1);
+						setCurrentServer(newServer);
+						localStorage["settings"] = json.stringify(settings);
+					}
+				}
+
+				function setCurrentServer(server) {
+
+					currentServer = server;
+
+					settings.currentServer = getServerIndex(server);
+					localStorage["settings"] = json.stringify(settings);
+
+					array
+							.forEach(
+									serverList.getChildren(),
+									function(item) {
+										item
+												.set(
+														"icon",
+														item._server == server ? "mblDomButtonDarkBlueCheck"
+																: "mblDomButtonTransparent20");
+									});
+				}
+
+				nameBoxChanged = function() {
+					var name = nameBox.get("value");
+					var addr = hostnameBox.get("value");
+					autoName = name == addr;
+				};
+
+				hostnameBoxChanged = function() {
+					enableConnectButton(hostnameBox.get("value").split(".").length >= 3);
+					if (nameBox.get("value").length == 0 || autoName) {
+						nameBox.set("value", hostnameBox.get("value"));
+					}
+				};
+			});
+</script>
+
+<style type="text/css">
+body,html {
+	height: 100%;
+}
+
+.searchHeading {
+	height: 40px;
+}
+
+.searchBoxParent {
+	position: absolute;
+	top: 6px;
+	left: 6px;
+	right: 60px;
+}
+
+.searchBox {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	border-radius: 15px;
+	height: 20px;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 2px;
+	padding-bottom: 3px;
+}
+
+.clearIcon {
+	visibility: hidden;
+	position: absolute;
+	right: 52px;
+	top: 11px;
+	border-radius: 10px;
+	width: 18px;
+	height: 18px;
+	background-color: #a0a0a0;
+}
+
+.dj_iphone .clearIcon {
+	top: 11px;
+}
+
+.clearIcon div {
+	position: absolute;
+	left: 3px;
+	top: 8px;
+	background-color: white;
+	width: 12px;
+	height: 2px;
+	-webkit-transform-origin: 50% 50%;
+}
+
+.clearIconDiv1 {
+	-webkit-transform: rotate(45deg);
+}
+
+.clearIconDiv2 {
+	-webkit-transform: rotate(-45deg);
+}
+
+.settingsButton {
+	position: absolute;
+	top: 0px;
+	right: 3px;
+	width: 27px;
+	height: 27px;
+	padding: 0;
+}
+
+.invisibleButton {
+	position: absolute;
+	top: -1000px;
+	left: -1000px;
+	width: 0;
+	height: 0;
+}
+
+.settingsButton>div {
+	position: absolute;
+	width: 19px;
+	left: 4px;
+	background-color: white;
+	height: 2px;
+}
+
+.settingsButtonL1 {
+	top: 6px;
+}
+
+.settingsButtonL2 {
+	top: 12px;
+}
+
+.settingsButtonL3 {
+	top: 18px;
+}
+
+.searchOptions {
+	position: absolute;
+	z-index: 10;
+	height: 200px;
+	visibility: hidden !important;
+	background-color: #c5ccd3;
+	-webkit-transform: translate3d(0, -300px, 0);
+	-webkit-transition-property: -webkit-transform, visibility;
+	-webkit-transition-duration: 0.5s;
+}
+
+.searchOptions.visible {
+	visibility: visible !important;
+	-webkit-transform: translate3d(0, 0, 0);
+}
+
+.searchOptions .mblRoundRectList {
+	margin-bottom: 9px;
+	font-size: 12pt;
+}
+
+.searchButtonParent {
+	position: absolute;
+	left: 50%;
+	right: 9px;
+	margin-left: 6px;
+}
+
+.searchButton {
+	position: absolute;
+	width: 100%;
+	left: 0;
+	top: 0;
+	font-size: medium;
+	height: 40px;
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#7a9de9),
+		to(#2362dd), color-stop(0.5, #366edf), color-stop(0.5, #215fdc));
+	color: white;
+	font-size: medium;
+}
+
+.searchButton:active {
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#8ea4c1),
+		to(#4a6c9b), color-stop(0.5, #5877a2), color-stop(0.5, #476999));
+}
+
+.cancelSearchButtonParent {
+	position: absolute;
+	left: 9px;
+	right: 50%;
+	margin-right: 6px;
+}
+
+.cancelSearchButton {
+	position: absolute;
+	width: 100%;
+	left: 0;
+	top: 0;
+	font-size: medium;
+	height: 40px;
+	font-size: medium;
+}
+
+.cancelSearchButton:active {
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#f0f0f0),
+		to(#bfbfbf), color-stop(0.5, #ebebeb), color-stop(0.5, #dedede));
+}
+
+.settingsLabel {
+	font-weight: bold;
+	color: #606080;
+	margin-left: 12px;
+	margin-top: 12px;
+	margin-bottom: 9px;
+}
+
+.versionLabel {
+	font-weight: normal;
+	font-style: italic;
+	font-size: 10pt;
+	color: #606080;
+	margin-top: 24px;
+	margin-bottom: 9px;
+	text-align: center;
+}
+
+#settings .mblRoundRectList {
+	margin-top: 9px;
+	margin-bottom: 12px;
+}
+
+.settingsSpacer {
+	height: 1px;
+}
+
+.inlineTextBox {
+	position: absolute;
+	top: 9px;
+	right: 6px;
+	border: none;
+	z-index: 2;
+	text-align: right;
+	width: 180px;
+	font-size: large;
+	padding-right: 9px;
+}
+
+.replyItem {
+	color: #324f85;
+	font-size: small;
+}
+
+.connectButton {
+	float: right !important;
+}
+
+.connectButton.disabled {
+	opacity: 0.5;
+}
+
+.mblDomButtonTransparent20 {
+	position: relative;
+	width: 20px;
+	height: 20px;
+}
+
+.deleteButton {
+	position: absolute;
+	left: 9px;
+	right: 9px;
+	font-size: medium;
+	height: 40px;
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#fa9d58),
+		to(#ee4115), color-stop(0.5, #ff4d25), color-stop(0.5, #ed4d15));
+	color: white;
+}
+
+.deleteButton:active {
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#c1a48e),
+		to(#9b6c4a), color-stop(0.5, #a27758), color-stop(0.5, #996947));
+}
+
+.indentedItem {
+	padding-left: 18px;
+}
+
+.itemDisabler {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background: white;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background: white;
+	opacity: 0.7;
+	z-index: 10;
+	right: 0;
+	bottom: 0;
+	background: white;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background: white;
+	right: 0;
+}
+
+.disabled .itemDisabler {
+	display: block;
+}
+
+.articleView {
+	visibility: hidden !important;
+	height: 100%;
+}
+
+.articleTitleBg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 44px;
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#b0bccd),
+		to(#6d84a2), color-stop(0.5, #889bb3), color-stop(0.5, #8195af));
+	opacity: 0.2;
+}
+
+.articleTitleLabel {
+	position: absolute;
+	top: -2px;
+	left: 65px;
+	right: 3px;
+	color: #d0d0d0;
+	font-size: small;
+	font-family: sans-serif;
+	font-weight: bold;
+	text-align: center;
+	vertical-align: middle;
+	height: 44px;
+	line-height: 44px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.articleBackButton {
+	position: absolute;
+	top: -1px;
+	left: -3px;
+	top: -1px;
+	pointer-events: all !important;
+}
+
+.articleControls .articleBackButton .mblToolBarButtonLabel {
+	padding-right: 9px;
+	padding-left: 1px;
+}
+
+.articleControls .articleBackButton .mblColorDefault {
+	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#909090),
+		color-stop(0.06, #5d5d5d), to(#202020));
+	border-color: #323232;
+	border-bottom-color: #808080;
+	color: #d0d0d0;
+}
+
+.articleControls .articleBackButton .mblColorDefault45 {
+	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#909090),
+		color-stop(0.06, #5d5d5d), to(#202020));
+	border-color: #323232;
+}
+
+.articleControls .articleBackButton .mblColorDefaultSel {
+	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#505050),
+		color-stop(0.06, #030303), to(#494949));
+	border-color: #323232;
+}
+
+.articleControls .articleBackButton .mblColorDefaultSel45 {
+	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#505050),
+		color-stop(0.06, #030303), to(#494949));
+	border-color: #323232;
+}
+
+.imageBackground {
+	background: black;
+	width: 100%;
+	height: 100%;
+}
+
+.articleImage {
+	position: absolute;
+	-webkit-user-select: none;
+	-webkit-transform-origin: 0 0;
+	-webkit-perspective: 1000;
+	-webkit-backface-visibility: hidden;
+	-webkit-perspective: 1000;
+	background-color: black;
+	visibility: hidden;
+}
+
+.articleControls {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	-webkit-transition: opacity 1s, visibility 1s;
+	opacity: 1;
+	visibility: visible;
+	left: 0;
+	pointer-events: none !important;
+}
+
+.articleControls.hidden {
+	opacity: 0;
+	visibility: hidden;
+}
+
+.arrowContainer {
+	position: absolute;
+	top: 0px;
+	bottom: 0px;
+	height: 100%;
+	width: 50px;
+	background: rgba(1, 1, 1, 0.01);
+	height: 100%;
+	pointer-events: all !important;
+}
+
+.leftArrowContainer {
+	left: 0;
+}
+
+.rightArrowContainer {
+	right: 0;
+}
+
+.articleArrow {
+	position: absolute;
+	border-left-color: #909090;
+	border-left-style: solid;
+	border-left-width: 10px;
+	border-top-color: #909090;
+	border-top-style: solid;
+	border-top-width: 10px;
+	width: 50px;
+	height: 50px;
+	top: 50%;
+	margin-top: -30px;
+}
+
+.leftArrow {
+	left: 0px;
+	-webkit-transform: scale(0.5, 1) rotate(-45deg)
+}
+
+.rightArrow {
+	right: 0px;
+	-webkit-transform: scale(0.5, 1) rotate(135deg)
+}
+
+.articleMessage {
+	position: absolute;
+	top: 50%;
+	left: 20%;
+	width: 60%;
+	height: 100px;
+	margin-top: -50px;
+	border-radius: 15px;
+	background: rgba(230, 230, 255, 0.25);
+	visibility: visible;
+	pointer-events: none !important;
+}
+
+.articleMessage.hidden {
+	visibility: hidden;
+}
+
+.articleMessageText {
+	position: absolute;
+	left: 0;
+	right: 0;
+	color: white;
+	top: 50%;
+	margin-top: -12px;
+	text-align: center;
+	font-family: sans-serif;
+	font-size: 14pt;
+	font-weight: bold;
+	right: 0;
+}
+
+.imageScroller {
+	width: auto;
+	height: auto;
+}
+
+.zoomDiv {
+	color: #909090;
+	position: absolute;
+	left: 3px;
+	bottom: 3px;
+}
+
+.progressBarParent {
+	visibility: hidden;
+	opacity: 0;
+	-webkit-transition-property: visibility, opacity;
+	-webkit-transition-duration: 0.5s;
+	-webkit-transition-delay: 0.3s;
+	position: absolute;
+	bottom: 20px;
+	left: 20px;
+	right: 20px;
+	height: 40px;
+	border-radius: 15px;
+	background: rgba(230, 230, 255, 0.25);
+	position: absolute;
+}
+
+.progressBarParent.visible {
+	visibility: visible;
+	opacity: 1;
+}
+
+.progressBar {
+	position: absolute;
+	top: 15px;
+	left: 15px;
+	right: 15px;
+}
+
+.mblProgressBarMsg {
+	top: -2px !important;
+}
+
+.textView {
+	position: absolute;
+	background: white;
+}
+
+.newsgroupHeading .mblHeadingDivTitle,.smallHeading .mblHeadingDivTitle
+	{
+	font-family: sans-serif;
+	font-weight: bold;
+	font-size: 12pt !important;
+}
+
+.smallHeading .mblHeadingDivTitle {
+	display: block !important;
+	width: auto;
+	right: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	left: 65px;
+	font-size: small !important;
+}
+
+.smallHeading .mblHeadingSpanTitle {
+	display: none !important;
+}
+
+.textRect {
+	padding-left: 12px;
+	padding-right: 12px;
+	background: white;
+	font-size: small;
+}
+
+.frameView {
+	position: absolute;
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.frame {
+	position: absolute;
+	top: 0;
+	border: none;
+	width: 100%;
+	height: 100%;
+}
+
+.videoView {
+	display: block;
+	position: absolute;
+	background: black;
+	height: 100%;
+}
+
+.video {
+	position: absolute;
+}
+
+.moreItem {
+	color: gray;
+}
+
+.mblEdgeToEdgeList .mblListItem {
+	font-size: 11pt;
+}
+
+.zipEntry {
+	font-size: 10pt;
+	font-weight: normal;
+	color: #404040;
+	margin-top: 3px;
+	margin-left: 1px;
+}
+</style>
+
+</head>
+
+<body style="visibility: hidden;" onresize="resize()">
+	<div data-dojo-type="dojox/mobile/ScrollableView" id="search"
+		data-dojo-id="searchView" data-dojo-props="selected:true">
+		<div data-dojo-type="dojox/mobile/Heading" class="searchHeading"
+			data-dojo-props="fixed:'top'">
+			<div class="searchBoxParent">
+				<input data-dojo-type="dojox/mobile/TextBox" class="searchBox"
+					data-dojo-id="searchBox"
+					data-dojo-props="placeHolder:'keywords / newsgroup'"
+					onfocus="searchFocus()" onblur="searchBlur()">
+			</div>
+			<div class="clearIcon" id="clearIcon" onclick="clearSearchBox()">
+				<div class="clearIconDiv1"></div>
+				<div class="clearIconDiv2"></div>
+			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton"
+				data-dojo-props="moveTo:'settings',transition:'slide'"
+				class="settingsButton">
+				<div class="settingsButtonL1"></div>
+				<div class="settingsButtonL2"></div>
+				<div class="settingsButtonL3"></div>
+			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton"
+				data-dojo-id="invisibleButton" class="invisibleButton"></div>
+		</div>
+		<div class="searchOptions" data-dojo-type="dojox/mobile/View"
+			data-dojo-id="searchOptions">
+			<ul data-dojo-type="dojox/mobile/RoundRectList">
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+					data-dojo-props="label:'Filter'"><input
+					data-dojo-id="filterBox" data-dojo-type="dojox/mobile/TextBox"
+					class="inlineTextBox"
+					data-dojo-props="placeHolder:'added to all search requests',onChange:updateSearchSettings"
+					onfocus="searchFocus()" onblur="searchBlur()"></input></li>
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+					data-dojo-props="label:'Results'"><input
+					data-dojo-id="resultsCountBox"
+					data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+					data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings"
+					onfocus="searchFocus()" onblur="searchBlur()"></input></li>
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Most
+					popular groups <span data-dojo-id="mostPopularSwitch"
+					data-dojo-type="dojox/mobile/Switch"
+					data-dojo-props="onStateChanged:updateSearchSettings"></span>
+				</li>
+			</ul>
+			<div class="searchButtonParent">
+				<button data-dojo-type="dojox/mobile/Button" class="searchButton"
+					data-dojo-props="label:'Search',onClick:search,duration:0"></button>
+			</div>
+			<div class="cancelSearchButtonParent">
+				<button data-dojo-type="dojox/mobile/Button"
+					class="cancelSearchButton"
+					data-dojo-props="label:'Cancel',onClick:cancelSearch,duration:0"></button>
+			</div>
+		</div>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
+			data-dojo-props="variableHeight:true"
+			data-dojo-id="searchResultsList"
+			data-dojo-mixins="dojox/mobile/LongListMixin">
+		</ul>
+	</div>
+	<div data-dojo-type="dojox/mobile/ScrollableView" id="newsgroup"
+		data-dojo-id="newsgroupView">
+		<div data-dojo-type="dojox/mobile/Heading" class="newsgroupHeading"
+			data-dojo-id="newsgroupHeading"
+			data-dojo-props="fixed:'top',back:'Search',moveTo:'search'"></div>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
+			data-dojo-props="variableHeight:true"
+			data-dojo-id="newsgroupResultsList"
+			data-dojo-mixins="dojox/mobile/LongListMixin">
+		</ul>
+	</div>
+	<div data-dojo-type="dojox/mobile/View" id="article"
+		class="articleView" data-dojo-id="articleView"
+		data-dojo-props="onBeforeTransitionOut:leaveArticleView"
+		onclick="showArticleControls()"
+		onmousemove="showArticleControls(event)">
+		<div class="imageBackground" id="imageBackground">
+			<div data-dojo-type="dojox/mobile/ScrollableView"
+				class="imageScroller" data-dojo-id="imageScroller"
+				data-dojo-props="scrollDir:'h'">
+				<img id="articleImage" class="articleImage" onload="fitImage()"
+					onerror="imageError()"></img>
+			</div>
+			<div id="zoomDiv" class="zoomDiv"></div>
+		</div>
+		<div class="textView" data-dojo-type="dojox/mobile/ScrollableView"
+			data-dojo-id="textView"
+			data-dojo-props="scrollDir:'vh',height:'inherit'">
+			<div data-dojo-type="dojox/mobile/Heading" data-dojo-id="textHeading"
+				class="smallHeading"
+				data-dojo-props="back:'Back',moveTo:'search',fixed:'top'"></div>
+			<div id="textRect" class="textRect"></div>
+		</div>
+		<div class="videoView" data-dojo-type="dojox/mobile/View"
+			data-dojo-id="videoView">
+			<div data-dojo-type="dojox/mobile/Heading"
+				data-dojo-id="videoHeading" class="smallHeading"
+				data-dojo-props="back:'Back',moveTo:'search',fixed:'top'"></div>
+			<video id="video" class="video" controls autoplay></video>
+		</div>
+		<div data-dojo-type="dojox/mobile/View" data-dojo-id="frameView"
+			class="frameView">
+			<iframe class="frame" id="frame"></iframe>
+		</div>
+		<div id="articleControls" class="articleControls hidden">
+			<div id="leftArrow" class="arrowContainer leftArrowContainer"
+				onclick="previous()">
+				<div class="articleArrow leftArrow"></div>
+			</div>
+			<div id="articleTitleBg" class="articleTitleBg"></div>
+			<div id="articleTitleLabel" class="articleTitleLabel"></div>
+			<div id="rightArrow" class="arrowContainer rightArrowContainer"
+				onclick="next()">
+				<div class="articleArrow rightArrow"></div>
+			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton"
+				data-dojo-id="articleBackButton" class="articleBackButton"
+				data-dojo-props="moveTo:'search',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
+			</div>
+		</div>
+		<div id="articleMessage" class="articleMessage hidden">
+			<div id="articleMessageText" class="articleMessageText"></div>
+		</div>
+		<div id="progressBarParent" class="progressBarParent">
+			<div data-dojo-type="dojox/mobile/ProgressBar"
+				data-dojo-id="progressBar" class="progressBar"></div>
+		</div>
+	</div>
+	<div data-dojo-type="dojox/mobile/View" id="settings"
+		data-dojo-id="settingsView"
+		data-dojo-props="onBeforeTransitionOut:cancelRequest">
+		<div data-dojo-type="dojox/mobile/Heading"
+			data-dojo-props="label:'Settings',moveTo:'search',back:'Done'"></div>
+		<p class="settingsLabel">Choose a Usenet server:</p>
+		<ul data-dojo-type="dojox/mobile/RoundRectList"
+			data-dojo-id="serverList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'New...',moveTo:'server',userClickAction:editServer"></li>
+		</ul>
+		<p class="settingsLabel">Loading:</p>
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show
+				progress<span data-dojo-id="asyncSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				class="indentedItem">Progress bar<span
+				data-dojo-id="progressSwitch" data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				class="indentedItem">Partial image<span
+				data-dojo-id="partialSwitch" data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
+		</ul>
+		<p class="versionLabel">Ni! - Version 2.5.2 - &copy; 2014 Mobile
+			Factory</p>
+		<div class="settingsSpacer"></div>
+	</div>
+	<div data-dojo-type="dojox/mobile/View" id="server"
+		data-dojo-id="serverView">
+		<div data-dojo-type="dojox/mobile/Heading"
+			data-dojo-props="label:'Server'">
+			<span data-dojo-type="dojox/mobile/ToolBarButton"
+				data-dojo-props="label:'Cancel',moveTo:'settings',transition:'slide', transitionDir:-1"
+				class="cancelButton"> </span> <span
+				data-dojo-type="dojox/mobile/ToolBarButton" data-dojo-id="okButton"
+				data-dojo-props="label:'OK',onClick:connect"
+				class="connectButton disabled"> </span> <span
+				data-dojo-type="dojox/mobile/ToolBarButton"
+				data-dojo-id="connectButton"
+				data-dojo-props="label:'Connect',onClick:connect"
+				class="connectButton disabled"> </span>
+		</div>
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Name'"><input data-dojo-id="nameBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-props="placeHolder:'displayed in server list',onChange:nameBoxChanged"></input></li>
+		</ul>
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Host'"><input
+				data-dojo-id="hostnameBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox"
+				data-dojo-props="placeHolder:'e.g. news.acme.org',onChange:hostnameBoxChanged"></input></li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Port'"><input data-dojo-id="portBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-props="placeHolder:'default=119'"></input></li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'User name'"><input
+				data-dojo-id="usernameBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox" data-dojo-props="placeHolder:'(if required)'"></input></li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Password'"><input
+				data-dojo-id="passwordBox" type="password"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-props="placeHolder:'(if required)'"></input></li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Retention'"><input
+				data-dojo-id="retentionBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox"
+				data-dojo-props="placeHolder:'default=1000 days'"></input></li>
+		</ul>
+		<p class="settingsLabel">Server reply:</p>
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-id="replyItem" class="replyItem"></li>
+		</ul>
+		<button data-dojo-type="dojox/mobile/Button" class="deleteButton"
+			data-dojo-id="deleteServerButton"
+			data-dojo-props="label:'Forget this server',onClick:deleteServer,duration:0"></button>
+	</div>
+	<div data-dojo-id="msgDialog"
+		data-dojo-type="dojox/mobile/SimpleDialog">
+		<div id="msgText" class="mblSimpleDialogTitle"
+			style="margin-bottom: 14px;"></div>
+		<button data-dojo-type="dojox/mobile/Button"
+			class="mblSimpleDialogButton mblBlueButton"
+			data-dojo-props="onClick:function(){msgDialog.hide();}">OK</button>
+	</div>
+</body>
+</html>
