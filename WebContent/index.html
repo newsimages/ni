@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Ni!</title>
 
-<link href="dojo/dojox/mobile/themes/iphone/iphone.css" rel="stylesheet"></link>
+<!-- <link href="dojo/dojox/mobile/themes/iphone/iphone.css" rel="stylesheet"></link> -->
+<link href="dojo/dojox/mobile/themes/ios7/ios7.css" rel="stylesheet"></link>
 <link
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleArrow.css"
 	rel="stylesheet"></link>
@@ -22,7 +23,7 @@
 	rel="stylesheet"></link>
 
 <script type="text/javascript" src="dojo/dojo/dojo.js"
-	data-dojo-config="async:1, parseOnLoad:true"></script>
+	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
 
 <script>
 	require(
@@ -526,10 +527,9 @@
 					});
 					if (currentItem && currentItem.getParent() == list) {
 						var v = viewRegistry
-								.getEnclosingScrollable(list.domNode),
-							node = currentItem.domNode,
-							nodeRect = node.getBoundingClientRect(),
-							scrollableRect = v.domNode.getBoundingClientRect();
+								.getEnclosingScrollable(list.domNode), node = currentItem.domNode, nodeRect = node
+								.getBoundingClientRect(), scrollableRect = v.domNode
+								.getBoundingClientRect();
 						if (nodeRect.height < v.getDim().d.h) {
 							if (nodeRect.top < (scrollableRect.top + v.fixedHeaderHeight)) {
 								v.scrollIntoView(node, true);
@@ -1505,7 +1505,7 @@ body,html {
 	position: absolute;
 	top: 6px;
 	left: 6px;
-	right: 60px;
+	right: 53px;
 }
 
 .searchBox {
@@ -1521,10 +1521,21 @@ body,html {
 	padding-bottom: 3px;
 }
 
+.ios7 .searchBox {
+	background-color: #e6e6e6;
+	border: none;
+	height: 22px;
+	padding-left: 7px;
+	padding-right: 7px;
+	padding-top: 2px;
+	padding-bottom: 4px;
+	border-radius: 6px;
+}
+
 .clearIcon {
 	visibility: hidden;
 	position: absolute;
-	right: 52px;
+	right: 44px;
 	top: 11px;
 	border-radius: 10px;
 	width: 18px;
@@ -1534,6 +1545,10 @@ body,html {
 
 .dj_iphone .clearIcon {
 	top: 11px;
+}
+
+.ios7 .clearIcon {
+	background-color: #b0b0b0;
 }
 
 .clearIcon div {
@@ -1557,7 +1572,7 @@ body,html {
 .settingsButton {
 	position: absolute;
 	top: 0px;
-	right: 3px;
+	right: 0px;
 	width: 27px;
 	height: 27px;
 	padding: 0;
@@ -1577,6 +1592,10 @@ body,html {
 	left: 4px;
 	background-color: white;
 	height: 2px;
+}
+
+.ios7 .settingsButton>div {
+	background-color: #a0a0a0;
 }
 
 .settingsButtonL1 {
@@ -1612,6 +1631,10 @@ body,html {
 	font-size: 12pt;
 }
 
+.ios7 .searchOptions .mblListItem {
+	height: 44px;
+}
+
 .searchButtonParent {
 	position: absolute;
 	left: 50%;
@@ -1632,9 +1655,17 @@ body,html {
 	font-size: medium;
 }
 
+.ios7 .searchButton {
+	background: #215fdc;
+}
+
 .searchButton:active {
 	background-image: -webkit-gradient(linear, left top, left bottom, from(#8ea4c1),
 		to(#4a6c9b), color-stop(0.5, #5877a2), color-stop(0.5, #476999));
+}
+
+.ios7 .searchButton:active {
+	background: #8ea4c1;
 }
 
 .cancelSearchButtonParent {
@@ -1657,6 +1688,10 @@ body,html {
 .cancelSearchButton:active {
 	background-image: -webkit-gradient(linear, left top, left bottom, from(#f0f0f0),
 		to(#bfbfbf), color-stop(0.5, #ebebeb), color-stop(0.5, #dedede));
+}
+
+.ios7 .cancelSearchButton:active {
+	background: #dedede;
 }
 
 .settingsLabel {
@@ -1800,19 +1835,23 @@ body,html {
 }
 
 .articleBackButton {
+	pointer-events: all !important;
+}
+
+not (.ios7 ) .articleBackButton {
 	position: absolute;
 	top: -1px;
 	left: -3px;
 	top: -1px;
-	pointer-events: all !important;
 }
 
-.articleControls .articleBackButton .mblToolBarButtonLabel {
+not (.ios7 ) .articleControls .articleBackButton .mblToolBarButtonLabel
+	{
 	padding-right: 9px;
 	padding-left: 1px;
 }
 
-.articleControls .articleBackButton .mblColorDefault {
+not (.ios7 ) .articleControls .articleBackButton .mblColorDefault {
 	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#909090),
 		color-stop(0.06, #5d5d5d), to(#202020));
 	border-color: #323232;
@@ -1820,19 +1859,19 @@ body,html {
 	color: #d0d0d0;
 }
 
-.articleControls .articleBackButton .mblColorDefault45 {
+not (.ios7 ) .articleControls .articleBackButton .mblColorDefault45 {
 	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#909090),
 		color-stop(0.06, #5d5d5d), to(#202020));
 	border-color: #323232;
 }
 
-.articleControls .articleBackButton .mblColorDefaultSel {
+not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel {
 	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#505050),
 		color-stop(0.06, #030303), to(#494949));
 	border-color: #323232;
 }
 
-.articleControls .articleBackButton .mblColorDefaultSel45 {
+not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#505050),
 		color-stop(0.06, #030303), to(#494949));
 	border-color: #323232;
@@ -1970,9 +2009,14 @@ body,html {
 	left: 20px;
 	right: 20px;
 	height: 40px;
-	border-radius: 15px;
-	background: rgba(230, 230, 255, 0.25);
+	border-radius: 15px; background : rgba( 230, 230, 255, 0.25);
 	position: absolute;
+	background: rgba(230, 230, 255, 0.25);
+}
+
+.ios7 .progressBarParent {
+	height: 30px;
+	border-radius: 6px;
 }
 
 .progressBarParent.visible {
@@ -1987,8 +2031,20 @@ body,html {
 	right: 15px;
 }
 
+.ios7 .progressBar {
+	top: 14px;
+	left: 10px;
+	right: 10px;
+}
+
 .mblProgressBarMsg {
 	top: -2px !important;
+}
+
+.ios7 .mblProgressBarMsg {
+	top: 2px !important;
+	font-size: x-small;
+	color: #808080;
 }
 
 .textView {
@@ -2059,6 +2115,10 @@ body,html {
 	font-size: 11pt;
 }
 
+.ios7 .mblEdgeToEdgeList {
+	border: none;
+}
+
 .zipEntry {
 	font-size: 10pt;
 	font-weight: normal;
@@ -2070,7 +2130,7 @@ body,html {
 
 </head>
 
-<body style="visibility: hidden;" onresize="resize()">
+<body style="visibility: hidden;" onresize="resize()" class="ios7">
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="search"
 		data-dojo-id="searchView" data-dojo-props="selected:true">
 		<div data-dojo-type="dojox/mobile/Heading" class="searchHeading"
@@ -2231,7 +2291,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 2.5.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 2.7.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
