@@ -10,16 +10,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Ni!</title>
 
-<!-- <link href="dojo/dojox/mobile/themes/iphone/iphone.css" rel="stylesheet"></link> -->
 <link href="dojo/dojox/mobile/themes/ios7/ios7.css" rel="stylesheet"></link>
 <link
-	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleArrow.css"
+	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonBlueInfo.css"
 	rel="stylesheet"></link>
 <link
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonDarkBlueCheck.css"
-	rel="stylesheet"></link>
-<link
-	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonWhiteArrow.css"
 	rel="stylesheet"></link>
 
 <script type="text/javascript" src="dojo/dojo/dojo.js"
@@ -1325,14 +1321,14 @@
 					var item = new ListItem({
 						_server : server,
 						label : server.name,
-						rightIcon : "mblDomButtonBlueCircleArrow",
+						rightIcon : "mblDomButtonBlueInfo",
 						clickable : true,
 						noArrow : true,
 						onClick : function(e) {
 							var server = item._server;
 							for ( var t = e.target; t; t = t.parentNode) {
 								if (domClass.contains(t,
-										"mblDomButtonBlueCircleArrow")) {
+										"mblDomButtonBlueInfo")) {
 									editServer(server);
 									return;
 								}
@@ -1499,6 +1495,7 @@ body,html {
 
 .searchHeading {
 	height: 40px;
+	border-bottom: none;
 }
 
 .searchBoxParent {
@@ -1513,21 +1510,12 @@ body,html {
 	top: 0;
 	left: 0;
 	width: 100%;
-	border-radius: 15px;
-	height: 20px;
-	padding-left: 6px;
-	padding-right: 6px;
-	padding-top: 2px;
-	padding-bottom: 3px;
-}
-
-.ios7 .searchBox {
 	background-color: #e6e6e6;
 	border: none;
 	height: 22px;
 	padding-left: 7px;
 	padding-right: 7px;
-	padding-top: 2px;
+	padding-top : 2px;
 	padding-bottom: 4px;
 	border-radius: 6px;
 }
@@ -1540,15 +1528,11 @@ body,html {
 	border-radius: 10px;
 	width: 18px;
 	height: 18px;
-	background-color: #a0a0a0;
+	background-color: #b0b0b0;
 }
 
 .dj_iphone .clearIcon {
 	top: 11px;
-}
-
-.ios7 .clearIcon {
-	background-color: #b0b0b0;
 }
 
 .clearIcon div {
@@ -1576,6 +1560,8 @@ body,html {
 	width: 27px;
 	height: 27px;
 	padding: 0;
+	background: rgba(255, 255, 255, 0.1);
+	pointer-events: all !important;
 }
 
 .invisibleButton {
@@ -1590,12 +1576,8 @@ body,html {
 	position: absolute;
 	width: 19px;
 	left: 4px;
-	background-color: white;
-	height: 2px;
-}
-
-.ios7 .settingsButton>div {
 	background-color: #a0a0a0;
+	height: 2px;
 }
 
 .settingsButtonL1 {
@@ -1631,7 +1613,7 @@ body,html {
 	font-size: 12pt;
 }
 
-.ios7 .searchOptions .mblListItem {
+.searchOptions .mblListItem {
 	height: 44px;
 }
 
@@ -1649,22 +1631,12 @@ body,html {
 	top: 0;
 	font-size: medium;
 	height: 40px;
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#7a9de9),
-		to(#2362dd), color-stop(0.5, #366edf), color-stop(0.5, #215fdc));
+	background: #215fdc;
 	color: white;
 	font-size: medium;
 }
 
-.ios7 .searchButton {
-	background: #215fdc;
-}
-
 .searchButton:active {
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#8ea4c1),
-		to(#4a6c9b), color-stop(0.5, #5877a2), color-stop(0.5, #476999));
-}
-
-.ios7 .searchButton:active {
 	background: #8ea4c1;
 }
 
@@ -1686,11 +1658,6 @@ body,html {
 }
 
 .cancelSearchButton:active {
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#f0f0f0),
-		to(#bfbfbf), color-stop(0.5, #ebebeb), color-stop(0.5, #dedede));
-}
-
-.ios7 .cancelSearchButton:active {
 	background: #dedede;
 }
 
@@ -1818,7 +1785,7 @@ body,html {
 
 .articleTitleLabel {
 	position: absolute;
-	top: -2px;
+	top: 0px;
 	left: 65px;
 	right: 3px;
 	color: #d0d0d0;
@@ -1835,47 +1802,13 @@ body,html {
 }
 
 .articleBackButton {
-	pointer-events: all !important;
-}
-
-not (.ios7 ) .articleBackButton {
 	position: absolute;
 	top: -1px;
 	left: -3px;
 	top: -1px;
+	pointer-events: all !important;
 }
 
-not (.ios7 ) .articleControls .articleBackButton .mblToolBarButtonLabel
-	{
-	padding-right: 9px;
-	padding-left: 1px;
-}
-
-not (.ios7 ) .articleControls .articleBackButton .mblColorDefault {
-	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#909090),
-		color-stop(0.06, #5d5d5d), to(#202020));
-	border-color: #323232;
-	border-bottom-color: #808080;
-	color: #d0d0d0;
-}
-
-not (.ios7 ) .articleControls .articleBackButton .mblColorDefault45 {
-	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#909090),
-		color-stop(0.06, #5d5d5d), to(#202020));
-	border-color: #323232;
-}
-
-not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel {
-	background-image: -webkit-gradient(linear, 0% 0, 0% 100%, from(#505050),
-		color-stop(0.06, #030303), to(#494949));
-	border-color: #323232;
-}
-
-not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
-	background-image: -webkit-gradient(linear, 0% 0, 100% 100%, from(#505050),
-		color-stop(0.06, #030303), to(#494949));
-	border-color: #323232;
-}
 
 .imageBackground {
 	background: black;
@@ -1962,8 +1895,6 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 	width: 60%;
 	height: 100px;
 	margin-top: -50px;
-	border-radius: 15px;
-	background: rgba(230, 230, 255, 0.25);
 	visibility: visible;
 	pointer-events: none !important;
 }
@@ -2005,18 +1936,12 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 	-webkit-transition-duration: 0.5s;
 	-webkit-transition-delay: 0.3s;
 	position: absolute;
-	bottom: 20px;
-	left: 20px;
-	right: 20px;
 	height: 40px;
-	border-radius: 15px; background : rgba( 230, 230, 255, 0.25);
 	position: absolute;
-	background: rgba(230, 230, 255, 0.25);
-}
-
-.ios7 .progressBarParent {
-	height: 30px;
-	border-radius: 6px;
+	background: none;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
 }
 
 .progressBarParent.visible {
@@ -2031,20 +1956,10 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 	right: 15px;
 }
 
-.ios7 .progressBar {
-	top: 14px;
-	left: 10px;
-	right: 10px;
-}
-
 .mblProgressBarMsg {
-	top: -2px !important;
-}
-
-.ios7 .mblProgressBarMsg {
-	top: 2px !important;
+	top: 5px !important;
 	font-size: x-small;
-	color: #808080;
+	color: #c0c0c0;
 }
 
 .textView {
@@ -2115,7 +2030,7 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 	font-size: 11pt;
 }
 
-.ios7 .mblEdgeToEdgeList {
+.mblEdgeToEdgeList {
 	border: none;
 }
 
@@ -2130,7 +2045,7 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 
 </head>
 
-<body style="visibility: hidden;" onresize="resize()" class="ios7">
+<body style="visibility: hidden;" onresize="resize()">
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="search"
 		data-dojo-id="searchView" data-dojo-props="selected:true">
 		<div data-dojo-type="dojox/mobile/Heading" class="searchHeading"
@@ -2291,7 +2206,7 @@ not (.ios7 ) .articleControls .articleBackButton .mblColorDefaultSel45 {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 2.7.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 2.7.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
