@@ -1612,12 +1612,12 @@ body,html {
 .searchOptions {
 	position: absolute;
 	z-index: 10;
-	height: 200px;
+	height: 210px;
 	visibility: hidden !important;
-	background-color: #c5ccd3;
 	-webkit-transform: translate3d(0, -300px, 0);
 	-webkit-transition-property: -webkit-transform, visibility;
 	-webkit-transition-duration: 0.5s;
+	background-color: white;
 }
 
 .searchOptions.visible {
@@ -1625,7 +1625,7 @@ body,html {
 	-webkit-transform: translate3d(0, 0, 0);
 }
 
-.searchOptions .mblRoundRectList {
+.searchOptions .mblEdgeToEdgeList {
 	margin-bottom: 9px;
 	font-size: 12pt;
 }
@@ -1671,7 +1671,7 @@ body,html {
 	top: 0;
 	font-size: medium;
 	height: 40px;
-	font-size: medium;
+	background-color: #c5ccd3;
 }
 
 .cancelSearchButton:active {
@@ -2086,7 +2086,7 @@ body,html {
 		</div>
 		<div class="searchOptions" data-dojo-type="dojox/mobile/View"
 			data-dojo-id="searchOptions">
-			<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 					data-dojo-props="label:'Filter'"><input
 					data-dojo-id="filterBox" data-dojo-type="dojox/mobile/TextBox"
@@ -2195,13 +2195,13 @@ body,html {
 		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="label:'Settings',moveTo:'search',back:'Done'"></div>
 		<p class="settingsLabel">Choose a Usenet server:</p>
-		<ul data-dojo-type="dojox/mobile/RoundRectList"
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-id="serverList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'New...',moveTo:'server',userClickAction:editServer"></li>
 		</ul>
 		<p class="settingsLabel">Loading:</p>
-		<ul data-dojo-type="dojox/mobile/RoundRectList">
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show
 				progress<span data-dojo-id="asyncSwitch"
 				data-dojo-type="dojox/mobile/Switch"
@@ -2220,7 +2220,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 2.7.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 2.7.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -2239,13 +2239,13 @@ body,html {
 				data-dojo-props="label:'Connect',onClick:connect"
 				class="connectButton disabled"> </span>
 		</div>
-		<ul data-dojo-type="dojox/mobile/RoundRectList">
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Name'"><input data-dojo-id="nameBox"
 				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
 				data-dojo-props="placeHolder:'displayed in server list',onChange:nameBoxChanged"></input></li>
 		</ul>
-		<ul data-dojo-type="dojox/mobile/RoundRectList">
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Host'"><input
 				data-dojo-id="hostnameBox" data-dojo-type="dojox/mobile/TextBox"
@@ -2271,7 +2271,7 @@ body,html {
 				data-dojo-props="placeHolder:'default=1000 days'"></input></li>
 		</ul>
 		<p class="settingsLabel">Server reply:</p>
-		<ul data-dojo-type="dojox/mobile/RoundRectList">
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-id="replyItem" class="replyItem"></li>
 		</ul>
