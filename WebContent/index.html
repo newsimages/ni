@@ -75,7 +75,7 @@
 							invisibleButton.domNode.focus();
 						}
 					});
-
+					
 					var bg = dom.byId("imageBackground");
 					on(bg, touch.press, onImageTouchStart);
 					on(bg, touch.move, onImageTouchMove);
@@ -1497,6 +1497,10 @@ body,html {
 	font-size: 11pt;
 }
 
+.mblEdgeToEdgeList .mblListItemChecked {
+	color: #909090;
+}
+
 .mblEdgeToEdgeList {
 	border: none;
 }
@@ -1720,6 +1724,10 @@ body,html {
 
 .connectButton {
 	float: right !important;
+}
+
+#connectButton {
+	margin-right: -12px;
 }
 
 .connectButton.disabled {
@@ -2227,7 +2235,7 @@ body,html {
 				data-dojo-props="label:'OK',onClick:connect"
 				class="connectButton disabled"> </span> <span
 				data-dojo-type="dojox/mobile/ToolBarButton"
-				data-dojo-id="connectButton"
+				data-dojo-id="connectButton" id="connectButton"
 				data-dojo-props="label:'Connect',onClick:connect"
 				class="connectButton disabled"> </span>
 		</div>
