@@ -75,7 +75,7 @@
 							invisibleButton.domNode.focus();
 						}
 					});
-					
+
 					var bg = dom.byId("imageBackground");
 					on(bg, touch.press, onImageTouchStart);
 					on(bg, touch.move, onImageTouchMove);
@@ -313,6 +313,7 @@
 										bytes : a.bytes
 									});
 							list.addChild(item);
+							item._list = list;
 							if (prevItem) {
 								prevItem.nextItem = item;
 								item.prevItem = prevItem;
@@ -414,54 +415,70 @@
 							loadImage("", true);
 						}
 						var f = function(id) {
-							doRequest("p", id, null, function(result) {
-								var p = result.progress;
-								p.complete = p.complete == "true";
-								showProgress(p, item.bytes);
-								if (p.chunk) {
-									data += atob(p.chunk);
-								}
-								if (p.filename) {
-									var suff = suffix(p.filename);
-									switch (suff) {
-									case "jpg":
-									case "gif":
-									case "png":
-										setImageTitle(p.filename);
-										if (settings.partial && p.chunk) {
-											loadImage(btoa(data), true);
+							doRequest(
+									"p",
+									id,
+									null,
+									function(result) {
+										var p = result.progress;
+										p.complete = p.complete == "true";
+										showProgress(p, item.bytes);
+										if (p.chunk) {
+											data += atob(p.chunk);
 										}
-										break;
-									case "mpg":
-									case "mp4":
-									case "avi":
-									case "ogg":
-									case "ogv":
-										if (showVideos
-												&& showVideosWhileLoading) {
-											setVideoTitle(p.filename);
-											if (settings.partial && p.chunk) {
-												loadVideo(btoa(data),
-														p.filename);
+										if (p.filename) {
+											var suff = suffix(p.filename);
+											switch (suff) {
+											case "jpg":
+											case "gif":
+											case "png":
+												setImageTitle(p.filename);
+												if (settings.partial && p.chunk) {
+													loadImage(btoa(data), true);
+												}
 												break;
+											case "mpg":
+											case "mp4":
+											case "avi":
+											case "ogg":
+											case "ogv":
+												if (showVideos
+														&& showVideosWhileLoading) {
+													setVideoTitle(p.filename);
+													if (settings.partial
+															&& p.chunk) {
+														loadVideo(btoa(data),
+																p.filename);
+														break;
+													}
+												}
 											}
 										}
-									}
-								}
-								if (!p.complete) {
-									f(id);
-								} else {
-									progress();
-									showProgressBar(false);
-									getBody(args, item, data);
-								}
-							}, function(err) {
-								if (err.dojoType != "cancel") {
-									progress();
-									showProgressBar(false);
-									showError(err);
-								}
-							});
+										if (!p.complete) {
+											f(id);
+										} else {
+											progress();
+											showProgressBar(false);
+											if (p.exception) {
+												showError(p.exception);
+											} else {
+												if (data
+														&& p.body
+														&& p.body.attachments
+														&& (!(p.body.attachments instanceof Array) || p.body.attachments.length == 1)) {
+													gotBody(item, p.body, data);
+												} else {
+													getBody(args, item);
+												}
+											}
+										}
+									}, function(err) {
+										if (err.dojoType != "cancel") {
+											progress();
+											showProgressBar(false);
+											showError(err);
+										}
+									});
 						};
 						progress(articleView);
 						showProgressBar(true);
@@ -549,24 +566,27 @@
 					}
 				}
 
-				function getBody(args, item, data) {
-					doRequest(data ? "bn" : "bd", args, articleView, function(
+				function getBody(args, item) {
+					doRequest("b", args, articleView, function(
 							result) {
-						var body = result.articleBody;
-						if (!body.attachments)
-							body.attachments = [];
-						else if (!(body.attachments instanceof Array))
-							body.attachments = [ body.attachments ];
-						if (data) {
-							var att = body.attachments[0];
-							if (att && !att.data) {
-								att.data = btoa(data);
-							}
-						}
-						// TODO: limit number/size of cached articles?
-						item.articleBody = body;
-						showBody(item);
+						gotBody(item, result.articleBody);
 					});
+				}
+
+				function gotBody(item, body, data) {
+					if (!body.attachments)
+						body.attachments = [];
+					else if (!(body.attachments instanceof Array))
+						body.attachments = [ body.attachments ];
+					if (data && body.attachments.length == 1) {
+						var att = body.attachments[0];
+						if (att && !att.data) {
+							att.data = btoa(data);
+						}
+					}
+					// TODO: limit number/size of cached articles?
+					item.articleBody = body;
+					showBody(item);
 				}
 
 				function showBody(item) {
@@ -596,7 +616,7 @@
 									showVideo(att);
 								} else {
 									setArticleTitle(att.filename);
-									showFrame(att);
+									showText(body.text, att);
 								}
 								break;
 							case "zip":
@@ -609,7 +629,7 @@
 								break;
 							default:
 								setArticleTitle(att.filename);
-								showFrame(att);
+								showText(body.text, att);
 							}
 						} else {
 							showText(body.text);
@@ -651,7 +671,7 @@
 				}
 
 				function showMultipleAttachments(attachments, item) {
-					var list = item.getParent();
+					var list = item._list;
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
 					var prevItem = item.prevItem;
@@ -660,7 +680,7 @@
 					array.forEach(attachments, function(att) {
 						var attItem = new ListItem({
 							label : att.filename
-									+ "<div class=\"zipEntry\"> In: "
+									+ "<div class=\"archiveEntry\"> In: "
 									+ item.get("label") + "</div>",
 							clickable : true,
 							noArrow : true,
@@ -671,6 +691,7 @@
 							}
 						});
 						list.addChild(attItem, index++);
+						attItem._list = list;
 						attItem.prevItem = prevItem;
 						attItem.nextItem = nextItem;
 						if (prevItem)
@@ -708,7 +729,7 @@
 					}
 				}
 
-				function showText(text) {
+				function showText(text, att) {
 					textView.domNode.style.visibility = "visible";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -716,25 +737,24 @@
 					if (!text.match(/<\/\w*>/)) {
 						text = "<pre>" + text + "</pre>";
 					}
+					if (att) {
+						text += "\n<a href=\""
+								+ buildUrl(
+										"a",
+										"/"
+												+ currentItem.newsgroup
+												+ "/"
+												+ encodeURIComponent(currentItem.articleId)
+												+ "/" + att.filename)
+								+ "\" target=\"_blank\">" + att.filename
+								+ "</a>\n";
+					}
 					textView.scrollTo({
 						x : 0,
 						y : 0
 					});
 					dom.byId("textRect").innerHTML = text;
 					progress();
-				}
-
-				function showFrame(att) {
-					frameView.show();
-					frameView.domNode.style.visibility = "visible";
-					textView.domNode.style.visibility = "hidden";
-					videoView.domNode.style.visibility = "hidden";
-					dom.byId("imageBackground").style.visibility = "hidden";
-					dom.byId("frame").setAttribute(
-							"src",
-							buildUrl("a", "/" + currentItem.newsgroup + "/"
-									+ encodeURIComponent(currentItem.articleId)
-									+ "/" + att.filename));
 				}
 
 				function setArticleTitle(s) {
@@ -2048,13 +2068,18 @@ body,html {
 	color: gray;
 }
 
-.zipEntry {
+.archiveEntry {
 	font-size: 10pt;
 	font-weight: normal;
 	color: #404040;
 	margin-top: 3px;
 	margin-left: 1px;
 }
+
+.mblEdgeToEdgeList .mblListItemChecked .archiveEntry {
+	color: #a0a0a0;
+}
+
 </style>
 
 </head>
@@ -2220,7 +2245,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 2.7.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 2.8.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

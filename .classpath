@@ -14,5 +14,7 @@
 			<attribute name="owner.project.facets" value="jst.jaxrs"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry combineaccessrules="false" kind="src" path="/java-unrar"/>
+	<classpathentry kind="lib" path="/java-unrar/bin"/>
 	<classpathentry kind="output" path="build/classes"/>
 </classpath>

@@ -3,6 +3,7 @@
 	<name>ni</name>
 	<comment></comment>
 	<projects>
+		<project>java-unrar</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

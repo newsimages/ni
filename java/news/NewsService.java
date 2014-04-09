@@ -31,6 +31,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -45,6 +46,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import de.innosystec.unrar.Archive;
+import de.innosystec.unrar.exception.RarException;
+import de.innosystec.unrar.rarfile.FileHeader;
+
 /**
  * The root resource of our RESTful web service.
  */
@@ -53,7 +58,10 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static boolean UNZIP = false; // unzip zip archives on the server?
 
-	private static ArticleCache articleCache = new ArticleCache();
+	private static boolean UNRAR = true; // extract rar archives on the server?
+
+	private static boolean CACHE_ARTICLES = true;
+	private static ArticleCache articleCache = CACHE_ARTICLES ? new ArticleCache() : null;
 
 	class ClientInfo {
 		public NNTPClient client;
@@ -203,23 +211,13 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	@GET
-	@Path("bd/{host}/{newsgroup}/{articleId}")
+	@Path("b/{host}/{newsgroup}/{articleId}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleBody getBodyWithData(@PathParam("host") String host,
+	public ArticleBody getBody(@PathParam("host") String host,
 			@PathParam("newsgroup") String newsgroup,
 			@PathParam("articleId") String articleId) throws SocketException,
-			IOException {
+			IOException, RarException {
 		return getBody(host, newsgroup, articleId, null);
-	}
-
-	@GET
-	@Path("bn/{host}/{newsgroup}/{articleId}")
-	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleBody getBodyWithoutData(@PathParam("host") String host,
-			@PathParam("newsgroup") String newsgroup,
-			@PathParam("articleId") String articleId) throws SocketException,
-			IOException {
-		return getBody(host, newsgroup, articleId, null).cloneWithoutData();
 	}
 
 	private static class ProgressByteArrayOutputStream extends
@@ -259,6 +257,8 @@ public class NewsService implements ProtocolCommandListener {
 		public byte[] chunk;
 		@XmlAttribute
 		public String filename;
+		@XmlElement
+		public ArticleBody body;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -308,9 +308,9 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	public ArticleBody getBody(String host, String newsgroup, String articleId,
-			Progress progress) throws SocketException, IOException {
+			Progress progress) throws SocketException, IOException, RarException {
 
-		ArticleBody body = articleCache.get(articleId);
+		ArticleBody body = CACHE_ARTICLES ? articleCache.get(articleId) : null;
 
 		if (body == null) {
 
@@ -425,7 +425,32 @@ public class NewsService implements ProtocolCommandListener {
 					}
 				}
 			}
-			articleCache.put(articleId, body);
+
+			// extract rar archives: replace single rar attachment by
+			// several attachments containing the archived files
+			if (UNRAR) {
+				if (body.attachments.size() == 1) {
+					Attachment a = body.attachments.get(0);
+					if (a.filename != null
+							&& (a.filename.endsWith(".rar") || a.filename.endsWith(".cbr"))) {
+						body.attachments.remove(0);
+						Archive ar = new Archive(a.data, a.filename, false);
+						FileHeader fh;
+						while ((fh = ar.nextFileHeader()) != null) {
+							ByteArrayOutputStream out = new ByteArrayOutputStream();
+							ar.extractFile(fh, out);
+							body.attachments.add(new Attachment(fh.getFileNameString(),
+									out.toByteArray()));
+							body.text += "- rar entry: [[" + fh.getFileNameString()
+									+ "]]\n";
+						}
+						ar.close();
+					}
+				}
+			}
+			if(CACHE_ARTICLES){
+				articleCache.put(articleId, body);
+			}
 		}
 
 		return body;
@@ -446,8 +471,10 @@ public class NewsService implements ProtocolCommandListener {
 
 		new Thread() {
 			public void run() {
+				ArticleBody body;
 				try {
-					getBody(host, newsgroup, articleId, progress);
+					body = getBody(host, newsgroup, articleId, progress);
+					progress.body = body.cloneWithoutData();
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
@@ -1133,7 +1160,7 @@ public class NewsService implements ProtocolCommandListener {
 	public Response getAttachment(@PathParam("host") String host,
 			@PathParam("newsgroup") String newsgroup,
 			@PathParam("articleId") String articleId,
-			@PathParam("name") String name) throws SocketException, IOException {
+			@PathParam("name") String name) throws SocketException, IOException, RarException {
 
 		ArticleBody body = getBody(host, newsgroup, articleId, null);
 		Attachment att = null;
