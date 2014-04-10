@@ -192,13 +192,15 @@
 					if (!value)
 						return;
 					if (value.indexOf(".") >= 0) {
-						// newgroup browsing
+						// newsgroup browsing
 						if (!currentServer) {
 							showMessage("No server defined");
 							return;
 						}
-						doRequest("g", "/*" + value + "*/"
-								+ settings.searchResultsCount, searchView,
+						doRequest("g", {
+							pattern : "*" + value + "*",
+							max : settings.searchResultsCount
+						}, searchView,
 						// success
 						function(result) {
 							fillNewsgroupList(searchResultsList,
@@ -218,24 +220,23 @@
 				function getSearchResults(value) {
 					getArticles(
 							"s",
-							value
-									+ "/"
-									+ (settings.searchFilter || " ")
-									+ "/"
-									+ settings.searchResultsCount
-									+ "/"
-									+ ((currentServer && currentServer.retention) || 1000)
-									+ "/" + settings.searchServer, 0, true,
-							searchResultsList, searchView);
+							{
+								pattern : value,
+								filter : settings.searchFilter || " ",
+								max : settings.searchResultsCount,
+								age : (currentServer && currentServer.retention) || 1000,
+								server : settings.searchServer,
+							}, 0, true, searchResultsList, searchView);
 				}
 
 				//---------- Shared code b/w search and browsing ----------
 
 				function getArticles(command, args, offset, reverse, list,
 						view, newsgroup, item) {
+					args.offset = offset;
 					doRequest(
 							command,
-							args + "/" + offset,
+							args,
 							item || view,
 							// success
 							function(result) {
@@ -297,7 +298,8 @@
 										clickable : true,
 										noArrow : true,
 										onClick : selectArticle,
-										articleId : a.vols || a.parts || a.articleId,
+										articleId : a.vols || a.parts
+												|| a.articleId,
 										newsgroup : newsgroup
 												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
 														: a.newsgroups),
@@ -355,10 +357,12 @@
 				}
 
 				function getHeaders(newsgroup, offset) {
-					getArticles("h", "/" + newsgroup + "/"
-							+ (settings.searchFilter || " ") + "/"
-							+ settings.searchResultsCount, offset, false,
-							newsgroupResultsList, newsgroupView, newsgroup);
+					getArticles("h", {
+						newsgroup : newsgroup,
+						filter : settings.searchFilter || " ",
+						count : settings.searchResultsCount
+					}, offset, false, newsgroupResultsList, newsgroupView,
+							newsgroup);
 				}
 
 				//---------- Article ----------
@@ -398,8 +402,10 @@
 						return;
 					}
 
-					var args = "/" + item.newsgroup + "/"
-							+ encodeURIComponent(item.articleId);
+					var args = {
+						newsgroup : item.newsgroup,
+						articleId : item.articleId
+					};
 
 					if (settings.async) { // async + progress
 						var data = "";
@@ -409,7 +415,9 @@
 						var f = function(id) {
 							doRequest(
 									"p",
-									id,
+									{
+										id : id
+									},
 									null,
 									function(result) {
 										var p = result.progress;
@@ -1064,14 +1072,6 @@
 
 				var currentServer, currentRequest;
 
-				function buildUrl(command, args, server) {
-					return serviceUrl
-							+ command
-							+ "/"
-							+ ((command == "s" || command == "p") ? ""
-									: buildServerString(server)) + args;
-				}
-
 				function buildServerString(server) {
 					server = server || currentServer;
 					var s = server.hostname;
@@ -1108,30 +1108,39 @@
 
 					cancelRequest();
 
-					currentRequest = request(
-							buildUrl(command, args, server),
-							{
-								preventCache : command == "t"
-										|| command == "bp" || command == "p",
-								handleAs : command == "t" || command == "bp" ? "text"
-										: "json"
-							}).then(function(response) {
-						currentRequest = null;
-						if (progressParent)
-							progress();
-						success(response);
-					}, function(err) {
-						currentRequest = null;
-						if (error) {
-							error(err);
-						} else {
-							if (err.dojoType != "cancel") {
+					var url = serviceUrl + command;
+
+					var data = args || {};
+					data.host = buildServerString(server);
+
+					currentRequest = request
+							.post(
+									url,
+									{
+										data : data,
+										preventCache : command == "t"
+												|| command == "bp"
+												|| command == "p",
+										handleAs : command == "t"
+												|| command == "bp" ? "text"
+												: "json"
+									}).then(function(response) {
+								currentRequest = null;
 								if (progressParent)
 									progress();
-								showError(err);
-							}
-						}
-					});
+								success(response);
+							}, function(err) {
+								currentRequest = null;
+								if (error) {
+									error(err);
+								} else {
+									if (err.dojoType != "cancel") {
+										if (progressParent)
+											progress();
+										showError(err);
+									}
+								}
+							});
 				}
 
 				cancelRequest = function() {
@@ -1178,7 +1187,7 @@
 					if (error.message && error.message.match(/Unable to load/)) {
 						return "Server error, try again later.";
 					}
-					return defaultMessage || error.message;
+					return defaultMessage || error.message || error;
 				}
 
 				function clearList(list) {
@@ -1428,7 +1437,7 @@
 				}
 
 				function testServer(server, progressParent, success, error) {
-					doRequest("t", "", progressParent, function(s) {
+					doRequest("t", null, progressParent, function(s) {
 						server.reply = s;
 						success(s);
 					}, function(err) {
@@ -2229,7 +2238,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.0.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.0.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

@@ -25,9 +25,9 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import javax.ws.rs.GET;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -97,17 +97,17 @@ public class NewsService implements ProtocolCommandListener {
 	public NewsService() {
 	}
 
-	@GET
+	@POST
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getInfo() {
 		return "Usenet News (NNTP) REST Service";
 	}
 
-	@GET
-	@Path("g/{host}/{pattern}/{max}")
+	@POST
+	@Path("g")
 	@Produces(MediaType.APPLICATION_JSON)
-	public NewsgroupList getGroups(@PathParam("host") String host,
-			@PathParam("pattern") String pattern, @PathParam("max") int max)
+	public NewsgroupList getGroups(@FormParam("host") String host,
+			@FormParam("pattern") String pattern, @FormParam("max") int max)
 			throws SocketException, IOException {
 
 		NNTPClient client = connect(host);
@@ -133,13 +133,13 @@ public class NewsService implements ProtocolCommandListener {
 		return list;
 	}
 
-	@GET
-	@Path("h/{host}/{newsgroup}/{filter}/{count}/{offset}")
+	@POST
+	@Path("h")
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleList getHeaders(@PathParam("host") String host,
-			@PathParam("newsgroup") String newsgroup,
-			@PathParam("filter") String filter, @PathParam("count") int count,
-			@PathParam("offset") int offset) throws SocketException,
+	public ArticleList getHeaders(@FormParam("host") String host,
+			@FormParam("newsgroup") String newsgroup,
+			@FormParam("filter") String filter, @FormParam("count") int count,
+			@FormParam("offset") int offset) throws SocketException,
 			IOException {
 
 		filter = filter.trim();
@@ -208,12 +208,12 @@ public class NewsService implements ProtocolCommandListener {
 		return list;
 	}
 
-	@GET
-	@Path("b/{host}/{newsgroup}/{articleId}")
+	@POST
+	@Path("b")
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleBody getBody(@PathParam("host") String host,
-			@PathParam("newsgroup") String newsgroup,
-			@PathParam("articleId") String articleId) throws SocketException,
+	public ArticleBody getBody(@FormParam("host") String host,
+			@FormParam("newsgroup") String newsgroup,
+			@FormParam("articleId") String articleId) throws SocketException,
 			IOException, RarException {
 		return getBody(host, newsgroup, articleId, null);
 	}
@@ -258,6 +258,8 @@ public class NewsService implements ProtocolCommandListener {
 		@XmlElement
 		public ArticleBody body;
 
+		int linesRead;
+		
 		private ProgressByteArrayOutputStream buffer;
 
 		public ProgressByteArrayOutputStream getBuffer() {
@@ -300,6 +302,10 @@ public class NewsService implements ProtocolCommandListener {
 			String line = super.readLine();
 			if (line != null) {
 				progress.bytesRead += line.length() + 2;
+				progress.linesRead++;
+				if((progress.linesRead % 1000) == 0){
+					Thread.yield(); // give a chance for the progress request to complete
+				}
 			}
 			return line;
 		}
@@ -456,12 +462,12 @@ public class NewsService implements ProtocolCommandListener {
 		return body;
 	}
 
-	@GET
-	@Path("bp/{host}/{newsgroup}/{articleId}")
+	@POST
+	@Path("bp")
 	@Produces(MediaType.TEXT_PLAIN)
-	public String getBodyAsync(@PathParam("host") final String host,
-			@PathParam("newsgroup") final String newsgroup,
-			@PathParam("articleId") final String articleId)
+	public String getBodyAsync(@FormParam("host") final String host,
+			@FormParam("newsgroup") final String newsgroup,
+			@FormParam("articleId") final String articleId)
 			throws SocketException, IOException {
 
 		final Progress progress = new Progress();
@@ -494,10 +500,10 @@ public class NewsService implements ProtocolCommandListener {
 		return id;
 	}
 
-	@GET
-	@Path("p/{id}")
+	@POST
+	@Path("p")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Progress getProgress(@PathParam("id") final String id)
+	public Progress getProgress(@FormParam("id") final String id)
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
 		if (progress == null) {
@@ -513,10 +519,10 @@ public class NewsService implements ProtocolCommandListener {
 		return progress;
 	}
 
-	@GET
-	@Path("t/{host}")
+	@POST
+	@Path("t")
 	@Produces("text/plain")
-	public String testServer(@PathParam("host") String host)
+	public String testServer(@FormParam("host") String host)
 			throws SocketException, IOException {
 		NNTPClient client = connect(host);
 		String reply = client.getReplyString();
@@ -1063,13 +1069,13 @@ public class NewsService implements ProtocolCommandListener {
 	// Search
 	// ---------------
 
-	@GET
-	@Path("/s/{pattern}/{filter}/{max}/{age}/{server}/{min}")
+	@POST
+	@Path("s")
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleList getNzb(@PathParam("pattern") String pattern,
-			@PathParam("filter") String filter, @PathParam("max") int max,
-			@PathParam("age") int age, @PathParam("server") int server,
-			@PathParam("min") int min) throws MalformedURLException,
+	public ArticleList getNzb(@FormParam("pattern") String pattern,
+			@FormParam("filter") String filter, @FormParam("max") int max,
+			@FormParam("age") int age, @FormParam("server") int server,
+			@FormParam("min") int offset) throws MalformedURLException,
 			IOException, ParserConfigurationException, SAXException {
 
 		filter = filter.trim();
@@ -1078,8 +1084,8 @@ public class NewsService implements ProtocolCommandListener {
 		String req = "/?q="
 				+ URLEncoder.encode(pattern + " " + filter, "UTF-8") + "&max="
 				+ max + "&adv_age=" + age + "&server=" + server;
-		if (min > 0)
-			req += "&min=" + min;
+		if (offset > 0)
+			req += "&min=" + offset;
 
 		String url = host + req;
 
@@ -1207,7 +1213,7 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		list.available = available ? max : 0;
-		list.offset = min + max + 1;
+		list.offset = offset + max + 1;
 
 		return list;
 	}
@@ -1216,12 +1222,12 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct download of attachments
 	// ------------------------------
 
-	@GET
-	@Path("a/{host}/{newsgroup}/{articleId}/{name}")
-	public Response getAttachment(@PathParam("host") String host,
-			@PathParam("newsgroup") String newsgroup,
-			@PathParam("articleId") String articleId,
-			@PathParam("name") String name) throws SocketException,
+	@POST
+	@Path("a")
+	public Response getAttachment(@FormParam("host") String host,
+			@FormParam("newsgroup") String newsgroup,
+			@FormParam("articleId") String articleId,
+			@FormParam("name") String name) throws SocketException,
 			IOException, RarException {
 
 		ArticleBody body = getBody(host, newsgroup, articleId, null);
