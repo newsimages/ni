@@ -16,6 +16,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 import java.util.Timer;
@@ -61,7 +62,10 @@ public class NewsService implements ProtocolCommandListener {
 	private static boolean UNRAR = true; // extract rar archives on the server?
 
 	private static boolean CACHE_ARTICLES = true;
-	private static ArticleCache articleCache = CACHE_ARTICLES ? new ArticleCache() : null;
+	private static ArticleCache articleCache = CACHE_ARTICLES ? new ArticleCache()
+			: null;
+
+	private static boolean HIDE_PAR_FILES = true;
 
 	class ClientInfo {
 		public NNTPClient client;
@@ -73,6 +77,7 @@ public class NewsService implements ProtocolCommandListener {
 	private static HashMap<NNTPClient, String> currentNewsgroups = new HashMap<NNTPClient, String>();
 
 	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
+	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
 	private String multipartMapNewsgroup = "";
 
 	class FileInfo {
@@ -97,20 +102,7 @@ public class NewsService implements ProtocolCommandListener {
 	public String getInfo() {
 		return "Usenet News (NNTP) REST Service";
 	}
-	
-	private String d(String s){
-		StringBuilder b = new StringBuilder();
-		for(int i = 0; i < s.length(); i++){
-			char c = s.charAt(i);
-			if(c >= 65 && c <= 90)
-				c = (char)(65 + 90 - c);
-			else if(c >= 97 && c <= 122)
-				c = (char)(97 + 122 - c);
-			b.append(c);
-		}
-		return b.toString();
-	}
-	
+
 	@GET
 	@Path("g/{host}/{pattern}/{max}")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -118,8 +110,6 @@ public class NewsService implements ProtocolCommandListener {
 			@PathParam("pattern") String pattern, @PathParam("max") int max)
 			throws SocketException, IOException {
 
-		pattern = d(pattern);
-		
 		NNTPClient client = connect(host);
 
 		NewsgroupInfo[] infos = client.listNewsgroups(pattern);
@@ -144,12 +134,15 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	@GET
-	@Path("h/{host}/{newsgroup}/{count}/{offset}")
+	@Path("h/{host}/{newsgroup}/{filter}/{count}/{offset}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleList getHeaders(@PathParam("host") String host,
 			@PathParam("newsgroup") String newsgroup,
-			@PathParam("count") int count,
-			@PathParam("offset") int offset) throws SocketException, IOException {
+			@PathParam("filter") String filter, @PathParam("count") int count,
+			@PathParam("offset") int offset) throws SocketException,
+			IOException {
+
+		filter = filter.trim();
 
 		NNTPClient client = connect(host);
 
@@ -158,8 +151,10 @@ public class NewsService implements ProtocolCommandListener {
 		client.selectNewsgroup(newsgroup, info);
 		currentNewsgroups.put(client, newsgroup);
 
-		if (!newsgroup.equals(multipartMapNewsgroup))
+		if (!newsgroup.equals(multipartMapNewsgroup)) {
 			multipartMap.clear();
+			multivolumeMap.clear();
+		}
 
 		long first = info.getFirstArticleLong();
 		long last = info.getLastArticleLong() - offset;
@@ -171,7 +166,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		ArticleList list = new ArticleList();
 		int start = 0;
-		
+
 		while (true) {
 			BufferedReader reader = client.retrieveArticleInfo(low, high);
 
@@ -186,19 +181,22 @@ public class NewsService implements ProtocolCommandListener {
 					header.bytes = bytes;
 
 					if (!computeMultipart(header, multipartMap)
-							&& header.parts != "incomplete")
+							&& header.parts != "incomplete"
+							&& !isHidden(subject, filter))
 						list.articles.add(start, header);
-					
+
 					offset++;
 				}
 			}
+
+			computeMultivolumes(list.articles);
 
 			if (list.articles.size() >= count || low <= first)
 				break;
 
 			high = Math.max(high - blockSize, first);
 			low = Math.max(high - blockSize + 1, first);
-			
+
 			start = list.articles.size();
 		}
 
@@ -307,8 +305,9 @@ public class NewsService implements ProtocolCommandListener {
 		}
 	}
 
-	public ArticleBody getBody(String host, String newsgroup, String articleId,
-			Progress progress) throws SocketException, IOException, RarException {
+	public ArticleBody getBody(final String host, final String newsgroup,
+			String articleId, Progress progress) throws SocketException,
+			IOException, RarException {
 
 		ArticleBody body = CACHE_ARTICLES ? articleCache.get(articleId) : null;
 
@@ -432,23 +431,24 @@ public class NewsService implements ProtocolCommandListener {
 				if (body.attachments.size() == 1) {
 					Attachment a = body.attachments.get(0);
 					if (a.filename != null
-							&& (a.filename.endsWith(".rar") || a.filename.endsWith(".cbr"))) {
+							&& (a.filename.endsWith(".rar") || a.filename
+									.endsWith(".cbr"))) {
 						body.attachments.remove(0);
 						Archive ar = new Archive(a.data, a.filename, false);
 						FileHeader fh;
 						while ((fh = ar.nextFileHeader()) != null) {
 							ByteArrayOutputStream out = new ByteArrayOutputStream();
 							ar.extractFile(fh, out);
-							body.attachments.add(new Attachment(fh.getFileNameString(),
-									out.toByteArray()));
-							body.text += "- rar entry: [[" + fh.getFileNameString()
-									+ "]]\n";
+							body.attachments.add(new Attachment(fh
+									.getFileNameString(), out.toByteArray()));
+							body.text += "- rar entry: [["
+									+ fh.getFileNameString() + "]]\n";
 						}
 						ar.close();
 					}
 				}
 			}
-			if(CACHE_ARTICLES){
+			if (CACHE_ARTICLES) {
 				articleCache.put(articleId, body);
 			}
 		}
@@ -897,9 +897,9 @@ public class NewsService implements ProtocolCommandListener {
 			return 63;
 		throw new Error("Invalid base64 character: " + c);
 	}
-	
+
 	private boolean computeMultipart(ArticleHeader article,
-			Map<String, ArticleHeader[]> multipartMap) {
+			Map<String, ArticleHeader[]> map) {
 
 		String subject = article.subject;
 
@@ -964,10 +964,9 @@ public class NewsService implements ProtocolCommandListener {
 			suffix = _suffix;
 		}
 
-		if (multipartFound) {
+		boolean result = false;
 
-			if (partCount == 1 || partNumber == 0)
-				return false;
+		if (multipartFound && partCount != 1 && partNumber != 0) {
 
 			String x = "";
 			for (i = 0; i < digitCount; i++)
@@ -975,10 +974,10 @@ public class NewsService implements ProtocolCommandListener {
 
 			String key = prefix + x + '/' + partCount + suffix;
 
-			ArticleHeader[] parts = multipartMap.get(key);
+			ArticleHeader[] parts = map.get(key);
 			if (parts == null) {
 				parts = new ArticleHeader[partCount];
-				multipartMap.put(key, parts);
+				map.put(key, parts);
 			}
 			parts[partNumber - 1] = article;
 
@@ -997,9 +996,66 @@ public class NewsService implements ProtocolCommandListener {
 				}
 			}
 
-			return partNumber > 1;
-		} else {
-			return false;
+			result = partNumber > 1;
+		}
+
+		return result;
+	}
+
+	private void computeMultivolumes(List<ArticleHeader> list) {
+		Map<String, ArticleHeader[]> map = multivolumeMap;
+		for (int j = 0; j < list.size(); j++) {
+			ArticleHeader article = list.get(j);
+			String subject = article.subject;
+			int index = subject.indexOf(".rar\"");
+			if (index > 0) {
+				int i;
+				int digitCount = 0;
+				for (i = index; i > 1; i--) {
+					if (Character.isDigit(subject.charAt(i - 1)))
+						digitCount++;
+					else
+						break;
+				}
+				if (digitCount > 0 && i > 5) {
+					int k = subject.lastIndexOf("\"", i);
+					if (k >= 0) {
+						String file = subject.substring(k, i);
+						if (file.endsWith(".part")) {
+							String ns = subject.substring(i, index);
+							int partNumber = Integer.parseInt(ns);
+							int partCount = (int) Math.pow(10, digitCount);
+
+							String key = file;
+
+							ArticleHeader[] parts = map.get(key);
+							if (parts == null) {
+								parts = new ArticleHeader[partCount];
+								map.put(key, parts);
+							}
+							parts[partNumber - 1] = article;
+
+							if (parts[0] != null) {
+								parts[0].vols = "";
+								for (i = 0; i < parts.length; i++) {
+									if (parts[i] == null) {
+										break;
+									}
+									if (i > 0) {
+										parts[0].vols += ",";
+										parts[0].bytes += parts[i].bytes;
+									}
+									parts[0].vols += parts[i].parts;
+								}
+							}
+
+							if (partNumber > 1) {
+								list.remove(j--);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1008,18 +1064,19 @@ public class NewsService implements ProtocolCommandListener {
 	// ---------------
 
 	@GET
-	@Path("/s/{pattern}/{max}/{age}/{server}/{min}")
+	@Path("/s/{pattern}/{filter}/{max}/{age}/{server}/{min}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleList getNzb(@PathParam("pattern") String pattern,
-			@PathParam("max") int max, @PathParam("age") int age,
-			@PathParam("server") int server, @PathParam("min") int min)
-			throws MalformedURLException, IOException,
-			ParserConfigurationException, SAXException {
+			@PathParam("filter") String filter, @PathParam("max") int max,
+			@PathParam("age") int age, @PathParam("server") int server,
+			@PathParam("min") int min) throws MalformedURLException,
+			IOException, ParserConfigurationException, SAXException {
 
-		pattern = d(pattern);
-		
+		filter = filter.trim();
+
 		String host = "http://www.binsearch.info";
-		String req = "/?q=" + URLEncoder.encode(pattern, "UTF-8") + "&max="
+		String req = "/?q="
+				+ URLEncoder.encode(pattern + " " + filter, "UTF-8") + "&max="
 				+ max + "&adv_age=" + age + "&server=" + server;
 		if (min > 0)
 			req += "&min=" + min;
@@ -1108,8 +1165,11 @@ public class NewsService implements ProtocolCommandListener {
 			NodeList files = doc.getElementsByTagName("file");
 			for (int i = 0; i < files.getLength(); i++) {
 				Element file = (Element) files.item(i);
-				ArticleHeader article = new ArticleHeader(
-						file.getAttribute("subject"), null);
+				String subject = file.getAttribute("subject");
+				if (isHidden(subject, filter)) {
+					continue;
+				}
+				ArticleHeader article = new ArticleHeader(subject, null);
 				article.newsgroups = new ArrayList<String>();
 				NodeList groups = file.getElementsByTagName("groups");
 				if (groups.getLength() > 0) {
@@ -1143,6 +1203,7 @@ public class NewsService implements ProtocolCommandListener {
 				}
 				list.articles.add(article);
 			}
+			computeMultivolumes(list.articles);
 		}
 
 		list.available = available ? max : 0;
@@ -1160,7 +1221,8 @@ public class NewsService implements ProtocolCommandListener {
 	public Response getAttachment(@PathParam("host") String host,
 			@PathParam("newsgroup") String newsgroup,
 			@PathParam("articleId") String articleId,
-			@PathParam("name") String name) throws SocketException, IOException, RarException {
+			@PathParam("name") String name) throws SocketException,
+			IOException, RarException {
 
 		ArticleBody body = getBody(host, newsgroup, articleId, null);
 		Attachment att = null;
@@ -1202,5 +1264,21 @@ public class NewsService implements ProtocolCommandListener {
 		else
 			type = "text/plain";
 		return Response.ok(result, type).build();
+	}
+
+	// ---------
+	// Utilities
+	// ---------
+
+	private boolean isHidden(String subject, String filter) {
+		if (!(filter.isEmpty() || subject.contains(filter))) {
+			return true;
+		}
+		if (HIDE_PAR_FILES) {
+			subject = subject.toLowerCase();
+			if (subject.contains(".par\"") || subject.contains(".par2\""))
+				return true;
+		}
+		return false;
 	}
 }

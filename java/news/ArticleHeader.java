@@ -10,6 +10,7 @@ public class ArticleHeader {
 	@XmlAttribute public String subject;
 	@XmlAttribute public String articleId;
 	@XmlAttribute public String parts;
+	@XmlAttribute public String vols;
 	@XmlAttribute public int bytes;
 	public List<String> newsgroups; // for NZBs
 	

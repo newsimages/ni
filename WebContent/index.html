@@ -183,17 +183,6 @@
 					domClass.remove(searchOptions.domNode, "visible");
 				}
 
-				function c(s) {
-					return array.map(s.split(""), function(c) {
-						c = c.charCodeAt();
-						if (c >= 65 && c <= 90)
-							c = 65 + 90 - c;
-						else if (c >= 97 && c <= 122)
-							c = 97 + 122 - c;
-						return String.fromCharCode(c);
-					}).join("");
-				}
-
 				search = function() {
 					updateSearchSettings();
 					ignoreBlur = true;
@@ -208,7 +197,7 @@
 							showMessage("No server defined");
 							return;
 						}
-						doRequest("g", "/*" + c(value) + "*/"
+						doRequest("g", "/*" + value + "*/"
 								+ settings.searchResultsCount, searchView,
 						// success
 						function(result) {
@@ -229,7 +218,9 @@
 				function getSearchResults(value) {
 					getArticles(
 							"s",
-							c(value + " " + settings.searchFilter)
+							value
+									+ "/"
+									+ (settings.searchFilter || " ")
 									+ "/"
 									+ settings.searchResultsCount
 									+ "/"
@@ -306,7 +297,7 @@
 										clickable : true,
 										noArrow : true,
 										onClick : selectArticle,
-										articleId : a.parts || a.articleId,
+										articleId : a.vols || a.parts || a.articleId,
 										newsgroup : newsgroup
 												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
 														: a.newsgroups),
@@ -365,6 +356,7 @@
 
 				function getHeaders(newsgroup, offset) {
 					getArticles("h", "/" + newsgroup + "/"
+							+ (settings.searchFilter || " ") + "/"
 							+ settings.searchResultsCount, offset, false,
 							newsgroupResultsList, newsgroupView, newsgroup);
 				}
@@ -567,8 +559,7 @@
 				}
 
 				function getBody(args, item) {
-					doRequest("b", args, articleView, function(
-							result) {
+					doRequest("b", args, articleView, function(result) {
 						gotBody(item, result.articleBody);
 					});
 				}
@@ -677,7 +668,8 @@
 					var prevItem = item.prevItem;
 					var nextItem = item.nextItem;
 					var firstItem;
-					array.forEach(attachments, function(att) {
+					array.forEach(attachments, function(att, i) {
+						att.index = i;
 						var attItem = new ListItem({
 							label : att.filename
 									+ "<div class=\"archiveEntry\"> In: "
@@ -738,16 +730,9 @@
 						text = "<pre>" + text + "</pre>";
 					}
 					if (att) {
-						text += "\n<a href=\""
-								+ buildUrl(
-										"a",
-										"/"
-												+ currentItem.newsgroup
-												+ "/"
-												+ encodeURIComponent(currentItem.articleId)
-												+ "/" + att.filename)
-								+ "\" target=\"_blank\">" + att.filename
-								+ "</a>\n";
+						text += "\n<a href=\"data:;base64," + att.data
+								+ "\" target=\"_blank\">"
+								+ att.filename + "</a>\n";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -1190,7 +1175,7 @@
 							return m.substring(i + 4, m.indexOf("</h1>"));
 						}
 					}
-					if (error.message.match(/Unable to load/)) {
+					if (error.message && error.message.match(/Unable to load/)) {
 						return "Server error, try again later.";
 					}
 					return defaultMessage || error.message;
@@ -2079,7 +2064,6 @@ body,html {
 .mblEdgeToEdgeList .mblListItemChecked .archiveEntry {
 	color: #a0a0a0;
 }
-
 </style>
 
 </head>
@@ -2245,7 +2229,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 2.8.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.0.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
