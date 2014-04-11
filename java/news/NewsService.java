@@ -26,8 +26,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -61,7 +63,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static boolean UNRAR = true; // extract rar archives on the server?
 
-	private static boolean CACHE_ARTICLES = true;
+	private static boolean CACHE_ARTICLES = false;
 	private static ArticleCache articleCache = CACHE_ARTICLES ? new ArticleCache()
 			: null;
 
@@ -275,9 +277,7 @@ public class NewsService implements ProtocolCommandListener {
 				synchronized (buffer) {
 					if (filename != null) {
 						String f = filename.toLowerCase();
-						if ((!UNZIP && (f.endsWith(".zip") || f.endsWith(".cbz")))
-								|| f.endsWith(".jpg")
-								|| f.endsWith(".png") || f.endsWith(".gif")) {
+						if (!(f.endsWith(".rar") || f.endsWith(".cbr"))) {
 							chunk = buffer.getChunkBytes();
 						}
 					}
@@ -482,20 +482,12 @@ public class NewsService implements ProtocolCommandListener {
 				ArticleBody body;
 				try {
 					body = getBody(host, newsgroup, articleId, progress);
-					progress.body = progress.chunk != null ? body.cloneWithoutData() : body;
+					progress.body = progress.chunk != null ? body
+							.cloneWithoutData() : body;
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
 				progress.complete = true;
-				// delete progress object after 5mns
-				// in case the request is cancelled on the client,
-				// causing getProgress to not be called any more.
-				Timer timer = new Timer();
-				timer.schedule(new TimerTask() {
-					public void run() {
-						progressById.remove(id);
-					}
-				}, 5 * 60 * 1000);
 			}
 		}.start();
 
@@ -508,17 +500,25 @@ public class NewsService implements ProtocolCommandListener {
 	public Progress getProgress(@FormParam("id") final String id)
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
-		if (progress == null) {
-			// in case the progress obj has timed out already...
-			progress = new Progress();
-			progress.complete = true;
-			return progress;
+		if (progress != null) {
+			if (progress.complete) {
+				progressById.remove(id);
+			}
+			progress.getProgress();
 		}
-		if (progress.complete) {
+		return progress;
+	}
+
+	@POST
+	@Path("c")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String cancel(@FormParam("id") final String id)
+			throws SocketException, IOException, InterruptedException {
+		Progress progress = progressById.get(id);
+		if (progress != null) {
 			progressById.remove(id);
 		}
-		progress.getProgress();
-		return progress;
+		return "OK";
 	}
 
 	@POST
@@ -1224,12 +1224,12 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct download of attachments
 	// ------------------------------
 
-	@POST
-	@Path("a")
-	public Response getAttachment(@FormParam("host") String host,
-			@FormParam("newsgroup") String newsgroup,
-			@FormParam("articleId") String articleId,
-			@FormParam("name") String name) throws SocketException,
+	@GET
+	@Path("a/{host}/{newsgroup}/{articleId}/{name}")
+	public Response getAttachment(@PathParam("host") String host,
+			@PathParam("newsgroup") String newsgroup,
+			@PathParam("articleId") String articleId,
+			@PathParam("name") String name) throws SocketException,
 			IOException, RarException {
 
 		ArticleBody body = getBody(host, newsgroup, articleId, null);

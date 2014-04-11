@@ -367,7 +367,7 @@
 
 				//---------- Article ----------
 
-				var currentItem, imageRealSized, articleImage, previousView;
+				var currentItem, imageRealSized, articleImage, previousView, currentAsyncId;
 
 				function selectArticle() {
 					if (!currentServer) {
@@ -413,6 +413,7 @@
 							loadImage("", true);
 						}
 						var f = function(id) {
+							currentAsyncId = null;
 							doRequest("p", {
 								id : id
 							}, null, function(result) {
@@ -452,6 +453,7 @@
 								if (!p.complete) {
 									f(id);
 								} else {
+									currentAsyncId = null;
 									progress();
 									showProgressBar(false);
 									if (p.exception) {
@@ -471,6 +473,7 @@
 									showError(err);
 								}
 							});
+							currentAsyncId = id;
 						};
 						progress(articleView);
 						showProgressBar(true);
@@ -1140,6 +1143,16 @@
 						currentRequest.cancel();
 						currentRequest = null;
 						prevTouchTime = 0;
+					}
+					if (currentAsyncId) {
+						request.post(serviceUrl + "c", {
+							data : {
+								id : currentAsyncId
+							},
+							preventCache : true,
+							handleAs : "text"
+						});
+						currentAsyncId = null;
 					}
 				}
 
@@ -2230,7 +2243,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.0.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.0.3 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
