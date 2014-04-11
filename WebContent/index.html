@@ -413,76 +413,68 @@
 							loadImage("", true);
 						}
 						var f = function(id) {
-							doRequest(
-									"p",
-									{
-										id : id
-									},
-									null,
-									function(result) {
-										var p = result.progress;
-										p.complete = p.complete == "true";
-										showProgress(p, item.bytes);
-										if (p.chunk) {
-											data += atob(p.chunk);
+							doRequest("p", {
+								id : id
+							}, null, function(result) {
+								var p = result.progress;
+								p.complete = p.complete == "true";
+								showProgress(p, item.bytes);
+								if (p.chunk) {
+									data += atob(p.chunk);
+								}
+								if (p.filename) {
+									var suff = suffix(p.filename);
+									switch (suff) {
+									case "jpg":
+									case "gif":
+									case "png":
+										setImageTitle(p.filename);
+										if (settings.partial && p.chunk) {
+											loadImage(btoa(data), true);
 										}
-										if (p.filename) {
-											var suff = suffix(p.filename);
-											switch (suff) {
-											case "jpg":
-											case "gif":
-											case "png":
-												setImageTitle(p.filename);
-												if (settings.partial && p.chunk) {
-													loadImage(btoa(data), true);
-												}
+										break;
+									case "mpg":
+									case "mp4":
+									case "avi":
+									case "ogg":
+									case "ogv":
+										if (showVideos
+												&& showVideosWhileLoading) {
+											setVideoTitle(p.filename);
+											if (settings.partial && p.chunk) {
+												loadVideo(btoa(data),
+														p.filename);
 												break;
-											case "mpg":
-											case "mp4":
-											case "avi":
-											case "ogg":
-											case "ogv":
-												if (showVideos
-														&& showVideosWhileLoading) {
-													setVideoTitle(p.filename);
-													if (settings.partial
-															&& p.chunk) {
-														loadVideo(btoa(data),
-																p.filename);
-														break;
-													}
-												}
 											}
 										}
-										if (!p.complete) {
-											f(id);
+									}
+								}
+								if (!p.complete) {
+									f(id);
+								} else {
+									progress();
+									showProgressBar(false);
+									if (p.exception) {
+										showError(p.exception);
+									} else {
+										if (p.body) {
+											gotBody(item, p.body, data);
 										} else {
-											progress();
-											showProgressBar(false);
-											if (p.exception) {
-												showError(p.exception);
-											} else {
-												if (data
-														&& p.body
-														&& p.body.attachments
-														&& (!(p.body.attachments instanceof Array) || p.body.attachments.length == 1)) {
-													gotBody(item, p.body, data);
-												} else {
-													getBody(args, item);
-												}
-											}
+											getBody(args, item);
 										}
-									}, function(err) {
-										if (err.dojoType != "cancel") {
-											progress();
-											showProgressBar(false);
-											showError(err);
-										}
-									});
+									}
+								}
+							}, function(err) {
+								if (err.dojoType != "cancel") {
+									progress();
+									showProgressBar(false);
+									showError(err);
+								}
+							});
 						};
 						progress(articleView);
 						showProgressBar(true);
-						doRequest("bp", args, null, f);
+						doRequest("ba", args, null, f);
 					} else {
 						getBody(args, item);
 					}
@@ -1119,10 +1111,10 @@
 									{
 										data : data,
 										preventCache : command == "t"
-												|| command == "bp"
+												|| command == "ba"
 												|| command == "p",
 										handleAs : command == "t"
-												|| command == "bp" ? "text"
+												|| command == "ba" ? "text"
 												: "json"
 									}).then(function(response) {
 								currentRequest = null;
@@ -2238,7 +2230,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.0.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.0.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

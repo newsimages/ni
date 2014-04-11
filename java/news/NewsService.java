@@ -259,7 +259,7 @@ public class NewsService implements ProtocolCommandListener {
 		public ArticleBody body;
 
 		int linesRead;
-		
+
 		private ProgressByteArrayOutputStream buffer;
 
 		public ProgressByteArrayOutputStream getBuffer() {
@@ -275,8 +275,9 @@ public class NewsService implements ProtocolCommandListener {
 				synchronized (buffer) {
 					if (filename != null) {
 						String f = filename.toLowerCase();
-						if (!UNZIP || f.endsWith(".jpg") || f.endsWith(".png")
-								|| f.endsWith(".gif")) {
+						if ((!UNZIP && (f.endsWith(".zip") || f.endsWith(".cbz")))
+								|| f.endsWith(".jpg")
+								|| f.endsWith(".png") || f.endsWith(".gif")) {
 							chunk = buffer.getChunkBytes();
 						}
 					}
@@ -303,8 +304,9 @@ public class NewsService implements ProtocolCommandListener {
 			if (line != null) {
 				progress.bytesRead += line.length() + 2;
 				progress.linesRead++;
-				if((progress.linesRead % 1000) == 0){
-					Thread.yield(); // give a chance for the progress request to complete
+				if ((progress.linesRead % 1000) == 0) {
+					Thread.yield(); // give a chance for the progress request to
+									// complete
 				}
 			}
 			return line;
@@ -463,7 +465,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	@POST
-	@Path("bp")
+	@Path("ba")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getBodyAsync(@FormParam("host") final String host,
 			@FormParam("newsgroup") final String newsgroup,
@@ -480,7 +482,7 @@ public class NewsService implements ProtocolCommandListener {
 				ArticleBody body;
 				try {
 					body = getBody(host, newsgroup, articleId, progress);
-					progress.body = body.cloneWithoutData();
+					progress.body = progress.chunk != null ? body.cloneWithoutData() : body;
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
