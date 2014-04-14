@@ -49,9 +49,9 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import de.innosystec.unrar.Archive;
-import de.innosystec.unrar.exception.RarException;
-import de.innosystec.unrar.rarfile.FileHeader;
+import unrar.Archive;
+import unrar.exception.RarException;
+import unrar.rarfile.FileHeader;
 
 /**
  * The root resource of our RESTful web service.
@@ -223,21 +223,32 @@ public class NewsService implements ProtocolCommandListener {
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
+		boolean cancelled;
 
 		public synchronized void write(int c) {
-			super.write(c);
-			chunk.write(c);
+			if (!cancelled) {
+				super.write(c);
+				chunk.write(c);
+			}
 		}
 
 		public synchronized void write(byte[] bytes) throws IOException {
-			super.write(bytes);
-			chunk.write(bytes);
+			if (!cancelled) {
+				super.write(bytes);
+				chunk.write(bytes);
+			}
 		}
 
 		public synchronized byte[] getChunkBytes() {
 			byte[] bytes = chunk.toByteArray();
 			chunk.reset();
 			return bytes;
+		}
+
+		void cancel() {
+			cancelled = true;
+			reset();
+			chunk.reset();
 		}
 	}
 
@@ -257,10 +268,13 @@ public class NewsService implements ProtocolCommandListener {
 		public byte[] chunk;
 		@XmlAttribute
 		public String filename;
+		@XmlAttribute
+		public String message;
 		@XmlElement
 		public ArticleBody body;
 
 		int linesRead;
+		boolean cancelled;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -274,6 +288,10 @@ public class NewsService implements ProtocolCommandListener {
 
 		public void getProgress() throws InterruptedException {
 			if (buffer != null) {
+				if (cancelled) {
+					buffer.cancel();
+					return;
+				}
 				synchronized (buffer) {
 					if (filename != null) {
 						String f = filename.toLowerCase();
@@ -370,7 +388,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 
 			disconnect(host, client);
-
+			
 			if (aids.length == 1) {
 				body = bodies[0];
 			} else {
@@ -399,6 +417,10 @@ public class NewsService implements ProtocolCommandListener {
 						}
 					}
 				}
+			}
+
+			if(progress != null && progress.cancelled){
+				return body;
 			}
 
 			// extract zip archives: replace single zip attachment by
@@ -436,6 +458,10 @@ public class NewsService implements ProtocolCommandListener {
 			// extract rar archives: replace single rar attachment by
 			// several attachments containing the archived files
 			if (UNRAR) {
+				if(progress != null){
+					progress.message = "Unpacking RAR archive...";
+					Thread.yield();
+				}
 				if (body.attachments.size() == 1) {
 					Attachment a = body.attachments.get(0);
 					if (a.filename != null
@@ -516,6 +542,7 @@ public class NewsService implements ProtocolCommandListener {
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
 		if (progress != null) {
+			progress.cancelled = true;
 			progressById.remove(id);
 		}
 		return "OK";
@@ -1077,7 +1104,7 @@ public class NewsService implements ProtocolCommandListener {
 	public ArticleList getNzb(@FormParam("pattern") String pattern,
 			@FormParam("filter") String filter, @FormParam("max") int max,
 			@FormParam("age") int age, @FormParam("server") int server,
-			@FormParam("min") int offset) throws MalformedURLException,
+			@FormParam("offset") int offset) throws MalformedURLException,
 			IOException, ParserConfigurationException, SAXException {
 
 		filter = filter.trim();

@@ -502,19 +502,24 @@
 						t = (t / k).toFixed(1);
 						u = "Mb";
 					}
-					var label = b + " / " + t + " " + u;
-					if (kb > 0) {
-						var dt = new Date().getTime() - startTime;
-						if (dt > 0) {
-							var speed = (1000 * kb / dt).toFixed(1);
-							label += " (" + speed + " " + "Kb/s)";
+					var label;
+					if (progress.message) {
+						label = progress.message;
+					} else {
+						label = b + " / " + t + " " + u;
+						if (kb > 0) {
+							var dt = new Date().getTime() - startTime;
+							if (dt > 0) {
+								var speed = (1000 * kb / dt).toFixed(1);
+								label += " (" + speed + " " + "Kb/s)";
+							}
 						}
-					}
-					if (progress.complete)
-						startTime = 0;
-					if (progress.partCount > 1) {
-						label += " - part " + progress.part + " of "
-								+ progress.partCount;
+						if (progress.complete)
+							startTime = 0;
+						if (progress.partCount > 1) {
+							label += " - part " + progress.part + " of "
+									+ progress.partCount;
+						}
 					}
 					progressBar.set("label", label);
 				}
@@ -2243,7 +2248,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.0.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.0.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
