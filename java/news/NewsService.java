@@ -295,8 +295,11 @@ public class NewsService implements ProtocolCommandListener {
 				synchronized (buffer) {
 					if (filename != null) {
 						String f = filename.toLowerCase();
+						byte[] bytes = buffer.getChunkBytes();
 						if (!(f.endsWith(".rar") || f.endsWith(".cbr"))) {
-							chunk = buffer.getChunkBytes();
+							chunk = bytes;
+						} else {
+							chunk = null;
 						}
 					}
 				}
@@ -388,7 +391,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 
 			disconnect(host, client);
-			
+
 			if (aids.length == 1) {
 				body = bodies[0];
 			} else {
@@ -419,7 +422,7 @@ public class NewsService implements ProtocolCommandListener {
 				}
 			}
 
-			if(progress != null && progress.cancelled){
+			if (progress != null && progress.cancelled) {
 				return body;
 			}
 
@@ -458,7 +461,7 @@ public class NewsService implements ProtocolCommandListener {
 			// extract rar archives: replace single rar attachment by
 			// several attachments containing the archived files
 			if (UNRAR) {
-				if(progress != null){
+				if (progress != null) {
 					progress.message = "Unpacking RAR archive...";
 					Thread.yield();
 				}

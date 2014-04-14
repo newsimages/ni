@@ -129,7 +129,7 @@ public class SubAllocator {
     };
 
     public boolean startSubAllocator(int SASize) {
-	int t = SASize << 20;
+	int t = SASize << 10;
 	if (subAllocatorSize == t) {
 	    return true;
 	}
