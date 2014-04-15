@@ -53,7 +53,8 @@
 					searchServer : 2,
 					async : true,
 					progress : true,
-					partial : true
+					partial : true,
+					maxCacheSize : 100
 				};
 
 				//---------- Initialization ----------
@@ -395,10 +396,13 @@
 					realSize(false);
 					showImage();
 
-					if (item.articleBody) {
+					// fetch from local storage cache
+					var bodyAsJSON = localStorage["cache-" + item.articleId];
+					if (bodyAsJSON) {
+						var body = json.parse(bodyAsJSON);
 						cancelRequest();
 						showProgressBar(false);
-						showBody(item);
+						showBody(item, body);
 						return;
 					}
 
@@ -583,16 +587,39 @@
 							att.data = btoa(data);
 						}
 					}
-					// TODO: limit number/size of cached articles?
-					item.articleBody = body;
-					showBody(item);
+
+					// put in local storage cache
+					var bodyAsJSON = json.stringify(body);
+					var bodySize = bodyAsJSON.length;
+					var max = (settings.maxCacheSize || 100) * 1024 * 1024;
+					if (bodySize <= max) {
+						var cacheInfo = localStorage.cacheInfo;
+						cacheInfo = cacheInfo ? json.parse(cacheInfo) : {
+							size : 0,
+							entries : []
+						};
+						cacheInfo.size += bodySize;
+						while (cacheInfo.size > max && cacheInfo.entries.length) {
+							var e = cacheInfo.entries[0];
+							delete localStorage[e.key];
+							cacheInfo.size -= e.size;
+							cacheInfo.entries.shift();
+						}
+						cacheInfo.entries.push({
+							key : "cache-" + item.articleId,
+							size : bodySize
+						});
+						localStorage["cache-" + item.articleId] = bodyAsJSON;
+						localStorage.cacheInfo = json.stringify(cacheInfo);
+					}
+
+					showBody(item, body);
 				}
 
-				function showBody(item) {
+				function showBody(item, body) {
 
 					item.set("checked", true);
 
-					var body = item.articleBody;
 					var n = body.attachments.length;
 					if (n > 1) {
 						showMultipleAttachments(body.attachments, item);
@@ -1509,6 +1536,22 @@
 						nameBox.set("value", hostnameBox.get("value"));
 					}
 				};
+
+				maxCacheSizeBoxChanged = function() {
+					settings.maxCacheSize = parseInt(maxCacheSizeBox
+							.get("value")
+							|| "100");
+					localStorage["settings"] = json.stringify(settings);
+				};
+
+				clearCache = function() {
+					for ( var p in localStorage) {
+						if (/^cache-/.test(p)) {
+							delete localStorage[p];
+						}
+					}
+					delete localStorage.cacheInfo;
+				};
 			});
 </script>
 
@@ -1715,7 +1758,7 @@ body,html {
 	font-style: italic;
 	font-size: 10pt;
 	color: #606080;
-	margin-top: 24px;
+	margin-top: 50px;
 	margin-bottom: 9px;
 	text-align: center;
 }
@@ -1739,6 +1782,18 @@ body,html {
 	width: 180px;
 	font-size: large;
 	padding-right: 9px;
+}
+
+.clearCacheButton {
+	position: absolute;
+	margin-top: -8px;
+	left: 9px;
+	right: 9px;
+	font-size: medium;
+	height: 40px;
+	background: #d0d0d0;
+	color: white;
+	left: 9px;
 }
 
 .replyItem {
@@ -1770,14 +1825,12 @@ body,html {
 	right: 9px;
 	font-size: medium;
 	height: 40px;
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#fa9d58),
-		to(#ee4115), color-stop(0.5, #ff4d25), color-stop(0.5, #ed4d15));
+	background: #ed4d15;
 	color: white;
 }
 
 .deleteButton:active {
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#c1a48e),
-		to(#9b6c4a), color-stop(0.5, #a27758), color-stop(0.5, #996947));
+	background: #c1a48e;
 }
 
 .indentedItem {
@@ -2248,7 +2301,18 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.0.5 - &copy; 2014 Mobile
+		<p class="settingsLabel">Cache:</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Max size'"><input
+				data-dojo-id="maxCacheSizeBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox maxCacheSizeBox"
+				data-dojo-props="placeHolder:'default 100 Mb',onChange:maxCacheSizeBoxChanged"></input>
+			</li>
+		</ul>
+		<button data-dojo-type="dojox/mobile/Button" class="clearCacheButton"
+			data-dojo-props="label:'Clear cache',onClick:clearCache,duration:0"></button>
+		<p class="versionLabel">Ni! - Version 3.1.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
