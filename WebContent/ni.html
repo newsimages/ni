@@ -396,10 +396,18 @@
 					realSize(false);
 					showImage();
 
-					// fetch from local storage cache
-					var bodyAsJSON = localStorage["cache-" + item.articleId];
-					if (bodyAsJSON) {
-						var body = json.parse(bodyAsJSON);
+					// try to get body from item first for multiple attachments
+					var body = item.body;
+
+					// then try to fetch from local storage cache
+					if (!body) {
+						var bodyAsJSON = localStorage["cache-" + item.articleId];
+						if (bodyAsJSON) {
+							body = json.parse(bodyAsJSON);
+						}
+					}
+
+					if (body) {
 						cancelRequest();
 						showProgressBar(false);
 						showBody(item, body);
@@ -612,7 +620,7 @@
 						localStorage["cache-" + item.articleId] = bodyAsJSON;
 						localStorage.cacheInfo = json.stringify(cacheInfo);
 					}
-
+					
 					showBody(item, body);
 				}
 
@@ -712,7 +720,7 @@
 							clickable : true,
 							noArrow : true,
 							onClick : selectArticle,
-							articleBody : {
+							body : {
 								text : "[[zip entry: " + att.filename + "]]",
 								attachments : [ att ]
 							}
@@ -1551,6 +1559,7 @@
 						}
 					}
 					delete localStorage.cacheInfo;
+					showMessage("Cache cleared.")
 				};
 			});
 </script>
@@ -1758,7 +1767,7 @@ body,html {
 	font-style: italic;
 	font-size: 10pt;
 	color: #606080;
-	margin-top: 50px;
+	margin-top: 26px;
 	margin-bottom: 9px;
 	text-align: center;
 }
@@ -1784,16 +1793,25 @@ body,html {
 	padding-right: 9px;
 }
 
+.inlineTextBox.maxCacheSizeBox {
+	right: 70px;
+	width: 150px;
+}
+
 .clearCacheButton {
 	position: absolute;
-	margin-top: -8px;
-	left: 9px;
+	top: 3px;
 	right: 9px;
+	height: 40px;
+	width: 60px;
 	font-size: medium;
 	height: 40px;
-	background: #d0d0d0;
-	color: white;
-	left: 9px;
+	background-color: #c5ccd3;
+	right: 9px;
+}
+
+.clearCacheButton:active {
+	background: #dedede;
 }
 
 .replyItem {
@@ -2303,16 +2321,17 @@ body,html {
 		</ul>
 		<p class="settingsLabel">Cache:</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
-				data-dojo-props="label:'Max size'"><input
-				data-dojo-id="maxCacheSizeBox" data-dojo-type="dojox/mobile/TextBox"
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Max
+				size <input data-dojo-id="maxCacheSizeBox"
+				data-dojo-type="dojox/mobile/TextBox"
 				class="inlineTextBox maxCacheSizeBox"
 				data-dojo-props="placeHolder:'default 100 Mb',onChange:maxCacheSizeBoxChanged"></input>
+				<button data-dojo-type="dojox/mobile/Button"
+					class="clearCacheButton"
+					data-dojo-props="label:'Clear',onClick:clearCache,duration:0"></button>
 			</li>
 		</ul>
-		<button data-dojo-type="dojox/mobile/Button" class="clearCacheButton"
-			data-dojo-props="label:'Clear cache',onClick:clearCache,duration:0"></button>
-		<p class="versionLabel">Ni! - Version 3.1.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.1.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
