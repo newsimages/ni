@@ -461,15 +461,15 @@ public class NewsService implements ProtocolCommandListener {
 			// extract rar archives: replace single rar attachment by
 			// several attachments containing the archived files
 			if (UNRAR) {
-				if (progress != null) {
-					progress.message = "Unpacking RAR archive...";
-					Thread.yield();
-				}
 				if (body.attachments.size() == 1) {
 					Attachment a = body.attachments.get(0);
 					if (a.filename != null
 							&& (a.filename.endsWith(".rar") || a.filename
 									.endsWith(".cbr"))) {
+						if (progress != null) {
+							progress.message = "Unpacking RAR archive...";
+							Thread.yield();
+						}
 						body.attachments.remove(0);
 						Archive ar = new Archive(a.data, a.filename, false);
 						FileHeader fh;
