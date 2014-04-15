@@ -56,8 +56,6 @@
 					partial : true
 				};
 
-				var maxCacheSize = 5000000;
-
 				//---------- Initialization ----------
 
 				function init() {
@@ -400,14 +398,6 @@
 					// try to get body from item first for multiple attachments
 					var body = item.body;
 
-					// then try to fetch from local storage cache
-					if (!body) {
-						var bodyAsJSON = localStorage["cache-" + item.articleId];
-						if (bodyAsJSON) {
-							body = json.parse(bodyAsJSON);
-						}
-					}
-
 					if (body) {
 						cancelRequest();
 						showProgressBar(false);
@@ -547,10 +537,6 @@
 
 				function fixList(list) {
 					list.resize();
-					array.forEach(list.getChildren(), function(item) {
-						if (item._pendingChecked)
-							item.set("checked", item._pendingChecked);
-					});
 					if (currentItem && currentItem.getParent() == list) {
 						var v = viewRegistry
 								.getEnclosingScrollable(list.domNode), node = currentItem.domNode, nodeRect = node
@@ -597,34 +583,6 @@
 						}
 					}
 
-					// put in local storage cache
-					var bodyAsJSON = json.stringify(body);
-					var bodySize = bodyAsJSON.length;
-					var max = maxCacheSize;
-					if (bodySize <= max) {
-						var cacheInfo = localStorage.cacheInfo;
-						cacheInfo = cacheInfo ? json.parse(cacheInfo) : {
-							size : 0,
-							entries : []
-						};
-						cacheInfo.size += bodySize;
-						while (cacheInfo.size > max && cacheInfo.entries.length) {
-							var e = cacheInfo.entries[0];
-							delete localStorage[e.key];
-							cacheInfo.size -= e.size;
-							cacheInfo.entries.shift();
-						}
-						cacheInfo.entries.push({
-							key : "cache-" + item.articleId,
-							size : bodySize
-						});
-						try {
-							localStorage["cache-" + item.articleId] = bodyAsJSON;
-							localStorage.cacheInfo = json.stringify(cacheInfo);
-						} catch (err) {
-						}
-					}
-
 					// cache in memory for immediate reuse
 					item.body = body;
 					
@@ -633,7 +591,7 @@
 
 				function showBody(item, body) {
 
-					item.set("checked", true);
+					domClass.add(item.domNode, "read");
 
 					var n = body.attachments.length;
 					if (n > 1) {
@@ -1551,16 +1509,6 @@
 						nameBox.set("value", hostnameBox.get("value"));
 					}
 				};
-
-				clearCache = function() {
-					for ( var p in localStorage) {
-						if (/^cache-/.test(p)) {
-							delete localStorage[p];
-						}
-					}
-					delete localStorage.cacheInfo;
-					showMessage("Cache cleared.")
-				};
 			});
 </script>
 
@@ -1573,7 +1521,7 @@ body,html {
 	font-size: 11pt;
 }
 
-.mblEdgeToEdgeList .mblListItemChecked {
+.mblEdgeToEdgeList .mblListItem.read {
 	color: #909090;
 }
 
@@ -1767,7 +1715,7 @@ body,html {
 	font-style: italic;
 	font-size: 10pt;
 	color: #606080;
-	margin-top: 66px;
+	margin-top: 46px;
 	margin-bottom: 9px;
 	text-align: center;
 }
@@ -1791,20 +1739,6 @@ body,html {
 	width: 180px;
 	font-size: large;
 	padding-right: 9px;
-}
-
-.clearCacheButton {
-	position: absolute;
-	margin-top: 6px; left : 9px;
-	right: 9px;
-	font-size: medium;
-	height: 40px;
-	background-color: #c5ccd3;
-	left: 9px;
-}
-
-.clearCacheButton:active {
-	background: #dedede;
 }
 
 .replyItem {
@@ -2144,7 +2078,7 @@ body,html {
 	margin-left: 1px;
 }
 
-.mblEdgeToEdgeList .mblListItemChecked .archiveEntry {
+.mblEdgeToEdgeList .mblListItem.read .archiveEntry {
 	color: #a0a0a0;
 }
 </style>
@@ -2312,9 +2246,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<button data-dojo-type="dojox/mobile/Button" class="clearCacheButton"
-			data-dojo-props="label:'Clear local storage cache',onClick:clearCache,duration:0"></button>
-		<p class="versionLabel">Ni! - Version 3.1.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.1.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

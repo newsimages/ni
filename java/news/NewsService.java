@@ -63,9 +63,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static boolean UNRAR = true; // extract rar archives on the server?
 
-	private static boolean CACHE_ARTICLES = false;
-	private static ArticleCache articleCache = CACHE_ARTICLES ? new ArticleCache()
-			: null;
+	private static ArticleCache articleCache = new ArticleCache();
 
 	private static boolean HIDE_PAR_FILES = true;
 
@@ -338,7 +336,7 @@ public class NewsService implements ProtocolCommandListener {
 			String articleId, Progress progress) throws SocketException,
 			IOException, RarException {
 
-		ArticleBody body = CACHE_ARTICLES ? articleCache.get(articleId) : null;
+		ArticleBody body = articleCache.get(articleId);
 
 		if (body == null) {
 
@@ -485,9 +483,7 @@ public class NewsService implements ProtocolCommandListener {
 					}
 				}
 			}
-			if (CACHE_ARTICLES) {
-				articleCache.put(articleId, body);
-			}
+			articleCache.put(articleId, body);
 		}
 
 		return body;
