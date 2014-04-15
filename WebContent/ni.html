@@ -53,9 +53,10 @@
 					searchServer : 2,
 					async : true,
 					progress : true,
-					partial : true,
-					maxCacheSize : 100
+					partial : true
 				};
+
+				var maxCacheSize = 5000000;
 
 				//---------- Initialization ----------
 
@@ -599,7 +600,7 @@
 					// put in local storage cache
 					var bodyAsJSON = json.stringify(body);
 					var bodySize = bodyAsJSON.length;
-					var max = (settings.maxCacheSize || 100) * 1024 * 1024;
+					var max = maxCacheSize;
 					if (bodySize <= max) {
 						var cacheInfo = localStorage.cacheInfo;
 						cacheInfo = cacheInfo ? json.parse(cacheInfo) : {
@@ -617,9 +618,15 @@
 							key : "cache-" + item.articleId,
 							size : bodySize
 						});
-						localStorage["cache-" + item.articleId] = bodyAsJSON;
-						localStorage.cacheInfo = json.stringify(cacheInfo);
+						try {
+							localStorage["cache-" + item.articleId] = bodyAsJSON;
+							localStorage.cacheInfo = json.stringify(cacheInfo);
+						} catch (err) {
+						}
 					}
+
+					// cache in memory for immediate reuse
+					item.body = body;
 					
 					showBody(item, body);
 				}
@@ -1545,13 +1552,6 @@
 					}
 				};
 
-				maxCacheSizeBoxChanged = function() {
-					settings.maxCacheSize = parseInt(maxCacheSizeBox
-							.get("value")
-							|| "100");
-					localStorage["settings"] = json.stringify(settings);
-				};
-
 				clearCache = function() {
 					for ( var p in localStorage) {
 						if (/^cache-/.test(p)) {
@@ -1767,7 +1767,7 @@ body,html {
 	font-style: italic;
 	font-size: 10pt;
 	color: #606080;
-	margin-top: 26px;
+	margin-top: 60px;
 	margin-bottom: 9px;
 	text-align: center;
 }
@@ -1793,21 +1793,14 @@ body,html {
 	padding-right: 9px;
 }
 
-.inlineTextBox.maxCacheSizeBox {
-	right: 70px;
-	width: 150px;
-}
-
 .clearCacheButton {
 	position: absolute;
-	top: 3px;
+	margin-top: 6px; left : 9px;
 	right: 9px;
-	height: 40px;
-	width: 60px;
 	font-size: medium;
 	height: 40px;
 	background-color: #c5ccd3;
-	right: 9px;
+	left: 9px;
 }
 
 .clearCacheButton:active {
@@ -2319,19 +2312,9 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="settingsLabel">Cache:</p>
-		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Max
-				size <input data-dojo-id="maxCacheSizeBox"
-				data-dojo-type="dojox/mobile/TextBox"
-				class="inlineTextBox maxCacheSizeBox"
-				data-dojo-props="placeHolder:'default 100 Mb',onChange:maxCacheSizeBoxChanged"></input>
-				<button data-dojo-type="dojox/mobile/Button"
-					class="clearCacheButton"
-					data-dojo-props="label:'Clear',onClick:clearCache,duration:0"></button>
-			</li>
-		</ul>
-		<p class="versionLabel">Ni! - Version 3.1.1 - &copy; 2014 Mobile
+		<button data-dojo-type="dojox/mobile/Button" class="clearCacheButton"
+			data-dojo-props="label:'Clear local storage cache',onClick:clearCache,duration:0"></button>
+		<p class="versionLabel">Ni! - Version 3.1.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
