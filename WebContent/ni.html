@@ -232,7 +232,7 @@
 				//---------- Shared code b/w search and browsing ----------
 
 				function getArticles(command, args, offset, reverse, list,
-						view, newsgroup, item) {
+						view, item) {
 					args.offset = offset;
 					doRequest(
 							command,
@@ -257,8 +257,7 @@
 										onClick : function() {
 											getArticles(command, args,
 													result.articleList.offset,
-													reverse, list, view,
-													newsgroup, this);
+													reverse, list, view, this);
 										}
 									});
 									moreItem.isMoreItem = true;
@@ -359,10 +358,9 @@
 				function getHeaders(newsgroup, offset) {
 					getArticles("h", {
 						newsgroup : newsgroup,
-						filter : settings.searchFilter || " ",
+						filter : /*settings.searchFilter || */" ",
 						count : settings.searchResultsCount
-					}, offset, false, newsgroupResultsList, newsgroupView,
-							newsgroup);
+					}, offset, false, newsgroupResultsList, newsgroupView);
 				}
 
 				//---------- Article ----------
@@ -406,7 +404,6 @@
 					}
 
 					var args = {
-						newsgroup : item.newsgroup,
 						articleId : item.articleId
 					};
 
@@ -585,7 +582,7 @@
 
 					// cache in memory for immediate reuse
 					item.body = body;
-					
+
 					showBody(item, body);
 				}
 
@@ -670,39 +667,50 @@
 				}
 
 				function showMultipleAttachments(attachments, item) {
+					var firstItem = showMultipleItems(array.map(attachments,
+							function(att) {
+								return {
+									subject : att.filename,
+									body : {
+										text : "[[zip entry: " + att.filename
+												+ "]]",
+										attachments : [ att ]
+									}
+								};
+							}), item);
+					if (firstItem)
+						showArticle(firstItem);
+				}
+
+				function showMultipleItems(items, item) {
 					var list = item._list;
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
 					var prevItem = item.prevItem;
 					var nextItem = item.nextItem;
 					var firstItem;
-					array.forEach(attachments, function(att, i) {
-						att.index = i;
-						var attItem = new ListItem({
-							label : att.filename
+					array.forEach(items, function(it, i) {
+						var newItem = new ListItem(lang.mixin({
+							label : it.subject
 									+ "<div class=\"archiveEntry\"> In: "
 									+ item.get("label") + "</div>",
 							clickable : true,
 							noArrow : true,
-							onClick : selectArticle,
-							body : {
-								text : "[[zip entry: " + att.filename + "]]",
-								attachments : [ att ]
-							}
-						});
-						list.addChild(attItem, index++);
-						attItem._list = list;
-						attItem.prevItem = prevItem;
-						attItem.nextItem = nextItem;
+							onClick : selectArticle
+						}, it));
+						list.addChild(newItem, index++);
+						newItem._list = list;
+						newItem.prevItem = prevItem;
+						newItem.nextItem = nextItem;
 						if (prevItem)
-							prevItem.nextItem = attItem;
+							prevItem.nextItem = newItem;
 						if (nextItem)
-							nextItem.prevItem = attItem;
-						prevItem = attItem;
+							nextItem.prevItem = newItem;
+						prevItem = newItem;
 						if (!firstItem)
-							firstItem = attItem;
+							firstItem = newItem;
 					});
-					showArticle(firstItem);
+					return firstItem;
 				}
 
 				function showImage(att) {
@@ -797,7 +805,8 @@
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					progress();
+					if (!resize)
+						progress();
 
 					if (img.partial) {
 						if (img.invalid)
@@ -2246,7 +2255,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.1.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.1.5 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

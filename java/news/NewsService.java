@@ -5,7 +5,6 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
@@ -26,13 +25,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -63,7 +59,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static boolean UNRAR = true; // extract rar archives on the server?
 
-	private static ArticleCache articleCache = new ArticleCache();
+	// private static ArticleCache articleCache = new ArticleCache();
 
 	private static boolean HIDE_PAR_FILES = true;
 
@@ -74,7 +70,6 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	private static HashMap<String, Stack<ClientInfo>> clientPool = new HashMap<String, Stack<ClientInfo>>();
-	private static HashMap<NNTPClient, String> currentNewsgroups = new HashMap<NNTPClient, String>();
 
 	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
@@ -149,7 +144,6 @@ public class NewsService implements ProtocolCommandListener {
 		NewsgroupInfo info = new NewsgroupInfo();
 
 		client.selectNewsgroup(newsgroup, info);
-		currentNewsgroups.put(client, newsgroup);
 
 		if (!newsgroup.equals(multipartMapNewsgroup)) {
 			multipartMap.clear();
@@ -212,10 +206,9 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("b")
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleBody getBody(@FormParam("host") String host,
-			@FormParam("newsgroup") String newsgroup,
 			@FormParam("articleId") String articleId) throws SocketException,
 			IOException, RarException {
-		return getBody(host, newsgroup, articleId, null);
+		return getBody(host, articleId, null);
 	}
 
 	private static class ProgressByteArrayOutputStream extends
@@ -332,21 +325,17 @@ public class NewsService implements ProtocolCommandListener {
 		}
 	}
 
-	public ArticleBody getBody(final String host, final String newsgroup,
+	public ArticleBody getBody(final String host,
 			String articleId, Progress progress) throws SocketException,
 			IOException, RarException {
 
-		ArticleBody body = articleCache.get(articleId);
+		ArticleBody body = null;// = articleCache.get(articleId);
 
 		if (body == null) {
 
 			String[] aids = articleId.split(",");
 
 			NNTPClient client = connect(host);
-			if (!newsgroup.equals(currentNewsgroups.get(client))) {
-				client.selectNewsgroup(newsgroup);
-				currentNewsgroups.put(client, newsgroup);
-			}
 
 			ArticleBody[] bodies = new ArticleBody[aids.length];
 
@@ -432,6 +421,10 @@ public class NewsService implements ProtocolCommandListener {
 					if (a.filename != null
 							&& (a.filename.endsWith(".zip") || a.filename
 									.endsWith(".cbz"))) {
+						if (progress != null) {
+							progress.message = "Unpacking ZIP archive...";
+							Thread.yield();
+						}
 						body.attachments.remove(0);
 						ZipInputStream zin = new ZipInputStream(
 								new ByteArrayInputStream(a.data));
@@ -483,7 +476,7 @@ public class NewsService implements ProtocolCommandListener {
 					}
 				}
 			}
-			articleCache.put(articleId, body);
+			// articleCache.put(articleId, body);
 		}
 
 		return body;
@@ -493,7 +486,6 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("ba")
 	@Produces(MediaType.TEXT_PLAIN)
 	public String getBodyAsync(@FormParam("host") final String host,
-			@FormParam("newsgroup") final String newsgroup,
 			@FormParam("articleId") final String articleId)
 			throws SocketException, IOException {
 
@@ -506,7 +498,7 @@ public class NewsService implements ProtocolCommandListener {
 			public void run() {
 				ArticleBody body;
 				try {
-					body = getBody(host, newsgroup, articleId, progress);
+					body = getBody(host, articleId, progress);
 					progress.body = progress.chunk != null ? body
 							.cloneWithoutData() : body;
 				} catch (Throwable ex) {
@@ -634,7 +626,6 @@ public class NewsService implements ProtocolCommandListener {
 					} catch (Exception e) {
 					}
 					clientPool.get(host).remove(clientInfo);
-					currentNewsgroups.remove(clientInfo.client);
 				}
 			}, 5 * 60 * 1000); // disconnect after 5mn inactive
 			clients.push(clientInfo);
@@ -1204,15 +1195,6 @@ public class NewsService implements ProtocolCommandListener {
 					continue;
 				}
 				ArticleHeader article = new ArticleHeader(subject, null);
-				article.newsgroups = new ArrayList<String>();
-				NodeList groups = file.getElementsByTagName("groups");
-				if (groups.getLength() > 0) {
-					groups = ((Element) groups.item(0))
-							.getElementsByTagName("group");
-					for (int j = 0; j < groups.getLength(); j++) {
-						article.newsgroups.add(groups.item(j).getTextContent());
-					}
-				}
 				NodeList segments = file.getElementsByTagName("segments");
 				if (segments.getLength() > 0) {
 					segments = ((Element) segments.item(0))
@@ -1250,15 +1232,15 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct download of attachments
 	// ------------------------------
 
+	/*
 	@GET
-	@Path("a/{host}/{newsgroup}/{articleId}/{name}")
+	@Path("a/{host}/{articleId}/{name}")
 	public Response getAttachment(@PathParam("host") String host,
-			@PathParam("newsgroup") String newsgroup,
 			@PathParam("articleId") String articleId,
 			@PathParam("name") String name) throws SocketException,
 			IOException, RarException {
 
-		ArticleBody body = getBody(host, newsgroup, articleId, null);
+		ArticleBody body = getBody(host, articleId, null);
 		Attachment att = null;
 		try {
 			int index = Integer.valueOf(name);
@@ -1299,7 +1281,8 @@ public class NewsService implements ProtocolCommandListener {
 			type = "text/plain";
 		return Response.ok(result, type).build();
 	}
-
+	*/
+	
 	// ---------
 	// Utilities
 	// ---------
