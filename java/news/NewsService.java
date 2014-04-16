@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
@@ -56,11 +57,8 @@ import unrar.rarfile.FileHeader;
 public class NewsService implements ProtocolCommandListener {
 
 	private static boolean UNZIP = false; // unzip zip archives on the server?
-
 	private static boolean UNRAR = true; // extract rar archives on the server?
-
-	// private static ArticleCache articleCache = new ArticleCache();
-
+	private static boolean NZB = true; // parse nzb index files on the server?
 	private static boolean HIDE_PAR_FILES = true;
 
 	class ClientInfo {
@@ -207,7 +205,7 @@ public class NewsService implements ProtocolCommandListener {
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleBody getBody(@FormParam("host") String host,
 			@FormParam("articleId") String articleId) throws SocketException,
-			IOException, RarException {
+			IOException, RarException, ParserConfigurationException, SAXException {
 		return getBody(host, articleId, null);
 	}
 
@@ -325,158 +323,153 @@ public class NewsService implements ProtocolCommandListener {
 		}
 	}
 
-	public ArticleBody getBody(final String host,
-			String articleId, Progress progress) throws SocketException,
-			IOException, RarException {
+	public ArticleBody getBody(final String host, String articleId,
+			Progress progress) throws SocketException, IOException,
+			RarException, ParserConfigurationException, SAXException {
 
-		ArticleBody body = null;// = articleCache.get(articleId);
+		String[] aids = articleId.split(",");
 
-		if (body == null) {
+		NNTPClient client = connect(host);
 
-			String[] aids = articleId.split(",");
+		ArticleBody[] bodies = new ArticleBody[aids.length];
 
-			NNTPClient client = connect(host);
+		if (progress != null) {
+			progress.partCount = aids.length;
+		}
 
-			ArticleBody[] bodies = new ArticleBody[aids.length];
+		FileInfo fileInfo = new FileInfo();
+
+		for (int i = 0; i < aids.length; i++) {
 
 			if (progress != null) {
-				progress.partCount = aids.length;
+				progress.part = i + 1;
 			}
 
-			FileInfo fileInfo = new FileInfo();
+			String aid = aids[i];
 
+			if (aid.charAt(0) != '<')
+				aid = "<" + aid;
+			if (aid.charAt(aid.length() - 1) != '>')
+				aid = aid + ">";
+
+			BufferedReader reader = (BufferedReader) client
+					.retrieveArticle(aid);
+
+			if (reader == null)
+				throw new IOException(client.getReplyString());
+
+			if (progress != null) {
+				reader = new ProgressReader(reader, progress);
+			}
+
+			readHeaders(reader, fileInfo);
+
+			ArticleBody part = new ArticleBody();
+
+			readBody(reader, part, i, aids.length, fileInfo);
+
+			bodies[i] = part;
+		}
+
+		disconnect(host, client);
+
+		ArticleBody body;
+
+		if (aids.length == 1) {
+			body = bodies[0];
+		} else {
+			body = new ArticleBody();
+			body.text = "";
 			for (int i = 0; i < aids.length; i++) {
-
-				if (progress != null) {
-					progress.part = i + 1;
-				}
-
-				String aid = aids[i];
-
-				if (aid.charAt(0) != '<')
-					aid = "<" + aid;
-				if (aid.charAt(aid.length() - 1) != '>')
-					aid = aid + ">";
-
-				BufferedReader reader = (BufferedReader) client
-						.retrieveArticle(aid);
-
-				if (reader == null)
-					throw new IOException(client.getReplyString());
-
-				if (progress != null) {
-					reader = new ProgressReader(reader, progress);
-				}
-
-				readHeaders(reader, fileInfo);
-
-				ArticleBody part = new ArticleBody();
-
-				readBody(reader, part, i, aids.length, fileInfo);
-
-				bodies[i] = part;
-			}
-
-			disconnect(host, client);
-
-			if (aids.length == 1) {
-				body = bodies[0];
-			} else {
-				body = new ArticleBody();
-				body.text = "";
-				for (int i = 0; i < aids.length; i++) {
-					ArticleBody b = bodies[i];
-					body.text += b.text;
-					for (int j = 0; j < b.attachments.size(); j++) {
-						Attachment atti = b.attachments.get(j);
-						Attachment att;
-						if (j >= body.attachments.size()) {
-							att = new Attachment();
-							att.filename = atti.filename;
-							att.data = atti.data;
-							body.attachments.add(att);
-						} else {
-							att = body.attachments.get(j);
-							byte[] data = new byte[att.data.length
-									+ atti.data.length];
-							System.arraycopy(att.data, 0, data, 0,
-									att.data.length);
-							System.arraycopy(atti.data, 0, data,
-									att.data.length, atti.data.length);
-							att.data = data;
-						}
+				ArticleBody b = bodies[i];
+				body.text += b.text;
+				for (int j = 0; j < b.attachments.size(); j++) {
+					Attachment atti = b.attachments.get(j);
+					Attachment att;
+					if (j >= body.attachments.size()) {
+						att = new Attachment();
+						att.filename = atti.filename;
+						att.data = atti.data;
+						body.attachments.add(att);
+					} else {
+						att = body.attachments.get(j);
+						byte[] data = new byte[att.data.length
+								+ atti.data.length];
+						System.arraycopy(att.data, 0, data, 0, att.data.length);
+						System.arraycopy(atti.data, 0, data, att.data.length,
+								atti.data.length);
+						att.data = data;
 					}
 				}
 			}
+		}
 
-			if (progress != null && progress.cancelled) {
-				return body;
-			}
+		if (progress != null && progress.cancelled) {
+			return body;
+		}
 
-			// extract zip archives: replace single zip attachment by
-			// several attachments containing the zipped files
-			if (UNZIP) {
-				if (body.attachments.size() == 1) {
-					Attachment a = body.attachments.get(0);
-					if (a.filename != null
-							&& (a.filename.endsWith(".zip") || a.filename
-									.endsWith(".cbz"))) {
-						if (progress != null) {
-							progress.message = "Unpacking ZIP archive...";
-							Thread.yield();
-						}
-						body.attachments.remove(0);
-						ZipInputStream zin = new ZipInputStream(
-								new ByteArrayInputStream(a.data));
-						ZipEntry zen;
-						while ((zen = zin.getNextEntry()) != null) {
-							if (zen.isDirectory()) {
-								zin.closeEntry();
-								continue;
-							}
-							byte[] buffer = new byte[10000];
-							ByteArrayOutputStream out = new ByteArrayOutputStream();
-							int count;
-							while ((count = zin.read(buffer, 0, buffer.length)) > 0) {
-								out.write(buffer, 0, count);
-							}
-							body.attachments.add(new Attachment(zen.getName(),
-									out.toByteArray()));
-							body.text += "- zip entry: [[" + zen.getName()
-									+ "]]\n";
-						}
+		if (body.attachments.size() == 1) {
+			Attachment a = body.attachments.get(0);
+			if (a.filename != null) {
+				if (UNZIP
+						&& (a.filename.endsWith(".zip") || a.filename
+								.endsWith(".cbz"))) {
+					// extract ZIP archives: replace single zip attachment by
+					// several attachments containing the zipped files
+					if (progress != null) {
+						progress.message = "Unpacking ZIP archive...";
+						Thread.yield();
 					}
+					body.attachments.remove(0);
+					ZipInputStream zin = new ZipInputStream(
+							new ByteArrayInputStream(a.data));
+					ZipEntry zen;
+					while ((zen = zin.getNextEntry()) != null) {
+						if (zen.isDirectory()) {
+							zin.closeEntry();
+							continue;
+						}
+						byte[] buffer = new byte[10000];
+						ByteArrayOutputStream out = new ByteArrayOutputStream();
+						int count;
+						while ((count = zin.read(buffer, 0, buffer.length)) > 0) {
+							out.write(buffer, 0, count);
+						}
+						body.attachments.add(new Attachment(zen.getName(), out
+								.toByteArray()));
+						body.text += "- zip entry: [[" + zen.getName() + "]]\n";
+					}
+				} else if (UNRAR
+						&& (a.filename.endsWith(".rar") || a.filename
+								.endsWith(".cbr"))) {
+					// extract RAR archives: replace single rar attachment by
+					// several attachments containing the archived files
+					if (progress != null) {
+						progress.message = "Unpacking RAR archive...";
+						Thread.yield();
+					}
+					body.attachments.remove(0);
+					Archive ar = new Archive(a.data, a.filename, false);
+					FileHeader fh;
+					while ((fh = ar.nextFileHeader()) != null) {
+						ByteArrayOutputStream out = new ByteArrayOutputStream();
+						ar.extractFile(fh, out);
+						body.attachments.add(new Attachment(fh
+								.getFileNameString(), out.toByteArray()));
+						body.text += "- rar entry: [[" + fh.getFileNameString()
+								+ "]]\n";
+					}
+					ar.close();
+				} else if (NZB && a.filename.endsWith(".nzb")) {
+					// parse NZB index files
+					if (progress != null) {
+						progress.message = "Parsing NZB index...";
+						Thread.yield();
+					}
+					body.articles = new ArrayList<ArticleHeader>();
+					parseNzb(new ByteArrayInputStream(a.data), "", body.articles);
 				}
 			}
-
-			// extract rar archives: replace single rar attachment by
-			// several attachments containing the archived files
-			if (UNRAR) {
-				if (body.attachments.size() == 1) {
-					Attachment a = body.attachments.get(0);
-					if (a.filename != null
-							&& (a.filename.endsWith(".rar") || a.filename
-									.endsWith(".cbr"))) {
-						if (progress != null) {
-							progress.message = "Unpacking RAR archive...";
-							Thread.yield();
-						}
-						body.attachments.remove(0);
-						Archive ar = new Archive(a.data, a.filename, false);
-						FileHeader fh;
-						while ((fh = ar.nextFileHeader()) != null) {
-							ByteArrayOutputStream out = new ByteArrayOutputStream();
-							ar.extractFile(fh, out);
-							body.attachments.add(new Attachment(fh
-									.getFileNameString(), out.toByteArray()));
-							body.text += "- rar entry: [["
-									+ fh.getFileNameString() + "]]\n";
-						}
-						ar.close();
-					}
-				}
-			}
-			// articleCache.put(articleId, body);
 		}
 
 		return body;
@@ -1168,58 +1161,11 @@ public class NewsService implements ProtocolCommandListener {
 
 			gzip = new GZIPInputStream(conn.getInputStream());
 
-			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-
-			dbf.setValidating(false);
-			dbf.setFeature("http://xml.org/sax/features/namespaces", false);
-			dbf.setFeature("http://xml.org/sax/features/validation", false);
-			dbf.setFeature(
-					"http://apache.org/xml/features/nonvalidating/load-dtd-grammar",
-					false);
-			dbf.setFeature(
-					"http://apache.org/xml/features/nonvalidating/load-external-dtd",
-					false);
-
-			DocumentBuilder builder = dbf.newDocumentBuilder();
-
-			Document doc = builder.parse(gzip);
+			parseNzb(gzip, filter, list.articles);
 
 			writer.close();
 			gzip.close();
 
-			NodeList files = doc.getElementsByTagName("file");
-			for (int i = 0; i < files.getLength(); i++) {
-				Element file = (Element) files.item(i);
-				String subject = file.getAttribute("subject");
-				if (isHidden(subject, filter)) {
-					continue;
-				}
-				ArticleHeader article = new ArticleHeader(subject, null);
-				NodeList segments = file.getElementsByTagName("segments");
-				if (segments.getLength() > 0) {
-					segments = ((Element) segments.item(0))
-							.getElementsByTagName("segment");
-					if (segments.getLength() > 0) {
-						String[] ids = new String[segments.getLength()];
-						for (int j = 0; j < segments.getLength(); j++) {
-							Element segment = (Element) segments.item(j);
-							int number = Integer.parseInt(segment
-									.getAttribute("number")) - 1;
-							if (number >= 0 && number < ids.length)
-								ids[number] = segment.getTextContent();
-							article.bytes += Integer.parseInt(segment
-									.getAttribute("bytes"));
-						}
-						String parts = ids[0];
-						for (int j = 1; j < ids.length; j++) {
-							parts += "," + ids[j];
-						}
-						article.parts = parts;
-					}
-				}
-				list.articles.add(article);
-			}
-			computeMultivolumes(list.articles);
 		}
 
 		list.available = available ? max : 0;
@@ -1228,61 +1174,95 @@ public class NewsService implements ProtocolCommandListener {
 		return list;
 	}
 
+	private void parseNzb(InputStream in, String filter,
+			List<ArticleHeader> articles) throws ParserConfigurationException,
+			SAXException, IOException {
+
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+
+		dbf.setValidating(false);
+		dbf.setFeature("http://xml.org/sax/features/namespaces", false);
+		dbf.setFeature("http://xml.org/sax/features/validation", false);
+		dbf.setFeature(
+				"http://apache.org/xml/features/nonvalidating/load-dtd-grammar",
+				false);
+		dbf.setFeature(
+				"http://apache.org/xml/features/nonvalidating/load-external-dtd",
+				false);
+
+		DocumentBuilder builder = dbf.newDocumentBuilder();
+
+		Document doc = builder.parse(in);
+
+		NodeList files = doc.getElementsByTagName("file");
+		for (int i = 0; i < files.getLength(); i++) {
+			Element file = (Element) files.item(i);
+			String subject = file.getAttribute("subject");
+			if (isHidden(subject, filter)) {
+				continue;
+			}
+			ArticleHeader article = new ArticleHeader(subject, null);
+			NodeList segments = file.getElementsByTagName("segments");
+			if (segments.getLength() > 0) {
+				segments = ((Element) segments.item(0))
+						.getElementsByTagName("segment");
+				if (segments.getLength() > 0) {
+					String[] ids = new String[segments.getLength()];
+					for (int j = 0; j < segments.getLength(); j++) {
+						Element segment = (Element) segments.item(j);
+						int number = Integer.parseInt(segment
+								.getAttribute("number")) - 1;
+						if (number >= 0 && number < ids.length)
+							ids[number] = segment.getTextContent();
+						article.bytes += Integer.parseInt(segment
+								.getAttribute("bytes"));
+					}
+					String parts = ids[0];
+					for (int j = 1; j < ids.length; j++) {
+						parts += "," + ids[j];
+					}
+					article.parts = parts;
+				}
+			}
+			articles.add(article);
+		}
+		computeMultivolumes(articles);
+	}
+
 	// ------------------------------
 	// Direct download of attachments
 	// ------------------------------
 
 	/*
-	@GET
-	@Path("a/{host}/{articleId}/{name}")
-	public Response getAttachment(@PathParam("host") String host,
-			@PathParam("articleId") String articleId,
-			@PathParam("name") String name) throws SocketException,
-			IOException, RarException {
+	 * @GET
+	 * 
+	 * @Path("a/{host}/{articleId}/{name}") public Response
+	 * getAttachment(@PathParam("host") String host,
+	 * 
+	 * @PathParam("articleId") String articleId,
+	 * 
+	 * @PathParam("name") String name) throws SocketException, IOException,
+	 * RarException {
+	 * 
+	 * ArticleBody body = getBody(host, articleId, null); Attachment att = null;
+	 * try { int index = Integer.valueOf(name); if (body.attachments.size() <=
+	 * index || body.attachments.get(index) == null) throw new
+	 * IOException("Attachment " + name + " not found in article " + articleId);
+	 * att = body.attachments.get(index); } catch (NumberFormatException ex) {
+	 * for (int i = 0; i < body.attachments.size(); i++) { Attachment a =
+	 * body.attachments.get(i); if (a.filename.equals(name)) { att = a; break; }
+	 * } if (att == null) { throw new IOException("Attachment " + name +
+	 * " not found in article " + articleId); } } InputStream result = new
+	 * ByteArrayInputStream(att.data); name = name.toLowerCase(); String type;
+	 * if (name.endsWith(".jpg")) type = "image/jpg"; else if
+	 * (name.endsWith(".gif")) type = "image/gif"; else if
+	 * (name.endsWith(".png")) type = "image/png"; else if
+	 * (name.endsWith(".mpg")) type = "video/mpg"; else if
+	 * (name.endsWith(".avi")) type = "video/avi"; else if
+	 * (name.endsWith(".mp4")) type = "video/mp4"; else type = "text/plain";
+	 * return Response.ok(result, type).build(); }
+	 */
 
-		ArticleBody body = getBody(host, articleId, null);
-		Attachment att = null;
-		try {
-			int index = Integer.valueOf(name);
-			if (body.attachments.size() <= index
-					|| body.attachments.get(index) == null)
-				throw new IOException("Attachment " + name
-						+ " not found in article " + articleId);
-			att = body.attachments.get(index);
-		} catch (NumberFormatException ex) {
-			for (int i = 0; i < body.attachments.size(); i++) {
-				Attachment a = body.attachments.get(i);
-				if (a.filename.equals(name)) {
-					att = a;
-					break;
-				}
-			}
-			if (att == null) {
-				throw new IOException("Attachment " + name
-						+ " not found in article " + articleId);
-			}
-		}
-		InputStream result = new ByteArrayInputStream(att.data);
-		name = name.toLowerCase();
-		String type;
-		if (name.endsWith(".jpg"))
-			type = "image/jpg";
-		else if (name.endsWith(".gif"))
-			type = "image/gif";
-		else if (name.endsWith(".png"))
-			type = "image/png";
-		else if (name.endsWith(".mpg"))
-			type = "video/mpg";
-		else if (name.endsWith(".avi"))
-			type = "video/avi";
-		else if (name.endsWith(".mp4"))
-			type = "video/mp4";
-		else
-			type = "text/plain";
-		return Response.ok(result, type).build();
-	}
-	*/
-	
 	// ---------
 	// Utilities
 	// ---------

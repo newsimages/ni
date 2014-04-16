@@ -12,7 +12,6 @@ public class ArticleHeader {
 	@XmlAttribute public String parts;
 	@XmlAttribute public String vols;
 	@XmlAttribute public int bytes;
-	public List<String> newsgroups; // for NZBs
 	
 	public ArticleHeader(){}
 	

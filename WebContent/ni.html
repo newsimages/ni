@@ -365,7 +365,7 @@
 
 				//---------- Article ----------
 
-				var currentItem, imageRealSized, articleImage, previousView, currentAsyncId;
+				var currentItem, imageRealSized, articleImage, currentAsyncId;
 
 				function selectArticle() {
 					if (!currentServer) {
@@ -590,48 +590,53 @@
 
 					domClass.add(item.domNode, "read");
 
-					var n = body.attachments.length;
-					if (n > 1) {
-						showMultipleAttachments(body.attachments, item);
-					} else if (n == 1) {
-						var att = body.attachments[0];
-						if (att.filename) {
-							var suff = suffix(att.filename);
-							switch (suff) {
-							case "jpg":
-							case "gif":
-							case "png":
-								showImage(att);
-								break;
-							case "mpg":
-							case "mp4":
-							case "avi":
-							case "ogg":
-							case "ogv":
-								if (showVideos) {
-									showVideo(att);
-								} else {
+					if (body.articles != null) {
+						// NZB index
+						showIndex(body.articles, item);
+					} else {
+						var n = body.attachments.length;
+						if (n > 1) {
+							showMultipleAttachments(body.attachments, item);
+						} else if (n == 1) {
+							var att = body.attachments[0];
+							if (att.filename) {
+								var suff = suffix(att.filename);
+								switch (suff) {
+								case "jpg":
+								case "gif":
+								case "png":
+									showImage(att);
+									break;
+								case "mpg":
+								case "mp4":
+								case "avi":
+								case "ogg":
+								case "ogv":
+									if (showVideos) {
+										showVideo(att);
+									} else {
+										setArticleTitle(att.filename);
+										showText(body.text, att);
+									}
+									break;
+								case "zip":
+								case "cbz":
+									showZip(att, item);
+									break;
+								case "txt":
+									setArticleTitle(att.filename);
+									showText(atob(att.data));
+									break;
+								default:
 									setArticleTitle(att.filename);
 									showText(body.text, att);
 								}
-								break;
-							case "zip":
-							case "cbz":
-								showZip(att, item);
-								break;
-							case "txt":
-								setArticleTitle(att.filename);
-								showText(atob(att.data));
-								break;
-							default:
-								setArticleTitle(att.filename);
-								showText(body.text, att);
+							} else {
+								showText(body.text);
 							}
 						} else {
 							showText(body.text);
 						}
-					} else {
-						showText(body.text);
 					}
 				}
 
@@ -680,6 +685,18 @@
 							}), item);
 					if (firstItem)
 						showArticle(firstItem);
+				}
+
+				function showIndex(articles, item) {
+					showMultipleItems(array.map(articles, function(a) {
+						return {
+							subject : a.subject,
+							articleId : a.vols || a.parts || a.articleId,
+							bytes : a.bytes
+						};
+					}), item);
+					articleView.performTransition(articleBackButton.moveTo, -1,
+							"slide");
 				}
 
 				function showMultipleItems(items, item) {
@@ -2255,7 +2272,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.1.5 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.1.6 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

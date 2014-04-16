@@ -12,6 +12,7 @@ public class ArticleBody {
 	@XmlAttribute public String text;
 	@XmlElement public ArrayList<Attachment> attachments = new ArrayList<Attachment>();
 	@XmlTransient public int size;
+	@XmlElement public ArrayList<ArticleHeader> articles;
 	
 	public ArticleBody cloneWithoutData(){
 		ArticleBody b = new ArticleBody();
@@ -23,6 +24,7 @@ public class ArticleBody {
 			Attachment a = new Attachment(att.filename, null);
 			b.attachments.add(a);
 		}
+		b.articles = articles;
 		return b;
 	}
 }
