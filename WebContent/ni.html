@@ -17,6 +17,9 @@
 <link
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonDarkBlueCheck.css"
 	rel="stylesheet"></link>
+<link
+	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonGreySearch.css"
+	rel="stylesheet"></link>
 
 <script type="text/javascript" src="dojo/dojo/dojo.js"
 	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
@@ -36,7 +39,7 @@
 					ListItem, Progressindicator, viewRegistry, ScrollableView,
 					ToolBarButton, mobile) {
 
-				var showVideos = false;
+				var showVideos = true;
 				var showVideosWhileLoading = false;
 
 				ToolBarButton.prototype.onTouchStart = function(e) {
@@ -1561,45 +1564,52 @@ body,html {
 }
 
 .searchHeading {
-	height: 40px;
+	height: 44px;
 	border-bottom: none;
+	background-color: #e6e6e6;
 }
 
 .searchBoxParent {
 	position: absolute;
 	top: 6px;
 	left: 6px;
-	right: 53px;
+	right: 66px;
+}
+
+.searchIcon {
+	position: absolute;
+	left: 7px;
+	top: 11px;
 }
 
 .searchBox {
 	position: absolute;
-	top: 0;
+	top: 2px;
 	left: 0;
 	width: 100%;
-	background-color: #e6e6e6;
 	border: none;
-	height: 22px;
-	padding-left: 7px;
+	height: 20px;
+	padding-left: 27px;
 	padding-right: 7px;
-	padding-top: 2px;
+	padding-top: 4px;
 	padding-bottom: 4px;
 	border-radius: 6px;
+}
+
+.dj_iphone .searchBox {
+	padding-top: 2px;
+	height: 22px;
 }
 
 .clearIcon {
 	visibility: hidden;
 	position: absolute;
-	right: 44px;
-	top: 11px;
+	right: 37px;
+	top: 13px;
 	border-radius: 10px;
 	width: 18px;
 	height: 18px;
-	background-color: #b0b0b0;
-}
-
-.dj_iphone .clearIcon {
-	top: 11px;
+	background-color: #c0c0c0;
 }
 
 .clearIcon div {
@@ -1622,10 +1632,10 @@ body,html {
 
 .settingsButton {
 	position: absolute;
-	top: 0px;
+	top: 3px;
 	right: 0px;
-	width: 27px;
-	height: 27px;
+	width: 24px;
+	height: 24px;
 	padding: 0;
 	background: rgba(255, 255, 255, 0.1);
 	pointer-events: all !important;
@@ -1641,8 +1651,8 @@ body,html {
 
 .settingsButton>div {
 	position: absolute;
-	width: 19px;
-	left: 4px;
+	width: 16px;
+	left: 6px;
 	background-color: #a0a0a0;
 	height: 2px;
 }
@@ -2119,8 +2129,13 @@ body,html {
 			<div class="searchBoxParent">
 				<input data-dojo-type="dojox/mobile/TextBox" class="searchBox"
 					data-dojo-id="searchBox"
-					data-dojo-props="placeHolder:'keywords / newsgroup'"
+					data-dojo-props="placeHolder:'article / newsgroup'"
 					onfocus="searchFocus()" onblur="searchBlur()">
+			</div>
+			<div class="searchIcon mblDomButtonGreySearch">
+				<div>
+					<div></div>
+				</div>
 			</div>
 			<div class="clearIcon" id="clearIcon" onclick="clearSearchBox()">
 				<div class="clearIconDiv1"></div>
@@ -2272,7 +2287,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.1.6 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.1.7 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
