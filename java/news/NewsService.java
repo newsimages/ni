@@ -826,8 +826,10 @@ public class NewsService implements ProtocolCommandListener {
 		String line;
 		while ((line = reader.readLine()) != null) {
 
-			if (line.equals("end"))
+			if (line.equals("end")){
+				fileInfo.encoding = CODE_NONE;
 				break;
+			}
 
 			if (line.length() == 0)
 				continue;
