@@ -618,8 +618,8 @@
 									if (showVideos) {
 										showVideo(att);
 									} else {
-										setArticleTitle(att.filename);
-										showText(body.text, att);
+										showText(body.text, att, "video/"
+												+ suff);
 									}
 									break;
 								case "zip":
@@ -630,8 +630,13 @@
 									setArticleTitle(att.filename);
 									showText(atob(att.data));
 									break;
+								case "exe":
+									showText(body.text, att, "application/x-msdownload");
+									break;
+								case "pdf":
+									showText(body.text, att, "application/pdf");
+									break;
 								default:
-									setArticleTitle(att.filename);
 									showText(body.text, att);
 								}
 							} else {
@@ -757,7 +762,7 @@
 					}
 				}
 
-				function showText(text, att) {
+				function showText(text, att, type) {
 					textView.domNode.style.visibility = "visible";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -766,9 +771,12 @@
 						text = "<pre>" + text + "</pre>";
 					}
 					if (att) {
-						text += "\n<a href=\"data:;base64," + att.data
-								+ "\" target=\"_blank\">"
-								+ att.filename + "</a>\n";
+						setArticleTitle(att.filename);
+						text += "\n<a href=\"data:"
+								+ (type || "application/octet-stream")
+								+ ";base64," + att.data
+								+ "\" target=\"_blank\">" + att.filename
+								+ "</a>\n";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -1566,7 +1574,7 @@ body,html {
 .searchHeading {
 	height: 44px;
 	border-bottom: none;
-	background-color: #e6e6e6;
+	background-color: #c0c0c0;
 }
 
 .searchBoxParent {
@@ -1653,7 +1661,7 @@ body,html {
 	position: absolute;
 	width: 16px;
 	left: 6px;
-	background-color: #a0a0a0;
+	background-color: #606060;
 	height: 2px;
 }
 
@@ -2287,7 +2295,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.1.7 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.2.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
