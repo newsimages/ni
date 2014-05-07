@@ -690,22 +690,20 @@
 						showProgressBar(true);
 						progressBar.set("value", 0);
 						progressBar.set("label", "Unpacking RAR archive...");
-						try {
-							unrar(att.data).then(
-							function(attachments){
-								currentUnrar = null;
-								showMultipleAttachments(attachments, item);
-							},
-							function(err){
-								currentUnrar = null;
-								showError(err);
-							},
-							function(p){
-								progressBar.set("value", Math.round(p.index/p.total*100) + "%");
-								progressBar.set("label", "Unpacking " + p.file + " (" + p.index + "/" + p.total + ")");
-							})
-						} catch (err) {
-						}
+						currentUnrar = unrar(att.data);
+						currentUnrar.then(function(attachments) {
+							currentUnrar = null;
+							showMultipleAttachments(attachments, item);
+						}, function(err) {
+							currentUnrar = null;
+							showError(err);
+						}, function(p) {
+							progressBar.set("value", Math.round(p.index
+									/ p.total * 100)
+									+ "%");
+							progressBar.set("label", "Unpacking " + p.file
+									+ " (" + p.index + "/" + p.total + ")");
+						});
 					});
 				}
 
@@ -2329,7 +2327,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
