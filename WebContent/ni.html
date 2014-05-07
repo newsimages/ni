@@ -626,12 +626,17 @@
 								case "cbz":
 									showZip(att, item);
 									break;
+								case "rar":
+								case "cbr":
+									showRar(att, item);
+									break;
 								case "txt":
 									setArticleTitle(att.filename);
 									showText(atob(att.data));
 									break;
 								case "exe":
-									showText(body.text, att, "application/x-msdownload");
+									showText(body.text, att,
+											"application/x-msdownload");
 									break;
 								case "pdf":
 									showText(body.text, att, "application/pdf");
@@ -675,6 +680,31 @@
 							if (attachments.length > 0) {
 								showMultipleAttachments(attachments, item);
 							}
+						}
+					});
+				}
+
+				function showRar(att, item) {
+					require([ "unrar.js" ], function(unrar) {
+						progress(articleView);
+						showProgressBar(true);
+						progressBar.set("value", 0);
+						progressBar.set("label", "Unpacking RAR archive...");
+						try {
+							unrar(att.data).then(
+							function(attachments){
+								currentUnrar = null;
+								showMultipleAttachments(attachments, item);
+							},
+							function(err){
+								currentUnrar = null;
+								showError(err);
+							},
+							function(p){
+								progressBar.set("value", Math.round(p.index/p.total*100) + "%");
+								progressBar.set("label", "Unpacking " + p.file + " (" + p.index + "/" + p.total + ")");
+							})
+						} catch (err) {
 						}
 					});
 				}
@@ -1107,7 +1137,7 @@
 
 				//---------- Utility methods ----------
 
-				var currentServer, currentRequest;
+				var currentServer, currentRequest, currentUnrar;
 
 				function buildServerString(server) {
 					server = server || currentServer;
@@ -1185,6 +1215,10 @@
 						currentRequest.cancel();
 						currentRequest = null;
 						prevTouchTime = 0;
+					}
+					if (currentUnrar) {
+						currentUnrar.cancel();
+						currentUnrar = null;
 					}
 					if (currentAsyncId) {
 						request.post(serviceUrl + "c", {
@@ -2295,7 +2329,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.2.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

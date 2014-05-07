@@ -22,8 +22,6 @@ import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
@@ -46,18 +44,12 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import unrar.Archive;
-import unrar.exception.RarException;
-import unrar.rarfile.FileHeader;
-
 /**
  * The root resource of our RESTful web service.
  */
 @Path("/")
 public class NewsService implements ProtocolCommandListener {
 
-	private static boolean UNZIP = false; // unzip zip archives on the server?
-	private static boolean UNRAR = true; // extract rar archives on the server?
 	private static boolean NZB = true; // parse nzb index files on the server?
 	private static boolean HIDE_PAR_FILES = true;
 
@@ -205,7 +197,7 @@ public class NewsService implements ProtocolCommandListener {
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleBody getBody(@FormParam("host") String host,
 			@FormParam("articleId") String articleId) throws SocketException,
-			IOException, RarException, ParserConfigurationException, SAXException {
+			IOException, ParserConfigurationException, SAXException {
 		return getBody(host, articleId, null);
 	}
 
@@ -325,7 +317,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	public ArticleBody getBody(final String host, String articleId,
 			Progress progress) throws SocketException, IOException,
-			RarException, ParserConfigurationException, SAXException {
+			ParserConfigurationException, SAXException {
 
 		String[] aids = articleId.split(",");
 
@@ -411,56 +403,7 @@ public class NewsService implements ProtocolCommandListener {
 		if (body.attachments.size() == 1) {
 			Attachment a = body.attachments.get(0);
 			if (a.filename != null) {
-				if (UNZIP
-						&& (a.filename.endsWith(".zip") || a.filename
-								.endsWith(".cbz"))) {
-					// extract ZIP archives: replace single zip attachment by
-					// several attachments containing the zipped files
-					if (progress != null) {
-						progress.message = "Unpacking ZIP archive...";
-						Thread.yield();
-					}
-					body.attachments.remove(0);
-					ZipInputStream zin = new ZipInputStream(
-							new ByteArrayInputStream(a.data));
-					ZipEntry zen;
-					while ((zen = zin.getNextEntry()) != null) {
-						if (zen.isDirectory()) {
-							zin.closeEntry();
-							continue;
-						}
-						byte[] buffer = new byte[10000];
-						ByteArrayOutputStream out = new ByteArrayOutputStream();
-						int count;
-						while ((count = zin.read(buffer, 0, buffer.length)) > 0) {
-							out.write(buffer, 0, count);
-						}
-						body.attachments.add(new Attachment(zen.getName(), out
-								.toByteArray()));
-						body.text += "- zip entry: [[" + zen.getName() + "]]\n";
-					}
-				} else if (UNRAR
-						&& (a.filename.endsWith(".rar") || a.filename
-								.endsWith(".cbr"))) {
-					// extract RAR archives: replace single rar attachment by
-					// several attachments containing the archived files
-					if (progress != null) {
-						progress.message = "Unpacking RAR archive...";
-						Thread.yield();
-					}
-					body.attachments.remove(0);
-					Archive ar = new Archive(a.data, a.filename, false);
-					FileHeader fh;
-					while ((fh = ar.nextFileHeader()) != null) {
-						ByteArrayOutputStream out = new ByteArrayOutputStream();
-						ar.extractFile(fh, out);
-						body.attachments.add(new Attachment(fh
-								.getFileNameString(), out.toByteArray()));
-						body.text += "- rar entry: [[" + fh.getFileNameString()
-								+ "]]\n";
-					}
-					ar.close();
-				} else if (NZB && a.filename.endsWith(".nzb")) {
+				if (NZB && a.filename.endsWith(".nzb")) {
 					// parse NZB index files
 					if (progress != null) {
 						progress.message = "Parsing NZB index...";
