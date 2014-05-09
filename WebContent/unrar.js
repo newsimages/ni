@@ -1168,18 +1168,23 @@ define(
 								});
 
 								// actually do the unzipping
-								localfile.unrar();
 
-								if (localfile.isValid) {
-									attachments
-											.push({
-												filename : localfile.filename,
-												data : Uint8ArrayToBase64(localfile.fileData)
-											});
+								try {
+									localfile.unrar();
+
+									if (localfile.isValid) {
+										attachments
+												.push({
+													filename : localfile.filename,
+													data : Uint8ArrayToBase64(localfile.fileData)
+												});
+									}
+									setTimeout(function() {
+										f(i + 1);
+									});
+								} catch (error) {
+									deferred.reject(error);
 								}
-								setTimeout(function() {
-									f(i + 1);
-								});
 							};
 							setTimeout(function() {
 								f(0);

@@ -277,11 +277,7 @@ public class NewsService implements ProtocolCommandListener {
 					if (filename != null) {
 						String f = filename.toLowerCase();
 						byte[] bytes = buffer.getChunkBytes();
-						if (!(f.endsWith(".rar") || f.endsWith(".cbr"))) {
-							chunk = bytes;
-						} else {
-							chunk = null;
-						}
+						chunk = bytes;
 					}
 				}
 			}
