@@ -1208,7 +1208,7 @@ define(
 				return bytes.buffer;
 			}
 
-			var blockSize = 100000;
+			var blockSize = 10000;
 
 			function Uint8ArrayToBase64(bytes) {
 				var binary = '';
