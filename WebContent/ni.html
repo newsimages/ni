@@ -696,6 +696,8 @@
 							showMultipleAttachments(attachments, item);
 						}, function(err) {
 							currentUnrar = null;
+							progress();
+							showProgressBar(false);
 							showError(err);
 						}, function(p) {
 							progressBar.set("value", Math.round(p.index
