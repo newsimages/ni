@@ -308,8 +308,8 @@ define(
 			var info = function(str) {
 				// console.log(str);
 			};
-			var err = function(bstream, str) {
-				bstream.deferred.reject(str);
+			var err = function(deferred, str) {
+				deferred.reject(str);
 			};
 
 			// shows a byte value as its hex representation
