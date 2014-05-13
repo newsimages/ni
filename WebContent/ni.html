@@ -83,7 +83,8 @@
 					on(bg, touch.press, onImageTouchStart);
 					on(bg, touch.move, onImageTouchMove);
 					on(bg, touch.release, onImageTouchEnd);
-					on(bg, "mousewheel", onImageWheel);
+					on(bg, has("ff") ? "DOMMouseScroll" : "mousewheel",
+							onImageWheel);
 
 					articleImage = dom.byId("articleImage");
 
@@ -1088,8 +1089,9 @@
 
 				function onImageWheel(e) {
 					if (imageRealSized && !e.shiftKey) {
-						zoomImage(e.wheelDelta > 0 ? 1.5 : 0.75, e.pageX,
-								e.pageY, imageScale, imageScroller.getPos());
+						var delta = has("ff") ? e.detail * -120 : e.wheelDelta;
+						zoomImage(delta > 0 ? 1.5 : 0.75, e.pageX, e.pageY,
+								imageScale, imageScroller.getPos());
 						event.stop(e);
 					}
 				}
@@ -1290,7 +1292,8 @@
 							buildRendering : function() {
 								oldBuildRendering.call(this);
 								var v = this;
-								v.on("mousewheel", function(e) {
+								v.on(has("ff") ? "DOMMouseScroll"
+										: "mousewheel", function(e) {
 									if (v.mouseWheelScrollModifier
 											&& !e[v.mouseWheelScrollModifier]) {
 										return;
@@ -1298,7 +1301,8 @@
 									var d = v.getDim();
 									var p = v.getPos();
 									var y = p.y;
-									y += e.wheelDelta * 2;
+									var delta = has("ff") ? e.detail * -120 : e.wheelDelta;
+									y += delta * 2;
 									if (y > 0) {
 										y = 0;
 									}
@@ -1662,14 +1666,17 @@ body,html {
 	width: 12px;
 	height: 2px;
 	-webkit-transform-origin: 50% 50%;
+	transform-origin: 50% 50%;
 }
 
 .clearIconDiv1 {
 	-webkit-transform: rotate(45deg);
+	transform: rotate(45deg);
 }
 
 .clearIconDiv2 {
 	-webkit-transform: rotate(-45deg);
+	transform: rotate(-45deg);
 }
 
 .settingsButton {
@@ -1719,12 +1726,16 @@ body,html {
 	-webkit-transform: translate3d(0, -300px, 0);
 	-webkit-transition-property: -webkit-transform, visibility;
 	-webkit-transition-duration: 0.5s;
+	transform: translate3d(0, -300px, 0);
+	transition-property: transform, visibility;
+	transition-duration: 0.5s;
 	background-color: white;
 }
 
 .searchOptions.visible {
 	visibility: visible !important;
 	-webkit-transform: translate3d(0, 0, 0);
+	transform: translate3d(0, 0, 0);
 }
 
 .searchOptions .mblEdgeToEdgeList {
@@ -1901,6 +1912,7 @@ body,html {
 	height: 44px;
 	background-image: -webkit-gradient(linear, left top, left bottom, from(#b0bccd),
 		to(#6d84a2), color-stop(0.5, #889bb3), color-stop(0.5, #8195af));
+	-moz-background-image: linear-gradient(to bottom, #b0bccd, #889bb3 50%, #8195af 50%, #6d84a2);
 	opacity: 0.2;
 }
 
@@ -1941,10 +1953,15 @@ body,html {
 .articleImage {
 	position: absolute;
 	-webkit-user-select: none;
+	user-select: none;
 	-webkit-transform-origin: 0 0;
 	-webkit-perspective: 1000;
 	-webkit-backface-visibility: hidden;
 	-webkit-perspective: 1000;
+	transform-origin: 0 0;
+	perspective: 1000;
+	backface-visibility: hidden;
+	perspective: 1000;
 	background-color: black;
 	visibility: hidden;
 }
@@ -1956,6 +1973,7 @@ body,html {
 	width: 100%;
 	height: 100%;
 	-webkit-transition: opacity 1s, visibility 1s;
+	transition: opacity 1s, visibility 1s;
 	opacity: 1;
 	visibility: visible;
 	left: 0;
@@ -2002,12 +2020,14 @@ body,html {
 
 .leftArrow {
 	left: 0px;
-	-webkit-transform: scale(0.5, 1) rotate(-45deg)
+	-webkit-transform: scale(0.5, 1) rotate(-45deg);
+	transform: scale(0.5, 1) rotate(-45deg);
 }
 
 .rightArrow {
 	right: 0px;
-	-webkit-transform: scale(0.5, 1) rotate(135deg)
+	-webkit-transform: scale(0.5, 1) rotate(135deg);
+	transform: scale(0.5, 1) rotate(135deg);
 }
 
 .articleMessage {
@@ -2057,6 +2077,9 @@ body,html {
 	-webkit-transition-property: visibility, opacity;
 	-webkit-transition-duration: 0.5s;
 	-webkit-transition-delay: 0.3s;
+	transition-property: visibility, opacity;
+	transition-duration: 0.5s;
+	transition-delay: 0.3s;
 	position: absolute;
 	height: 40px;
 	position: absolute;
@@ -2329,7 +2352,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.3 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
