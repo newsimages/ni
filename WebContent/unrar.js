@@ -1006,6 +1006,8 @@ define(
 				var Ver = v.header.unpVer <= 15 ? 15 : v.header.unpVer, Solid = v.header.LHD_SOLID, bstream = new bitjs.io.BitStream(
 						v.fileData.buffer, true /* rtl */,
 						v.fileData.byteOffset, v.fileData.byteLength);
+				
+				bstream.deferred = v.deferred;
 
 				rBuffer = new bitjs.io.ByteBuffer(v.header.unpackedSize);
 
@@ -1036,6 +1038,7 @@ define(
 
 				this.header = new RarVolumeHeader(bstream);
 				this.filename = this.header.filename;
+				this.deferred = bstream.deferred;
 
 				if (this.header.headType != FILE_HEAD
 						&& this.header.headType != ENDARC_HEAD

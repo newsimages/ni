@@ -73,11 +73,14 @@
 
 					// Setup various listeners
 
-					searchBox.on("keypress", function(e) {
+					var enterHandler = function(e) {
 						if ((e.keyCode || e.which) == keys.ENTER) {
 							invisibleButton.domNode.focus();
 						}
-					});
+					};
+					searchBox.on("keypress", enterHandler);
+					filterBox.on("keypress", enterHandler);
+					resultsCountBox.on("keypress", enterHandler);
 
 					var bg = dom.byId("imageBackground");
 					on(bg, touch.press, onImageTouchStart);
