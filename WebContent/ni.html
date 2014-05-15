@@ -27,17 +27,17 @@
 <script>
 	require(
 			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch",
-					"dojo/_base/event", "dojo/aspect", "dojo/json",
-					"dojo/_base/array", "dojo/_base/lang", "dojo/dom",
-					"dojo/dom-construct", "dojo/dom-class", "dojo/request",
-					"dijit/registry", "dojox/mobile/ListItem",
+					"dojo/keys", "dojo/_base/event", "dojo/aspect",
+					"dojo/json", "dojo/_base/array", "dojo/_base/lang",
+					"dojo/dom", "dojo/dom-construct", "dojo/dom-class",
+					"dojo/request", "dijit/registry", "dojox/mobile/ListItem",
 					"dojox/mobile/ProgressIndicator",
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
 					"dojox/mobile/ToolBarButton", "dojox/mobile" ],
-			function(ready, parser, has, on, touch, event, aspect, json, array,
-					lang, dom, domConstruct, domClass, request, registry,
-					ListItem, Progressindicator, viewRegistry, ScrollableView,
-					ToolBarButton, mobile) {
+			function(ready, parser, has, on, touch, keys, event, aspect, json,
+					array, lang, dom, domConstruct, domClass, request,
+					registry, ListItem, Progressindicator, viewRegistry,
+					ScrollableView, ToolBarButton, mobile) {
 
 				var showVideos = true;
 				var showVideosWhileLoading = false;
@@ -74,7 +74,7 @@
 					// Setup various listeners
 
 					searchBox.on("keypress", function(e) {
-						if ((e.keyCode || e.which) == 13) {
+						if ((e.keyCode || e.which) == keys.ENTER) {
 							invisibleButton.domNode.focus();
 						}
 					});
@@ -132,6 +132,56 @@
 							onTouchEnd.call(this, e);
 						};
 					});
+
+					document.onkeydown = function(e) {
+						var k = e.keyCode || e.which;
+						if (articleView.domNode.style.display != "none") {
+							showArticleControls();
+							switch (k) {
+							case keys.BACKSPACE:
+							case keys.ESCAPE:
+								articleView.performTransition(
+										articleBackButton.moveTo, -1, "slide");
+								break;
+							case keys.LEFT_ARROW:
+							case keys.UP_ARROW:
+								previous();
+								break;
+							case keys.RIGHT_ARROW:
+							case keys.DOWN_ARROW:
+							case keys.SPACE:
+								next();
+								break;
+							}
+						}
+						var v = searchView.domNode.style.display != "none" ? searchView
+								: (newsgroupView.domNode.style.display != "none" ? newsgroupView
+										: null);
+						if (v) {
+							switch (k) {
+							case keys.UP_ARROW:
+								scroll(v, 0.5);
+								break;
+							case keys.DOWN_ARROW:
+								scroll(v, -0.5);
+								break;
+							case keys.PAGE_UP:
+								scroll(v, 1);
+								break;
+							case keys.PAGE_DOWN:
+								scroll(v, -1);
+								break;
+							case keys.SPACE:
+								array.some((v == searchView ? searchResultsList : newsgroupResultsList).getChildren(), function(item){
+									if(item.domNode.getBoundingClientRect().top >= 30){
+										selectArticle.call(item);
+										return true;
+									}
+								});
+								break;
+							}
+						}
+					}
 				}
 
 				ready(init);
@@ -679,7 +729,8 @@
 								}
 							}
 							if (attachments.length > 0) {
-								showMultipleAttachments(attachments, item);
+								showMultipleAttachments(attachments, item,
+										"zip entry: ");
 							}
 						}
 					});
@@ -694,7 +745,8 @@
 						currentUnrar = unrar(att.data);
 						currentUnrar.then(function(attachments) {
 							currentUnrar = null;
-							showMultipleAttachments(attachments, item);
+							showMultipleAttachments(attachments, item,
+									"rar entry: ");
 						}, function(err) {
 							currentUnrar = null;
 							progress();
@@ -710,20 +762,17 @@
 					});
 				}
 
-				function showMultipleAttachments(attachments, item) {
-					var firstItem = showMultipleItems(array.map(attachments,
-							function(att) {
-								return {
-									subject : att.filename,
-									body : {
-										text : "[[zip entry: " + att.filename
-												+ "]]",
-										attachments : [ att ]
-									}
-								};
-							}), item);
-					if (firstItem)
-						showArticle(firstItem);
+				function showMultipleAttachments(attachments, item, label) {
+					showMultipleItems(array.map(attachments, function(att) {
+						return {
+							subject : att.filename,
+							body : {
+								text : "[[" + (label || "") + att.filename
+										+ "]]",
+								attachments : [ att ]
+							}
+						};
+					}), item);
 				}
 
 				function showIndex(articles, item) {
@@ -734,8 +783,6 @@
 							bytes : a.bytes
 						};
 					}), item);
-					articleView.performTransition(articleBackButton.moveTo, -1,
-							"slide");
 				}
 
 				function showMultipleItems(items, item) {
@@ -766,7 +813,8 @@
 						if (!firstItem)
 							firstItem = newItem;
 					});
-					return firstItem;
+					if (firstItem)
+						showArticle(firstItem);
 				}
 
 				function showImage(att) {
@@ -1089,7 +1137,7 @@
 
 				function onImageWheel(e) {
 					if (imageRealSized && !e.shiftKey) {
-						var delta = has("ff") ? e.detail * -120 : e.wheelDelta;
+						var delta = has("ff") ? -e.detail : e.wheelDelta;
 						zoomImage(delta > 0 ? 1.5 : 0.75, e.pageX, e.pageY,
 								imageScale, imageScroller.getPos());
 						event.stop(e);
@@ -1298,22 +1346,8 @@
 											&& !e[v.mouseWheelScrollModifier]) {
 										return;
 									}
-									var d = v.getDim();
-									var p = v.getPos();
-									var y = p.y;
-									var delta = has("ff") ? e.detail * -120 : e.wheelDelta;
-									y += delta * 2;
-									if (y > 0) {
-										y = 0;
-									}
-									if (y < d.d.h - d.c.h) {
-										y = d.d.h - d.c.h;
-									}
-									v.flashScrollBar();
-									v.scrollTo({
-										x : p.x,
-										y : y
-									});
+									scroll(v, (has("ff") ? -e.detail
+											: e.wheelDelta) > 0 ? 1 : -1);
 								});
 								var autoLoad = function() {
 									if (!currentRequest) {
@@ -1334,6 +1368,24 @@
 								aspect.after(v, "slideTo", autoLoad);
 							}
 						});
+
+				function scroll(v, delta) {
+					var d = v.getDim();
+					var p = v.getPos();
+					var y = p.y;
+					y += delta * d.d.h;
+					if (y < d.d.h - d.c.h) {
+						y = d.d.h - d.c.h;
+					}
+					if (y > 0) {
+						y = 0;
+					}
+					v.flashScrollBar();
+					v.scrollTo({
+						x : p.x,
+						y : y
+					});
+				}
 
 				//---------- Settings ----------
 
@@ -2352,7 +2404,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
