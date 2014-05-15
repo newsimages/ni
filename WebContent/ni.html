@@ -134,6 +134,8 @@
 					});
 
 					document.onkeydown = function(e) {
+						if(e.target.tagName == "INPUT")
+							return;
 						var k = e.keyCode || e.which;
 						if (articleView.domNode.style.display != "none") {
 							showArticleControls();
@@ -173,7 +175,7 @@
 								break;
 							case keys.SPACE:
 								array.some((v == searchView ? searchResultsList : newsgroupResultsList).getChildren(), function(item){
-									if(item.domNode.getBoundingClientRect().top >= 30){
+									if(item.domNode.getBoundingClientRect().top >= 30 && item.articleId){
 										selectArticle.call(item);
 										return true;
 									}
