@@ -1072,8 +1072,6 @@ define(
 
 			var unrar = function(arrayBuffer) {
 
-				arrayBuffer = base64ToArrayBuffer(arrayBuffer);
-
 				var deferred = new Deferred();
 
 				var bstream = new bitjs.io.BitStream(arrayBuffer, false /* rtl */);
@@ -1179,7 +1177,8 @@ define(
 										attachments
 												.push({
 													filename : localfile.filename,
-													data : Uint8ArrayToBase64(localfile.fileData)
+													format: "UInt8Array",
+													data : localfile.fileData
 												});
 									}
 									setTimeout(function() {
@@ -1199,29 +1198,6 @@ define(
 				});
 				return deferred;
 			};
-
-			function base64ToArrayBuffer(base64) {
-				var binary_string = atob(base64);
-				var len = binary_string.length;
-				var bytes = new Uint8Array(len);
-				for ( var i = 0; i < len; i++) {
-					var ascii = binary_string.charCodeAt(i);
-					bytes[i] = ascii;
-				}
-				return bytes.buffer;
-			}
-
-			var blockSize = 10000;
-
-			function Uint8ArrayToBase64(bytes) {
-				var binary = '';
-				var len = bytes.byteLength;
-				for ( var start = 0; start < len; start += blockSize) {
-					binary += String.fromCharCode.apply(null, bytes.subarray(
-							start, start + blockSize));
-				}
-				return btoa(binary);
-			}
 
 			return unrar;
 

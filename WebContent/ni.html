@@ -137,7 +137,7 @@
 					});
 
 					document.onkeydown = function(e) {
-						if(e.target.tagName == "INPUT")
+						if (e.target.tagName == "INPUT")
 							return;
 						var k = e.keyCode || e.which;
 						if (articleView.domNode.style.display != "none") {
@@ -177,12 +177,20 @@
 								scroll(v, -1);
 								break;
 							case keys.SPACE:
-								array.some((v == searchView ? searchResultsList : newsgroupResultsList).getChildren(), function(item){
-									if(item.domNode.getBoundingClientRect().top >= 30 && item.articleId){
-										selectArticle.call(item);
-										return true;
-									}
-								});
+								array
+										.some(
+												(v == searchView ? searchResultsList
+														: newsgroupResultsList)
+														.getChildren(),
+												function(item) {
+													if (item.domNode
+															.getBoundingClientRect().top >= 30
+															&& item.articleId) {
+														selectArticle
+																.call(item);
+														return true;
+													}
+												});
 								break;
 							}
 						}
@@ -469,7 +477,7 @@
 					if (settings.async) { // async + progress
 						var data = "";
 						if (settings.partial) {
-							loadImage("", true);
+							loadImage("", null, true);
 						}
 						var f = function(id) {
 							currentAsyncId = null;
@@ -490,7 +498,7 @@
 									case "png":
 										setImageTitle(p.filename);
 										if (settings.partial && p.chunk) {
-											loadImage(btoa(data), true);
+											loadImage(btoa(data), null, true);
 										}
 										break;
 									case "mpg":
@@ -502,7 +510,7 @@
 												&& showVideosWhileLoading) {
 											setVideoTitle(p.filename);
 											if (settings.partial && p.chunk) {
-												loadVideo(btoa(data),
+												loadVideo(btoa(data), null,
 														p.filename);
 												break;
 											}
@@ -747,7 +755,7 @@
 						showProgressBar(true);
 						progressBar.set("value", 0);
 						progressBar.set("label", "Unpacking RAR archive...");
-						currentUnrar = unrar(att.data);
+						currentUnrar = unrar(base64ToArrayBuffer(att.data));
 						currentUnrar.then(function(attachments) {
 							currentUnrar = null;
 							showMultipleAttachments(attachments, item,
@@ -830,7 +838,7 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 					if (att) {
 						setImageTitle(att.filename);
-						loadImage(att.data);
+						loadImage(att.data, att.format, false);
 					}
 				}
 
@@ -842,7 +850,7 @@
 					dom.byId("imageBackground").style.visibility = "hidden";
 					if (att) {
 						setVideoTitle(att.filename);
-						loadVideo(att.data, att.filename);
+						loadVideo(att.data, att.format, att.filename);
 					}
 				}
 
@@ -856,11 +864,11 @@
 					}
 					if (att) {
 						setArticleTitle(att.filename);
-						text += "\n<a href=\"data:"
-								+ (type || "application/octet-stream")
-								+ ";base64," + att.data
-								+ "\" target=\"_blank\">" + att.filename
-								+ "</a>\n";
+						type = type || "application/octet-stream";
+						text += "\n<a href=\""
+								+ makeDataUrl(att.data, att.format, type)
+								+ "\" type=\"" + type + "\" target=\"_blank\">"
+								+ att.filename + "</a>\n";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -883,9 +891,9 @@
 					videoHeading.set("label", s);
 				}
 
-				function loadImage(data, partial) {
+				function loadImage(data, format, partial) {
 					articleImage.partial = partial;
-					var src = "data:image/jpeg;base64," + (data || "");
+					var src = makeDataUrl(data, format, "image/jpeg");
 					if (src != articleImage.getAttribute("src")) {
 						articleImage.setAttribute("src", src);
 					} else if (data) {
@@ -895,10 +903,10 @@
 					}
 				}
 
-				function loadVideo(data, name) {
+				function loadVideo(data, format, name) {
 					var p = name.split(".");
 					var t = p.length >= 1 ? p[p.length - 1] : "mp4";
-					var src = "data:video/" + t + ";base64," + data;
+					var src = makeDataUrl(data, format, "video/" + t);
 					dom.byId("video").setAttribute("src", src);
 					fitVideo();
 				}
@@ -1335,6 +1343,44 @@
 				function suffix(name) {
 					var p = name.toLowerCase().split(".");
 					return p[p.length - 1];
+				}
+
+				//---------- Binary data conversion ----------
+
+				function base64ToArrayBuffer(base64) {
+					var binary_string = atob(base64);
+					var len = binary_string.length;
+					var bytes = new Uint8Array(len);
+					for ( var i = 0; i < len; i++) {
+						var ascii = binary_string.charCodeAt(i);
+						bytes[i] = ascii;
+					}
+					return bytes.buffer;
+				}
+
+				function makeDataUrl(data, format, type) {
+					var url;
+					if (format == "UInt8Array") {
+						var blob = new Blob([ data ], {
+							type : type
+						});
+						url = URL.createObjectURL(blob);
+					} else {
+						url = "data:" + type + ";base64," + (data || "");
+					}
+					return url;
+				}
+
+				var blockSize = 10000;
+
+				function Uint8ArrayToBase64(bytes) {
+					var binary = '';
+					var len = bytes.byteLength;
+					for ( var start = 0; start < len; start += blockSize) {
+						binary += String.fromCharCode.apply(null, bytes
+								.subarray(start, start + blockSize));
+					}
+					return btoa(binary);
 				}
 
 				//---------- Mouse wheel scrolling & auto-loading----------
@@ -2409,7 +2455,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.5 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
