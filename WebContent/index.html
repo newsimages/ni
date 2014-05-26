@@ -742,8 +742,7 @@
 								}
 							}
 							if (attachments.length > 0) {
-								showMultipleAttachments(attachments, item,
-										"zip entry: ");
+								showMultipleAttachments(attachments, item);
 							}
 						}
 					});
@@ -758,8 +757,7 @@
 						currentUnrar = unrar(base64ToArrayBuffer(att.data));
 						currentUnrar.then(function(attachments) {
 							currentUnrar = null;
-							showMultipleAttachments(attachments, item,
-									"rar entry: ");
+							showMultipleAttachments(attachments, item);
 						}, function(err) {
 							currentUnrar = null;
 							progress();
@@ -775,13 +773,12 @@
 					});
 				}
 
-				function showMultipleAttachments(attachments, item, label) {
-					showMultipleItems(array.map(attachments, function(att) {
+				function showMultipleAttachments(attachments, item) {
+					showMultipleItems(array.map(attachments, function(att, index) {
 						return {
 							subject : att.filename,
 							body : {
-								text : "[[" + (label || "") + att.filename
-										+ "]]",
+								text : "<p><span>Attachment " + (index+1) + " of:</span><span style=\"font-style: italic\">" + item.label + "</span></p>",
 								attachments : [ att ]
 							}
 						};
@@ -865,10 +862,10 @@
 					if (att) {
 						setArticleTitle(att.filename);
 						type = type || "application/octet-stream";
-						text += "\n<a href=\""
-								+ makeDataUrl(att.data, att.format, type)
-								+ "\" type=\"" + type + "\">"
-								+ att.filename + "</a>\n";
+						var url = makeDataUrl(att.data, att.format, type);
+						text += "<span style=\"font-weight: bold; margin-right: 6px;\">" + att.filename + "</span> ";
+						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Open</a> ";
+						text += "<a href=\"" + url + "\" type=\"" + type + "\" download>Download</a> ";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -2455,7 +2452,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.6 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.7 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

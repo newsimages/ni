@@ -679,8 +679,6 @@ public class NewsService implements ProtocolCommandListener {
 			StringBuffer text, int part, int count, FileInfo fileInfo)
 			throws IOException {
 
-		String encodingName;
-
 		ByteArrayOutputStream bytes;
 		if (reader instanceof ProgressReader) {
 			bytes = ((ProgressReader) reader).getBuffer();
@@ -692,13 +690,10 @@ public class NewsService implements ProtocolCommandListener {
 
 		if (fileInfo.encoding == CODE_YENC) {
 			ydecode(reader, fileInfo, bytes);
-			encodingName = "yenc-";
 		} else if (fileInfo.encoding == CODE_UU) {
 			uudecode(reader, fileInfo, bytes);
-			encodingName = "uu";
 		} else if (fileInfo.encoding == CODE_BASE64) {
 			base64decode(reader, fileInfo, bytes);
-			encodingName = "base64-";
 		} else {
 			throw new Error("Unknown content encoding " + fileInfo.encoding);
 		}
@@ -709,10 +704,6 @@ public class NewsService implements ProtocolCommandListener {
 		if (data.length > 0) {
 			body.attachments.add(new Attachment(fileInfo.filename, data));
 			body.size += data.length;
-			text.append(encodingName + "encoded attachment: [["
-					+ fileInfo.filename
-					+ (count > 1 ? " (" + (part + 1) + "/" + count + ")" : "")
-					+ "]]\n");
 		}
 	}
 
