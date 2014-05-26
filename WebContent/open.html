@@ -1,14 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+<title>Ni! - Attachment</title>
 <script>
-	var args = {};
-	document.location.search.substr(1).split("&").forEach(function(arg){
-		var a = arg.split("=");
-		args[a[0]] = a[1];
-	});
-	document.title = "Ni! - "+ decodeURIComponent(args.title);
-	document.location.href = args.url;
+	document.location.href = document.location.hash.substr(1);
 </script>
 </head>
 <body>

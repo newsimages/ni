@@ -882,9 +882,7 @@
 								+ "The following link opens the attachment in a new browser window."
 								+ "<br/>"
 								+ "<span style=\"font-weight: bold;\">Note: this will exit the application on some mobile devices (e.g. iPhone).</span></p>"
-						var url = "open.html?title="
-								+ att.filename
-								+ "&url="
+						var url = "open.html#"
 								+ makeDataUrl(att.data, has("ios") ? false
 										: true, type);
 						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">"
