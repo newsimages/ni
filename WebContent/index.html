@@ -753,28 +753,32 @@
 				}
 
 				function showRar(att, item) {
-					require([ "unrar.js" ], function(unrar) {
-						progress(articleView);
-						showProgressBar(true);
-						progressBar.set("value", 0);
-						progressBar.set("label", "Unpacking RAR archive...");
-						currentUnrar = unrar(binaryToUint8Array(att.data).buffer);
-						currentUnrar.then(function(attachments) {
-							currentUnrar = null;
-							showMultipleAttachments(attachments, item);
-						}, function(err) {
-							currentUnrar = null;
-							progress();
-							showProgressBar(false);
-							showError(err);
-						}, function(p) {
-							progressBar.set("value", Math.round(p.index
-									/ p.total * 100)
-									+ "%");
-							progressBar.set("label", "Unpacking " + p.file
-									+ " (" + p.index + "/" + p.total + ")");
-						});
-					});
+					require(
+							[ "unrar.js" ],
+							function(unrar) {
+								progress(articleView);
+								showProgressBar(true);
+								progressBar.set("value", 0);
+								progressBar.set("label",
+										"Unpacking RAR archive...");
+								currentUnrar = unrar(binaryToUint8Array(att.data).buffer);
+								currentUnrar.then(function(attachments) {
+									currentUnrar = null;
+									showMultipleAttachments(attachments, item);
+								}, function(err) {
+									currentUnrar = null;
+									progress();
+									showProgressBar(false);
+									showError(err);
+								}, function(p) {
+									progressBar.set("value", Math.round(p.index
+											/ p.total * 100)
+											+ "%");
+									progressBar.set("label", "Unpacking "
+											+ p.file + " (" + p.index + "/"
+											+ p.total + ")");
+								});
+							});
 				}
 
 				function showMultipleAttachments(attachments, item) {
@@ -874,20 +878,17 @@
 					if (att) {
 						setArticleTitle(att.filename);
 						type = type || "application/octet-stream";
-						text += "<span style=\"font-weight: bold; margin-right: 6px;\">"
-								+ att.filename + "</span> ";
-						var url = makeDataUrl(att.data, att.typedArray, type);
-						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Direct ("
-								+ (att.typedArray ? "blob" : "base64")
-								+ ")</a> ";
-						text += "<a href=\"" + "open.html#" + url + "\" type=\"" + type + "\" target=\"_blank\">HTML ("
-								+ (att.typedArray ? "blob" : "base64")
-								+ ")</a> ";
-						if (att.typedArray) {
-							url = makeDataUrl(att.data, null, type);
-							text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Direct (base64)</a> ";
-							text += "<a href=\"" + "open.html#" + url + "\" type=\"" + type + "\" target=\"_blank\">HTML (base64)</a> ";
-						}
+						text += "<p>"
+								+ "The following link opens the attachment in a new browser window."
+								+ "<br/>"
+								+ "<span style=\"font-weight: bold;\">Note: this will exit the application on some mobile devices (e.g. iPhone).</span></p>"
+						var url = "open.html?title="
+								+ att.filename
+								+ "&url="
+								+ makeDataUrl(att.data, has("ios") ? false
+										: true, type);
+						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">"
+								+ att.filename + "</a> ";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -1379,7 +1380,7 @@
 				function makeDataUrl(data, typedArray, type) {
 					var url;
 					if (typedArray) {
-						if(!(data instanceof Uint8Array)){
+						if (!(data instanceof Uint8Array)) {
 							data = binaryToUint8Array(data);
 						}
 						var blob = new Blob([ data ], {
@@ -1387,7 +1388,7 @@
 						});
 						url = URL.createObjectURL(blob);
 					} else {
-						if(data instanceof Uint8Array){
+						if (data instanceof Uint8Array) {
 							data = Uint8ArrayToBinary(data);
 						}
 						url = "data:" + type + ";base64," + btoa(data || "");
@@ -2479,7 +2480,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.3.7 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.3.8 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
