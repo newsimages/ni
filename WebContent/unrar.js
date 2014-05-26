@@ -1177,7 +1177,7 @@ define(
 										attachments
 												.push({
 													filename : localfile.filename,
-													format: "UInt8Array",
+													typedArray: true,
 													data : localfile.fileData
 												});
 									}

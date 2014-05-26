@@ -477,7 +477,7 @@
 					if (settings.async) { // async + progress
 						var data = "";
 						if (settings.partial) {
-							loadImage("", null, true);
+							loadImage("", false, true);
 						}
 						var f = function(id) {
 							currentAsyncId = null;
@@ -498,7 +498,7 @@
 									case "png":
 										setImageTitle(p.filename);
 										if (settings.partial && p.chunk) {
-											loadImage(btoa(data), null, true);
+											loadImage(data, false, true);
 										}
 										break;
 									case "mpg":
@@ -510,7 +510,7 @@
 												&& showVideosWhileLoading) {
 											setVideoTitle(p.filename);
 											if (settings.partial && p.chunk) {
-												loadVideo(btoa(data), null,
+												loadVideo(data, false,
 														p.filename);
 												break;
 											}
@@ -642,8 +642,12 @@
 						body.attachments = [ body.attachments ];
 					if (data && body.attachments.length == 1) {
 						var att = body.attachments[0];
-						if (att && !att.data) {
-							att.data = btoa(data);
+						if (att) {
+							if (att.data) {
+								att.data = atob(data);
+							} else {
+								att.data = data;
+							}
 						}
 					}
 
@@ -696,7 +700,7 @@
 									break;
 								case "txt":
 									setArticleTitle(att.filename);
-									showText(atob(att.data));
+									showText(att.data);
 									break;
 								case "exe":
 									showText(body.text, att,
@@ -720,7 +724,7 @@
 				function showZip(att, item) {
 					require([ "js-unzip.js", "js-inflate.js" ], function(
 							JSUnzip, JSInflate) {
-						var unzipper = new JSUnzip(atob(att.data));
+						var unzipper = new JSUnzip(att.data);
 						if (unzipper.isZipFile()) {
 							unzipper.readEntries();
 							var attachments = [];
@@ -737,7 +741,7 @@
 								if (data) {
 									attachments.push({
 										filename : entry.fileName,
-										data : btoa(data)
+										data : data
 									});
 								}
 							}
@@ -754,7 +758,7 @@
 						showProgressBar(true);
 						progressBar.set("value", 0);
 						progressBar.set("label", "Unpacking RAR archive...");
-						currentUnrar = unrar(base64ToArrayBuffer(att.data));
+						currentUnrar = unrar(binaryToUint8Array(att.data).buffer);
 						currentUnrar.then(function(attachments) {
 							currentUnrar = null;
 							showMultipleAttachments(attachments, item);
@@ -774,15 +778,23 @@
 				}
 
 				function showMultipleAttachments(attachments, item) {
-					showMultipleItems(array.map(attachments, function(att, index) {
-						return {
-							subject : att.filename,
-							body : {
-								text : "<p><span>Attachment " + (index+1) + " of:</span><span style=\"font-style: italic\">" + item.label + "</span></p>",
-								attachments : [ att ]
-							}
-						};
-					}), item);
+					showMultipleItems(
+							array
+									.map(
+											attachments,
+											function(att, index) {
+												return {
+													subject : att.filename,
+													body : {
+														text : "<p><span>Attachment "
+																+ (index + 1)
+																+ " of:</span><span style=\"font-style: italic\">"
+																+ item.label
+																+ "</span></p>",
+														attachments : [ att ]
+													}
+												};
+											}), item);
 				}
 
 				function showIndex(articles, item) {
@@ -835,7 +847,7 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 					if (att) {
 						setImageTitle(att.filename);
-						loadImage(att.data, att.format, false);
+						loadImage(att.data, att.typedArray, false);
 					}
 				}
 
@@ -847,7 +859,7 @@
 					dom.byId("imageBackground").style.visibility = "hidden";
 					if (att) {
 						setVideoTitle(att.filename);
-						loadVideo(att.data, att.format, att.filename);
+						loadVideo(att.data, att.typedArray, att.filename);
 					}
 				}
 
@@ -862,10 +874,20 @@
 					if (att) {
 						setArticleTitle(att.filename);
 						type = type || "application/octet-stream";
-						var url = makeDataUrl(att.data, att.format, type);
-						text += "<span style=\"font-weight: bold; margin-right: 6px;\">" + att.filename + "</span> ";
-						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Open</a> ";
-						text += "<a href=\"" + url + "\" type=\"" + type + "\" download>Download</a> ";
+						text += "<span style=\"font-weight: bold; margin-right: 6px;\">"
+								+ att.filename + "</span> ";
+						var url = makeDataUrl(att.data, att.typedArray, type);
+						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Direct ("
+								+ (att.typedArray ? "blob" : "base64")
+								+ ")</a> ";
+						text += "<a href=\"" + "open.html#" + url + "\" type=\"" + type + "\" target=\"_blank\">HTML ("
+								+ (att.typedArray ? "blob" : "base64")
+								+ ")</a> ";
+						if (att.typedArray) {
+							url = makeDataUrl(att.data, null, type);
+							text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">Direct (base64)</a> ";
+							text += "<a href=\"" + "open.html#" + url + "\" type=\"" + type + "\" target=\"_blank\">HTML (base64)</a> ";
+						}
 					}
 					textView.scrollTo({
 						x : 0,
@@ -888,9 +910,9 @@
 					videoHeading.set("label", s);
 				}
 
-				function loadImage(data, format, partial) {
+				function loadImage(data, typedArray, partial) {
 					articleImage.partial = partial;
-					var src = makeDataUrl(data, format, "image/jpeg");
+					var src = makeDataUrl(data, typedArray, "image/jpeg");
 					if (src != articleImage.getAttribute("src")) {
 						articleImage.setAttribute("src", src);
 					} else if (data) {
@@ -900,10 +922,10 @@
 					}
 				}
 
-				function loadVideo(data, format, name) {
+				function loadVideo(data, typedArray, name) {
 					var p = name.split(".");
 					var t = p.length >= 1 ? p[p.length - 1] : "mp4";
-					var src = makeDataUrl(data, format, "video/" + t);
+					var src = makeDataUrl(data, typedArray, "video/" + t);
 					dom.byId("video").setAttribute("src", src);
 					fitVideo();
 				}
@@ -1344,40 +1366,45 @@
 
 				//---------- Binary data conversion ----------
 
-				function base64ToArrayBuffer(base64) {
-					var binary_string = atob(base64);
-					var len = binary_string.length;
+				function binaryToUint8Array(binary) {
+					var len = binary.length;
 					var bytes = new Uint8Array(len);
 					for ( var i = 0; i < len; i++) {
-						var ascii = binary_string.charCodeAt(i);
+						var ascii = binary.charCodeAt(i);
 						bytes[i] = ascii;
 					}
-					return bytes.buffer;
+					return bytes;
 				}
 
-				function makeDataUrl(data, format, type) {
+				function makeDataUrl(data, typedArray, type) {
 					var url;
-					if (format == "UInt8Array") {
+					if (typedArray) {
+						if(!(data instanceof Uint8Array)){
+							data = binaryToUint8Array(data);
+						}
 						var blob = new Blob([ data ], {
 							type : type
 						});
 						url = URL.createObjectURL(blob);
 					} else {
-						url = "data:" + type + ";base64," + (data || "");
+						if(data instanceof Uint8Array){
+							data = Uint8ArrayToBinary(data);
+						}
+						url = "data:" + type + ";base64," + btoa(data || "");
 					}
 					return url;
 				}
 
 				var blockSize = 10000;
 
-				function Uint8ArrayToBase64(bytes) {
+				function Uint8ArrayToBinary(bytes) {
 					var binary = '';
 					var len = bytes.byteLength;
 					for ( var start = 0; start < len; start += blockSize) {
 						binary += String.fromCharCode.apply(null, bytes
 								.subarray(start, start + blockSize));
 					}
-					return btoa(binary);
+					return binary;
 				}
 
 				//---------- Mouse wheel scrolling & auto-loading----------
