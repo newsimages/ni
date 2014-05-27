@@ -196,7 +196,7 @@
 						}
 					}
 				}
-
+				
 				ready(init);
 
 				//---------- Search ----------
@@ -1471,7 +1471,7 @@
 
 					// Read settings from local storage
 
-					var settingsAsJSON = localStorage["settings"];
+					var settingsAsJSON = localStorage.settings;
 
 					if (settingsAsJSON) {
 						settings = json.parse(settingsAsJSON);
@@ -1516,7 +1516,7 @@
 					settings.searchServer = mostPopularSwitch.get("value") == "on" ? 1
 							: 2;
 
-					localStorage["settings"] = json.stringify(settings);
+					localStorage.settings = json.stringify(settings);
 				};
 
 				updateLoadSettings = function() {
@@ -1529,7 +1529,7 @@
 
 					updateLoadingSettingsItems();
 
-					localStorage["settings"] = json.stringify(settings);
+					localStorage.settings = json.stringify(settings);
 				};
 
 				function disable(w, disable) {
@@ -1675,7 +1675,7 @@
 						serverList.removeChild(serverList.getChildren()[index]);
 						settings.servers.splice(index, 1);
 						setCurrentServer(newServer);
-						localStorage["settings"] = json.stringify(settings);
+						localStorage.settings = json.stringify(settings);
 					}
 				}
 
@@ -1684,7 +1684,7 @@
 					currentServer = server;
 
 					settings.currentServer = getServerIndex(server);
-					localStorage["settings"] = json.stringify(settings);
+					localStorage.settings = json.stringify(settings);
 
 					array
 							.forEach(
@@ -1710,6 +1710,19 @@
 						nameBox.set("value", hostnameBox.get("value"));
 					}
 				};
+				
+				//---------- Current state ----------
+				
+				window.onbeforeunload = function(e){
+					var s = "Test";
+					if(e){
+						e.returnValue = s;
+					}
+					return s;
+				}
+				
+				function restoreState() {
+				}
 			});
 </script>
 
