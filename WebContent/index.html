@@ -264,8 +264,10 @@
 					var value = searchBox.get("value");
 					if (!value)
 						return;
-					if (settings.state)
+					if (settings.state) {
 						saveSearch(value);
+						saveNewsgroups(null);
+					}
 					if (value.indexOf(".") >= 0) {
 						// newsgroup browsing
 						if (!currentServer) {
@@ -450,6 +452,7 @@
 					var view = viewRegistry.getEnclosingView(this.domNode);
 					view.performTransition("article", 1, "slide");
 					articleBackButton.set("moveTo", view.id);
+					saveArticleBackButtonMoveTo(view.id);
 					textHeading.set("moveTo", view.id);
 					showArticle(this);
 				}
@@ -609,9 +612,9 @@
 
 				function fixList(list) {
 					list.resize();
+					var v = viewRegistry.getEnclosingScrollable(list.domNode);
 					if (currentItem && currentItem.getParent() == list) {
-						var v = viewRegistry
-								.getEnclosingScrollable(list.domNode), node = currentItem.domNode, nodeRect = node
+						var node = currentItem.domNode, nodeRect = node
 								.getBoundingClientRect(), scrollableRect = v.domNode
 								.getBoundingClientRect();
 						if (nodeRect.height < v.getDim().d.h) {
@@ -622,6 +625,12 @@
 								v.scrollIntoView(node, false);
 							}
 						}
+					}
+					if (v.restoreScroll) {
+						v.scrollTo({
+							y : v.restoreScroll
+						});
+						delete v.restoreScroll;
 					}
 				}
 
@@ -667,7 +676,9 @@
 
 				function showBody(item, body, entry) {
 
-					if (settings.state)
+					var dontShow = entry == -1;
+
+					if (settings.state && !dontShow)
 						saveArticle(item);
 
 					domClass.add(item.domNode, "read");
@@ -688,18 +699,22 @@
 								case "jpg":
 								case "gif":
 								case "png":
-									showImage(att);
+									if (!dontShow) {
+										showImage(att);
+									}
 									break;
 								case "mpg":
 								case "mp4":
 								case "avi":
 								case "ogg":
 								case "ogv":
-									if (showVideos) {
-										showVideo(att);
-									} else {
-										showText(body.text, att, "video/"
-												+ suff);
+									if (!dontShow) {
+										if (showVideos) {
+											showVideo(att);
+										} else {
+											showText(body.text, att, "video/"
+													+ suff);
+										}
 									}
 									break;
 								case "zip":
@@ -711,24 +726,37 @@
 									showRar(att, item, entry);
 									break;
 								case "txt":
-									setArticleTitle(att.filename);
-									showText(att.data);
+									if (!dontShow) {
+										setArticleTitle(att.filename);
+										showText(att.data);
+									}
 									break;
 								case "exe":
-									showText(body.text, att,
-											"application/x-msdownload");
+									if (!dontShow) {
+										showText(body.text, att,
+												"application/x-msdownload");
+									}
 									break;
 								case "pdf":
-									showText(body.text, att, "application/pdf");
+									if (!dontShow) {
+										showText(body.text, att,
+												"application/pdf");
+									}
 									break;
 								default:
-									showText(body.text, att);
+									if (!dontShow) {
+										showText(body.text, att);
+									}
 								}
 							} else {
-								showText(body.text);
+								if (!dontShow) {
+									showText(body.text);
+								}
 							}
 						} else {
-							showText(body.text);
+							if (!dontShow) {
+								showText(body.text);
+							}
 						}
 					}
 				}
@@ -852,7 +880,9 @@
 						prevItem = newItem;
 						return newItem
 					});
-					showArticle(newItems[entry||0]);
+					if (entry != -1) {
+						showArticle(newItems[entry || 0]);
+					}
 				}
 
 				function showImage(att) {
@@ -1449,7 +1479,9 @@
 											}
 										}
 									}
-									if (settings.state)
+									if (settings.state
+											&& (v == newsgroupView || v == searchView)
+											&& !v.restoreScroll)
 										saveScroll(v.getPos().y);
 								}
 								aspect.after(v, "scrollTo", autoLoad);
@@ -1732,39 +1764,76 @@
 
 				//---------- Save/restore state ----------
 
+				function save(p, v) {
+					while (true) {
+						try {
+							localStorage[p] = (typeof v == "string") ? v : json
+									.stringify(v);
+							break;
+						} catch (err) {
+							var n = fromJSON(localStorage.state_next_article, 0);
+							var deleted = false;
+							for ( var i = 0; i <= n; i++) {
+								var a = "state_article_" + i;
+								if (a in localStorage) {
+									delete a;
+									deleted = true;
+									break;
+								}
+							}
+							if(!deleted){
+								// nothing to delete any more... can't save but make sure to stop trying
+								break;
+							}
+						}
+					}
+				}
+
 				topic.subscribe("/dojox/mobile/afterTransitionIn", function(
 						view) {
 					saveView(view.id);
 				});
 
 				function saveView(id) {
-					localStorage.state_view = id;
+					save("state_view", id);
 				}
 
 				function saveSearch(value) {
-					localStorage.state_search = value;
+					save("state_search", value);
 				}
 
 				function saveNewsgroups(newsgroups) {
-					localStorage.state_newsgroups = json.stringify(newsgroups);
+					save("state_newsgroups", newsgroups);
 				}
 
 				function saveArticles(articles) {
-					localStorage.state_articles = json.stringify(articles);
+					save("state_articles", articles);
 				}
 
 				function saveScroll(y) {
-					localStorage.state_scroll = json.stringify(y);
+					save("state_scroll", y);
+				}
+
+				function saveArticleBackButtonMoveTo(moveTo) {
+					save("state_article_back_button_move_to", moveTo);
 				}
 
 				function saveArticle(item) {
 					if (item && item.body) {
 						if (item.entry !== undefined) {
-							localStorage.state_entry = json
-									.stringify(item.entry);
+							save("state_entry", item.entry);
 						} else {
-							localStorage.state_article = json
-									.stringify({
+
+							var n = item.stateIndex;
+							if (n != undefined
+									&& (("state_article_" + n) in localStorage)) {
+								save("state_current_article", n);
+								return;
+							}
+							n = fromJSON(localStorage.state_next_article, 0);
+							save(
+									"state_article_" + n,
+									{
 										id : item.articleId,
 										body : {
 											text : item.body.text,
@@ -1781,9 +1850,10 @@
 															})
 										}
 									});
+							item.stateIndex = n;
+							save("state_current_article", n);
+							save("state_next_article", n + 1);
 						}
-					} else {
-						delete localStorage.state_article;
 					}
 				}
 
@@ -1801,38 +1871,35 @@
 
 					var id = localStorage.state_view;
 					var article;
-					if (id) {
-						if (id == "article") {
-							article = fromJSON(localStorage.state_article);
-							if (!article) {
-								id = "search";
-							}
-						}
-						if (id != "search") {
-							searchView.performTransition(id, 1, "none");
-						}
+					if (id && id != "search" && id != "article") {
+						searchView.performTransition(id, 1, "none");
 					}
 
+					var y = fromJSON(localStorage.state_scroll, 0);
 					var newsgroups = fromJSON(localStorage.state_newsgroups);
 					if (newsgroups) {
 						fillNewsgroupList(searchResultsList, newsgroups);
 					}
 					var articles = fromJSON(localStorage.state_articles);
 					if (articles) {
-						var y = fromJSON(localStorage.state_scroll, 0);
-						var list = localStorage.state_view == "newsgroup" ? newsgroupResultsList
+						var list = newsgroups ? newsgroupResultsList
 								: searchResultsList;
 						fillArticleList(list, articles);
-						viewRegistry.getEnclosingScrollable(list.domNode)
-								.scrollTo({
-									y : y
-								});
+						var v = newsgroups ? newsgroupView : searchView;
+						v.scrollTo({
+							y : y
+						});
+						v.restoreScroll = y;
 
-						if (id == "article") {
-							if (!article)
-								article = fromJSON(localStorage.state_article);
+						var n = fromJSON(localStorage.state_next_article, 0);
+						var c = id == "article" ? fromJSON(
+								localStorage.state_current_article, -1) : -1;
+						var itemToShow;
+						for ( var i = 0; i < n; i++) {
+							var article = fromJSON(localStorage["state_article_"
+									+ i]);
 							if (article) {
-								var found = array
+								array
 										.some(
 												list.getChildren(),
 												function(item, index) {
@@ -1850,18 +1917,31 @@
 																						: atob(att.data)
 																			};
 																		});
-														showArticle(
-																item,
-																fromJSON(localStorage.state_entry));
+														item.stateIndex = i;
+														if (c == i) {
+															searchView
+																	.performTransition(
+																			"article",
+																			1,
+																			"none");
+															showBody(
+																	item,
+																	item.body,
+																	fromJSON(localStorage.state_entry));
+
+														} else {
+															showBody(item,
+																	item.body,
+																	-1);
+
+														}
 														return true;
 													}
 												});
-								if (!found) {
-									searchView.performTransition("search", -1,
-											"none");
-								}
 							}
 						}
+						articleBackButton.set("moveTo",
+								newsgroups ? "newsgroup" : "search");
 					}
 				}
 			});
@@ -2640,7 +2720,7 @@ body,html {
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.4.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

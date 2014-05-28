@@ -1070,7 +1070,7 @@ define(
 				}
 			}
 
-			var unrar = function(arrayBuffer) {
+			var unrar = function(arrayBuffer, sync) {
 
 				var deferred = new Deferred();
 
@@ -1078,7 +1078,9 @@ define(
 
 				bstream.deferred = deferred;
 
-				setTimeout(function() {
+				var call = sync ? function(f) { f(); } : setTimeout;
+				
+				call(function() {
 					var header = new RarVolumeHeader(bstream);
 					if (header.crc == 0x6152 && header.headType == 0x72
 							&& header.flags.value == 0x1A21
@@ -1181,14 +1183,14 @@ define(
 													data : localfile.fileData
 												});
 									}
-									setTimeout(function() {
+									call(function() {
 										f(i + 1);
 									});
 								} catch (error) {
 									deferred.reject(error);
 								}
 							};
-							setTimeout(function() {
+							call(function() {
 								f(0);
 							});
 						}
