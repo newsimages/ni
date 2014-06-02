@@ -1961,13 +1961,11 @@
 				}
 
 				function clearState() {
-					clearRecords("getNewsgroups");
-					clearRecords("selectNewsgroup");
-					clearRecords("getArticles");
-					clearRecords("searchScroll");
-					clearRecords("newsgroupScroll");
-					clearRecords("getBody");
-					clearRecords("selectArticle");
+					for ( var p in localStorage) {
+						if (/^s_/.test(p)) {
+							delete localStorage[p];
+						}
+					}
 				}
 			});
 </script>
