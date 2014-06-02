@@ -1832,14 +1832,33 @@
 					}
 					try {
 						var n = load(f + "_count", 0);
-						save(f + "_" + n, {
-							f : f,
-							t : t,
-							a : na,
-							r : r
-						});
-						n++;
-						save(f + "_count", n);
+						while (true) {
+							try {
+								save(f + "_" + n, {
+									f : f,
+									t : t,
+									a : na,
+									r : r
+								});
+								n++;
+								save(f + "_count", n);
+								break;
+							} catch (e1) {
+								var deleted = null;
+								for (i = 0; i < n; i++) {
+									deleted = "s_" + f + "_" + i;
+									if (deleted in localStorage) {
+										delete localStorage[deleted];
+										break;
+									} else {
+										deleted = null;
+									}
+								}
+								if (!deleted) {
+									break;
+								}
+							}
+						}
 					} catch (err) {
 					}
 				}
@@ -2727,7 +2746,7 @@ body,html {
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.4.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
