@@ -26,18 +26,20 @@
 
 <script>
 	require(
-			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/topic",
-					"dojo/touch", "dojo/keys", "dojo/_base/event",
-					"dojo/aspect", "dojo/json", "dojo/_base/array",
-					"dojo/_base/lang", "dojo/dom", "dojo/dom-construct",
-					"dojo/dom-class", "dojo/request", "dijit/registry",
-					"dojox/mobile/ListItem", "dojox/mobile/ProgressIndicator",
+			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch",
+					"dojo/keys", "dojo/_base/event", "dojo/aspect",
+					"dojo/json", "dojo/_base/array", "dojo/_base/lang",
+					"dojo/dom", "dojo/dom-construct", "dojo/dom-class",
+					"dojo/request", "dijit/registry", "dojox/mobile/ListItem",
+					"dojox/mobile/ProgressIndicator",
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
-					"dojox/mobile/ToolBarButton", "dojox/mobile" ],
-			function(ready, parser, has, on, topic, touch, keys, event, aspect,
-					json, array, lang, dom, domConstruct, domClass, request,
+					"dojox/mobile/ToolBarButton", "dojox/mobile",
+					"js-unzip.js", "js-inflate.js", "unrar.js" ],
+			function(ready, parser, has, on, touch, keys, event, aspect, json,
+					array, lang, dom, domConstruct, domClass, request,
 					registry, ListItem, Progressindicator, viewRegistry,
-					ScrollableView, ToolBarButton, mobile) {
+					ScrollableView, ToolBarButton, mobile, JSUnzip, JSInflate,
+					unrar) {
 
 				var showVideos = true;
 				var showVideosWhileLoading = false;
@@ -187,6 +189,7 @@
 													if (item.domNode
 															.getBoundingClientRect().top >= 30
 															&& item.articleId) {
+
 														selectArticle
 																.call(item);
 														return true;
@@ -197,10 +200,11 @@
 						}
 					}
 
-					if (settings.state)
+					if (settings.state) {
 						restoreState();
-					else
+					} else {
 						clearState();
+					}
 				}
 
 				ready(init);
@@ -262,27 +266,13 @@
 					hideSearchOptions();
 					clearList(searchResultsList);
 					var value = searchBox.get("value");
+					clearState();
+					record("setSearch", null, [ value ]);
 					if (!value)
 						return;
-					if (settings.state) {
-						saveSearch(value);
-						saveNewsgroups(null);
-					}
 					if (value.indexOf(".") >= 0) {
 						// newsgroup browsing
-						if (!currentServer) {
-							showMessage("No server defined");
-							return;
-						}
-						doRequest("g", {
-							pattern : "*" + value + "*",
-							max : settings.searchResultsCount
-						}, searchView,
-						// success
-						function(result) {
-							fillNewsgroupList(searchResultsList,
-									result.newsgroupList.newsgroups);
-						});
+						getNewsgroups(value);
 					} else {
 						// keyword search
 						getSearchResults(value);
@@ -311,52 +301,60 @@
 				function getArticles(command, args, offset, reverse, list,
 						view, item) {
 					args.offset = offset;
-					doRequest(
-							command,
-							args,
-							item || view,
-							// success
-							function(result) {
-								var c = list.getChildren(), l = c.length;
-								if (item) {
-									list.removeChild(item);
-								}
-								var articles = ensureArray(result.articleList.articles);
-								if (reverse && articles)
-									articles.reverse();
-								fillArticleList(list, articles, offset > 0);
-								if (result.articleList.available > 0) {
-									var moreItem = new ListItem({
-										label : "More...",
-										clickable : true,
-										noArrow : true,
-										onClick : function() {
-											getArticles(command, args,
-													result.articleList.offset,
-													reverse, list, view, this);
-										}
-									});
-									moreItem.isMoreItem = true;
-									view.autoLoadItem = moreItem;
-									domClass.add(moreItem.domNode, "moreItem");
-									c = list.getChildren();
-									l = c.length;
-									if (l > 0)
-										c[l - 1].nextItem = moreItem;
-									list.addChild(moreItem);
-								}
-								if (item && item.itemsLoaded) {
-									item.itemsLoaded();
-									item.itemsLoaded = null;
+					var a = arguments;
+					var onSuccess = function(result) {
+
+						if (offset == 0) {
+							clearRecords("getArticles");
+						}
+						clearRecords("selectArticle");
+						record("getArticles", null, a, result);
+
+						var c = list.getChildren(), l = c.length;
+						if (item) {
+							list.removeChild(item);
+						}
+						var articles = ensureArray(result.articleList.articles);
+						if (reverse && articles)
+							articles.reverse();
+						list.view = view;
+						fillArticleList(list, articles, newsgroup, offset > 0);
+						if (result.articleList.available > 0) {
+							var moreItem = new ListItem({
+								label : "More...",
+								clickable : true,
+								noArrow : true,
+								onClick : function() {
+									getArticles(command, args,
+											result.articleList.offset, reverse,
+											list, view, this);
 								}
 							});
+							moreItem.isMoreItem = true;
+							view.autoLoadItem = moreItem;
+							domClass.add(moreItem.domNode, "moreItem");
+							c = list.getChildren();
+							l = c.length;
+							if (l > 0)
+								c[l - 1].nextItem = moreItem;
+							list.addChild(moreItem);
+						}
+						if (item && item.itemsLoaded) {
+							item.itemsLoaded();
+							item.itemsLoaded = null;
+						}
+					};
+
+					doRequest(command, args, item || view, onSuccess);
 				}
 
 				function ensureArray(list) {
 					return (!list || list instanceof Array) ? list : [ list ];
 				}
 
-				function fillArticleList(list, articles, noscroll) {
+				var itemId = 0;
+
+				function fillArticleList(list, articles, newsgroup, noscroll) {
 					if (!articles || articles.length == 0) {
 						list.addChild(new ListItem({
 							label : "No articles found."
@@ -367,14 +365,22 @@
 								: null;
 						for ( var i = 0; i < articles.length; i++) {
 							var a = articles[i];
-							var item = new ListItem({
-								label : a.subject,
-								clickable : true,
-								noArrow : true,
-								onClick : selectArticle,
-								articleId : a.vols || a.parts || a.articleId,
-								bytes : a.bytes
-							});
+							var id = a.vols || a.parts || a.articleId;
+							registry.remove(id);
+							var item = new ListItem(
+									{
+										id : id,
+										label : a.subject,
+										clickable : true,
+										noArrow : true,
+										onClick : selectArticle,
+										articleId : id,
+										newsgroup : newsgroup
+												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
+														: a.newsgroups),
+										bytes : a.bytes,
+										view : list.view
+									});
 							list.addChild(item);
 							item._list = list;
 							if (prevItem) {
@@ -389,14 +395,27 @@
 								.scrollTo({
 									y : 0
 								});
-						if (settings.state)
-							saveScroll(0);
 					}
-					if (settings.state)
-						saveArticles(articles);
 				}
 
 				//---------- Newsgroup browsing ----------
+
+				function getNewsgroups(value) {
+					if (!currentServer) {
+						showMessage("No server defined");
+						return;
+					}
+					doRequest("g", {
+						pattern : "*" + value + "*",
+						max : settings.searchResultsCount
+					}, searchView,
+					// success
+					function(result) {
+						record("getNewsgroups", null, arguments, result);
+						fillNewsgroupList(searchResultsList,
+								result.newsgroupList.newsgroups);
+					});
+				}
 
 				function fillNewsgroupList(list, newsgroups) {
 					if (!newsgroups || newsgroups.length == 0) {
@@ -405,7 +424,9 @@
 						}));
 					} else {
 						array.forEach(newsgroups, function(g) {
+							registry.remove(g.name);
 							list.addChild(new ListItem({
+								id : g.name,
 								label : g.name,
 								clickable : true,
 								noArrow : true,
@@ -416,20 +437,25 @@
 					searchView.scrollTo({
 						y : 0
 					});
-					if (settings.state)
-						saveNewsgroups(newsgroups);
 				}
 
 				function selectNewsgroup() {
+					clearRecords("selectNewsgroup");
+					clearRecords("selectArticle");
+					clearRecords("getBody");
+					clearRecords("getArticles");
+					record("selectNewsgroup", this, []);
 					var newsgroup = this.get("label");
 					var l = newsgroup;
 					if (l.length > 20) {
 						l = l.replace(/(\w)\w*\./g, "$1.");
 					}
 					newsgroupHeading.set("label", l);
-					searchView.performTransition("newsgroup", 1, "slide");
+					searchView.performTransition("newsgroup", 1,
+							replaying ? "none" : "slide");
 					clearList(newsgroupResultsList);
-					getHeaders(newsgroup, 0);
+					if (!replaying)
+						getHeaders(newsgroup, 0);
 				}
 
 				function getHeaders(newsgroup, offset) {
@@ -449,15 +475,18 @@
 						showMessage("No server defined");
 						return;
 					}
-					var view = viewRegistry.getEnclosingView(this.domNode);
-					view.performTransition("article", 1, "slide");
+					var view = this.view;
+					view.performTransition("article", 1, replaying ? "none"
+							: "slide");
 					articleBackButton.set("moveTo", view.id);
-					saveArticleBackButtonMoveTo(view.id);
 					textHeading.set("moveTo", view.id);
 					showArticle(this);
 				}
 
-				function showArticle(item, entry) {
+				function showArticle(item) {
+
+					clearRecords("selectArticle");
+					record("selectArticle", item, []);
 
 					currentItem = item;
 
@@ -477,7 +506,7 @@
 					if (body) {
 						cancelRequest();
 						showProgressBar(false);
-						showBody(item, body, entry);
+						showBody(item, body);
 						return;
 					}
 
@@ -538,9 +567,9 @@
 										showError(p.exception);
 									} else {
 										if (p.body) {
-											gotBody(item, p.body, data, entry);
+											gotBody(item, p.body, data);
 										} else {
-											getBody(args, item, entry);
+											getBody(args, item);
 										}
 									}
 								}
@@ -557,7 +586,7 @@
 						showProgressBar(true);
 						doRequest("ba", args, null, f);
 					} else {
-						getBody(args, item, entry);
+						getBody(args, item);
 					}
 				}
 
@@ -608,13 +637,24 @@
 					showProgressBar(false);
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
+					clearRecords("selectArticle");
+				}
+
+				leaveNewsgroupView = function() {
+					if (arguments[1] == -1) {
+						clearRecords("getArticles");
+						clearRecords("getBody");
+						clearRecords("selectNewsgroup");
+						clearRecords("selectArticle");
+						clearRecords("newsgroupScroll");
+					}
 				}
 
 				function fixList(list) {
 					list.resize();
-					var v = viewRegistry.getEnclosingScrollable(list.domNode);
 					if (currentItem && currentItem.getParent() == list) {
-						var node = currentItem.domNode, nodeRect = node
+						var v = viewRegistry
+								.getEnclosingScrollable(list.domNode), node = currentItem.domNode, nodeRect = node
 								.getBoundingClientRect(), scrollableRect = v.domNode
 								.getBoundingClientRect();
 						if (nodeRect.height < v.getDim().d.h) {
@@ -625,12 +665,6 @@
 								v.scrollIntoView(node, false);
 							}
 						}
-					}
-					if (v.restoreScroll) {
-						v.scrollTo({
-							y : v.restoreScroll
-						});
-						delete v.restoreScroll;
 					}
 				}
 
@@ -646,24 +680,25 @@
 					}
 				}
 
-				function getBody(args, item, entry) {
+				function getBody(args, item) {
 					doRequest("b", args, articleView, function(result) {
-						gotBody(item, result.articleBody, null, entry);
+						gotBody(item, result.articleBody);
 					});
 				}
 
-				function gotBody(item, body, data, entry) {
+				function gotBody(item, body, data) {
+
 					if (!body.attachments)
 						body.attachments = [];
 					else if (!(body.attachments instanceof Array))
 						body.attachments = [ body.attachments ];
-					if (data && body.attachments.length == 1) {
+					if (body.attachments.length == 1) {
 						var att = body.attachments[0];
 						if (att) {
-							if (att.data) {
-								att.data = atob(data);
-							} else {
+							if (data) {
 								att.data = data;
+							} else {
+								att.data = atob(att.data);
 							}
 						}
 					}
@@ -671,26 +706,24 @@
 					// cache in memory for immediate reuse
 					item.body = body;
 
-					showBody(item, body, entry);
+					record("getBody", null, [ {}, item ], {
+						articleBody : body
+					});
+
+					showBody(item, body);
 				}
 
-				function showBody(item, body, entry) {
-
-					var dontShow = entry == -1;
-
-					if (settings.state && !dontShow)
-						saveArticle(item);
+				function showBody(item, body) {
 
 					domClass.add(item.domNode, "read");
 
 					if (body.articles != null) {
 						// NZB index
-						showIndex(body.articles, item, entry);
+						showIndex(body.articles, item);
 					} else {
 						var n = body.attachments.length;
 						if (n > 1) {
-							showMultipleAttachments(body.attachments, item,
-									entry);
+							showMultipleAttachments(body.attachments, item);
 						} else if (n == 1) {
 							var att = body.attachments[0];
 							if (att.filename) {
@@ -699,131 +732,104 @@
 								case "jpg":
 								case "gif":
 								case "png":
-									if (!dontShow) {
-										showImage(att);
-									}
+									showImage(att);
 									break;
 								case "mpg":
 								case "mp4":
 								case "avi":
 								case "ogg":
 								case "ogv":
-									if (!dontShow) {
-										if (showVideos) {
-											showVideo(att);
-										} else {
-											showText(body.text, att, "video/"
-													+ suff);
-										}
+									if (showVideos) {
+										showVideo(att);
+									} else {
+										showText(body.text, att, "video/"
+												+ suff);
 									}
 									break;
 								case "zip":
 								case "cbz":
-									showZip(att, item, entry);
+									showZip(att, item);
 									break;
 								case "rar":
 								case "cbr":
-									showRar(att, item, entry);
+									showRar(att, item);
 									break;
 								case "txt":
-									if (!dontShow) {
-										setArticleTitle(att.filename);
-										showText(att.data);
-									}
+									setArticleTitle(att.filename);
+									showText(att.data);
 									break;
 								case "exe":
-									if (!dontShow) {
-										showText(body.text, att,
-												"application/x-msdownload");
-									}
+									showText(body.text, att,
+											"application/x-msdownload");
 									break;
 								case "pdf":
-									if (!dontShow) {
-										showText(body.text, att,
-												"application/pdf");
-									}
+									showText(body.text, att, "application/pdf");
 									break;
 								default:
-									if (!dontShow) {
-										showText(body.text, att);
-									}
+									showText(body.text, att);
 								}
 							} else {
-								if (!dontShow) {
-									showText(body.text);
-								}
-							}
-						} else {
-							if (!dontShow) {
 								showText(body.text);
 							}
+						} else {
+							showText(body.text);
 						}
 					}
 				}
 
-				function showZip(att, item, entry) {
-					require([ "js-unzip.js", "js-inflate.js" ], function(
-							JSUnzip, JSInflate) {
-						var unzipper = new JSUnzip(att.data);
-						if (unzipper.isZipFile()) {
-							unzipper.readEntries();
-							var attachments = [];
-							for ( var i = 0; i < unzipper.entries.length; i++) {
-								var entry = unzipper.entries[i];
-								var data;
-								if (entry.compressionMethod === 0) {
-									// Uncompressed
-									data = entry.data;
-								} else if (entry.compressionMethod === 8) {
-									// Deflated
-									data = JSInflate.inflate(entry.data);
-								}
-								if (data) {
-									attachments.push({
-										filename : entry.fileName,
-										data : data
-									});
-								}
+				function showZip(att, item) {
+					var unzipper = new JSUnzip(att.data);
+					if (unzipper.isZipFile()) {
+						unzipper.readEntries();
+						var attachments = [];
+						for ( var i = 0; i < unzipper.entries.length; i++) {
+							var entry = unzipper.entries[i];
+							var data;
+							if (entry.compressionMethod === 0) {
+								// Uncompressed
+								data = entry.data;
+							} else if (entry.compressionMethod === 8) {
+								// Deflated
+								data = JSInflate.inflate(entry.data);
 							}
-							if (attachments.length > 0) {
-								showMultipleAttachments(attachments, item,
-										entry);
+							if (data) {
+								attachments.push({
+									filename : entry.fileName,
+									data : data
+								});
 							}
 						}
+						if (attachments.length > 0) {
+							showMultipleAttachments(attachments, item);
+						}
+					}
+				}
+
+				function showRar(att, item) {
+					progress(articleView);
+					showProgressBar(true);
+					progressBar.set("value", 0);
+					progressBar.set("label", "Unpacking RAR archive...");
+					currentUnrar = unrar(binaryToUint8Array(att.data).buffer,
+							replaying);
+					currentUnrar.then(function(attachments) {
+						currentUnrar = null;
+						showMultipleAttachments(attachments, item);
+					}, function(err) {
+						currentUnrar = null;
+						progress();
+						showProgressBar(false);
+						showError(err);
+					}, function(p) {
+						progressBar.set("value", Math.round(p.index / p.total
+								* 100)
+								+ "%");
+						progressBar.set("label", "Unpacking " + p.file + " ("
+								+ p.index + "/" + p.total + ")");
 					});
 				}
 
-				function showRar(att, item, entry) {
-					require(
-							[ "unrar.js" ],
-							function(unrar) {
-								progress(articleView);
-								showProgressBar(true);
-								progressBar.set("value", 0);
-								progressBar.set("label",
-										"Unpacking RAR archive...");
-								currentUnrar = unrar(binaryToUint8Array(att.data).buffer);
-								currentUnrar.then(function(attachments) {
-									currentUnrar = null;
-									showMultipleAttachments(attachments, item,
-											entry);
-								}, function(err) {
-									currentUnrar = null;
-									progress();
-									showProgressBar(false);
-									showError(err);
-								}, function(p) {
-									progressBar.set("value", Math.round(p.index
-											/ p.total * 100)
-											+ "%");
-									progressBar.set("label", "Unpacking "
-											+ p.file + " (" + p.index + "/"
-											+ p.total + ")");
-								});
-							});
-				}
-
-				function showMultipleAttachments(attachments, item, entry) {
+				function showMultipleAttachments(attachments, item) {
 					showMultipleItems(
 							array
 									.map(
@@ -831,7 +837,6 @@
 											function(att, index) {
 												return {
 													subject : att.filename,
-													entry : index,
 													body : {
 														text : "<p><span>Attachment "
 																+ (index + 1)
@@ -841,33 +846,35 @@
 														attachments : [ att ]
 													}
 												};
-											}), item, entry);
+											}), item);
 				}
 
-				function showIndex(articles, item, entry) {
+				function showIndex(articles, item) {
 					showMultipleItems(array.map(articles, function(a) {
 						return {
 							subject : a.subject,
 							articleId : a.vols || a.parts || a.articleId,
 							bytes : a.bytes
 						};
-					}), item, entry);
+					}), item);
 				}
 
-				function showMultipleItems(items, item, entry) {
+				function showMultipleItems(items, item) {
 					var list = item._list;
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
 					var prevItem = item.prevItem;
 					var nextItem = item.nextItem;
-					var newItems = array.map(items, function(it, i) {
+					var firstItem;
+					array.forEach(items, function(it, i) {
 						var newItem = new ListItem(lang.mixin({
 							label : it.subject
 									+ "<div class=\"archiveEntry\"> In: "
 									+ item.get("label") + "</div>",
 							clickable : true,
 							noArrow : true,
-							onClick : selectArticle
+							onClick : selectArticle,
+							view : item.view
 						}, it));
 						list.addChild(newItem, index++);
 						newItem._list = list;
@@ -878,14 +885,16 @@
 						if (nextItem)
 							nextItem.prevItem = newItem;
 						prevItem = newItem;
-						return newItem
+						if (!firstItem)
+							firstItem = newItem;
 					});
-					if (entry != -1) {
-						showArticle(newItems[entry || 0]);
-					}
+					if (firstItem)
+						showArticle(firstItem);
 				}
 
 				function showImage(att) {
+					if (replaying && replaying != "selectArticle")
+						return;
 					dom.byId("imageBackground").style.visibility = "visible";
 					textView.domNode.style.visibility = "hidden";
 					videoView.domNode.style.visibility = "hidden";
@@ -898,6 +907,8 @@
 				}
 
 				function showVideo(att) {
+					if (replaying && replaying != "selectArticle")
+						return;
 					videoView.show();
 					videoView.domNode.style.visibility = "visible";
 					textView.domNode.style.visibility = "hidden";
@@ -910,6 +921,8 @@
 				}
 
 				function showText(text, att, type) {
+					if (replaying && replaying != "selectArticle")
+						return;
 					textView.domNode.style.visibility = "visible";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -1289,6 +1302,13 @@
 				function doRequest(command, args, progressParent, success,
 						error, server) {
 
+					if (replayResult) {
+						var result = replayResult;
+						replayResult = null;
+						success(result);
+						return;
+					}
+
 					if (progressParent)
 						progress(progressParent);
 
@@ -1352,6 +1372,8 @@
 				}
 
 				function showMessage(s) {
+					if (replaying)
+						return;
 					if (articleView.domNode.style.display != "none") {
 						domClass.remove(dom.byId("articleMessage"), "hidden");
 						dom.byId("articleMessageText").innerHTML = s;
@@ -1391,18 +1413,17 @@
 				}
 
 				function clearList(list) {
-					while (list.getChildren().length > 0) {
-						list.removeChild(0);
+					var children;
+					while ((children = list.getChildren()).length > 0) {
+						var child = children[0];
+						list.removeChild(child);
+						child.destroyRecursive();
 					}
 				}
 
 				function suffix(name) {
 					var p = name.toLowerCase().split(".");
 					return p[p.length - 1];
-				}
-
-				function fromJSON(s, d) {
-					return s ? json.parse(s) : d;
 				}
 
 				//---------- Binary data conversion ----------
@@ -1465,8 +1486,8 @@
 									scroll(v, (has("ff") ? -e.detail
 											: e.wheelDelta) > 0 ? 1 : -1);
 								});
-								var autoLoad = function() {
-									if (!currentRequest) {
+								var autoLoad = function(to) {
+									if (!currentRequest && !replaying) {
 										var item = v.autoLoadItem;
 										if (item && item.getParent()) {
 											var rect = item.domNode
@@ -1479,13 +1500,14 @@
 											}
 										}
 									}
-									if (settings.state
-											&& (v == newsgroupView || v == searchView)
-											&& !v.restoreScroll)
-										saveScroll(v.getPos().y);
+									if (v == searchView || v == newsgroupView) {
+										var f = v.id + "Scroll";
+										clearRecords(f);
+										record(f, null, [ to.y ]);
+									}
 								}
-								aspect.after(v, "scrollTo", autoLoad);
-								aspect.after(v, "slideTo", autoLoad);
+								aspect.after(v, "scrollTo", autoLoad, true);
+								aspect.after(v, "slideTo", autoLoad, true);
 							}
 						});
 
@@ -1517,7 +1539,13 @@
 
 					// Read settings from local storage
 
-					settings = fromJSON(localStorage.settings, {});
+					var settingsAsJSON = localStorage.settings;
+
+					if (settingsAsJSON) {
+						settings = json.parse(settingsAsJSON);
+					} else {
+						settings = {};
+					}
 					settings = lang.mixin(lang.mixin({}, defaultSettings),
 							settings);
 
@@ -1762,187 +1790,165 @@
 					}
 				};
 
-				//---------- Save/restore state ----------
+				//---------- Current state ----------
 
 				function save(p, v) {
-					while (true) {
-						try {
-							localStorage[p] = (typeof v == "string") ? v : json
-									.stringify(v);
-							break;
-						} catch (err) {
-							var n = fromJSON(localStorage.state_next_article, 0);
-							var deleted = false;
-							for ( var i = 0; i <= n; i++) {
-								var a = "state_article_" + i;
-								if (a in localStorage) {
-									delete a;
-									deleted = true;
-									break;
-								}
-							}
-							if(!deleted){
-								// nothing to delete any more... can't save but make sure to stop trying
-								break;
-							}
+					localStorage["s_" + p] = typeof v == "string" ? v : json
+							.stringify(v);
+				}
+
+				function load(p, d) {
+					var s = localStorage["s_" + p];
+					return s ? json.parse(s) : d;
+				}
+
+				function record(f, t, a, r) {
+					if (replaying)
+						return;
+					var i;
+					var na = [];
+					for (i = 0; i < a.length; i++) {
+						var v = a[i];
+						na[i] = (v.domNode && v.id) ? ("_widget_" + v.id) : v;
+					}
+					if (t) {
+						t = t.id;
+					}
+					if (r && r.articleBody) {
+						r.articleBody = {
+							text : r.articleBody.text,
+							attachments : array
+									.map(
+											r.articleBody.attachments,
+											function(att) {
+												return {
+													filename : att.filename,
+													typedArray : att.typedArray,
+													data : btoa(att.typedArray ? Uint8ArrayToBinary(att.data)
+															: att.data)
+												};
+											})
+						};
+					}
+					try {
+						var n = load(f + "_count", 0);
+						save(f + "_" + n, {
+							f : f,
+							t : t,
+							a : na,
+							r : r
+						});
+						n++;
+						save(f + "_count", n);
+					} catch (err) {
+					}
+				}
+
+				function clearRecords(f) {
+					if (replaying)
+						return;
+					for ( var p in localStorage) {
+						if (new RegExp("^s_" + f).test(p))
+							delete localStorage[p];
+					}
+				}
+
+				var replaying, replayResult;
+
+				function replay(r) {
+					replaying = r.f;
+					var i;
+					var a = r.a;
+					for (i = 0; i < a.length; i++) {
+						var v = a[i];
+						if (typeof v == "string" && v.match(/^_widget_(.*)/)) {
+							a[i] = registry.byId(RegExp.$1);
+						}
+					}
+					if (r.t) {
+						r.t = registry.byId(r.t);
+					}
+					if (r.r && r.r.articleBody) {
+						r.r.articleBody = {
+							text : r.r.articleBody.text,
+							attachments : array
+									.map(
+											r.r.articleBody.attachments,
+											function(att) {
+												return {
+													filename : att.filename,
+													typedArray : att.typedArray,
+													data : att.typedArray ? binaryToUint8Array(atob(att.data))
+															: att.data
+												};
+											})
+						};
+					}
+					var f = funcs[r.f];
+					replayResult = r.r;
+					f.apply(r.t, a);
+				}
+
+				function replayAll(f) {
+					var n = load(f + "_count", 0);
+					for ( var i = 0; i < n; i++) {
+						var r = load(f + "_" + i);
+						if (r) {
+							replay(r);
 						}
 					}
 				}
 
-				topic.subscribe("/dojox/mobile/afterTransitionIn", function(
-						view) {
-					saveView(view.id);
-				});
-
-				function saveView(id) {
-					save("state_view", id);
+				function setSearch(value) {
+					searchBox.set("value", value);
 				}
 
-				function saveSearch(value) {
-					save("state_search", value);
+				function searchScroll(y) {
+					searchView.scrollTo({
+						y : y
+					});
 				}
 
-				function saveNewsgroups(newsgroups) {
-					save("state_newsgroups", newsgroups);
+				function newsgroupScroll(y) {
+					newsgroupView.scrollTo({
+						y : y
+					});
 				}
 
-				function saveArticles(articles) {
-					save("state_articles", articles);
-				}
+				var funcs = {
+					setSearch : setSearch,
+					getNewsgroups : getNewsgroups,
+					selectNewsgroup : selectNewsgroup,
+					getArticles : getArticles,
+					searchScroll : searchScroll,
+					newsgroupScroll : newsgroupScroll,
+					getBody : getBody,
+					selectArticle : selectArticle
+				};
 
-				function saveScroll(y) {
-					save("state_scroll", y);
-				}
-
-				function saveArticleBackButtonMoveTo(moveTo) {
-					save("state_article_back_button_move_to", moveTo);
-				}
-
-				function saveArticle(item) {
-					if (item && item.body) {
-						if (item.entry !== undefined) {
-							save("state_entry", item.entry);
-						} else {
-
-							var n = item.stateIndex;
-							if (n != undefined
-									&& (("state_article_" + n) in localStorage)) {
-								save("state_current_article", n);
-								return;
-							}
-							n = fromJSON(localStorage.state_next_article, 0);
-							save(
-									"state_article_" + n,
-									{
-										id : item.articleId,
-										body : {
-											text : item.body.text,
-											attachments : array
-													.map(
-															item.body.attachments,
-															function(att) {
-																return {
-																	filename : att.filename,
-																	typedArray : att.typedArray,
-																	data : btoa(att.typedArray ? Uint8ArrayToBinary(att.data)
-																			: att.data)
-																};
-															})
-										}
-									});
-							item.stateIndex = n;
-							save("state_current_article", n);
-							save("state_next_article", n + 1);
-						}
+				function restoreState() {
+					try {
+						replayAll("setSearch");
+						replayAll("getNewsgroups");
+						replayAll("selectNewsgroup");
+						replayAll("getArticles");
+						replayAll("searchScroll");
+						replayAll("newsgroupScroll");
+						replayAll("getBody");
+						replayAll("selectArticle");
+					} catch (err) {
 					}
+					replaying = null;
 				}
 
 				function clearState() {
-					for ( var p in localStorage) {
-						if (/state_/.test(p)) {
-							delete localStorage[p];
-						}
-					}
-				}
-
-				function restoreState() {
-
-					searchBox.set("value", localStorage.state_search);
-
-					var id = localStorage.state_view;
-					var article;
-					if (id && id != "search" && id != "article") {
-						searchView.performTransition(id, 1, "none");
-					}
-
-					var y = fromJSON(localStorage.state_scroll, 0);
-					var newsgroups = fromJSON(localStorage.state_newsgroups);
-					if (newsgroups) {
-						fillNewsgroupList(searchResultsList, newsgroups);
-					}
-					var articles = fromJSON(localStorage.state_articles);
-					if (articles) {
-						var list = newsgroups ? newsgroupResultsList
-								: searchResultsList;
-						fillArticleList(list, articles);
-						var v = newsgroups ? newsgroupView : searchView;
-						v.scrollTo({
-							y : y
-						});
-						v.restoreScroll = y;
-
-						var n = fromJSON(localStorage.state_next_article, 0);
-						var c = id == "article" ? fromJSON(
-								localStorage.state_current_article, -1) : -1;
-						var itemToShow;
-						for ( var i = 0; i < n; i++) {
-							var article = fromJSON(localStorage["state_article_"
-									+ i]);
-							if (article) {
-								array
-										.some(
-												list.getChildren(),
-												function(item, index) {
-													if (item.articleId == article.id) {
-														item.body = article.body;
-														item.body.attachments = array
-																.map(
-																		item.body.attachments,
-																		function(
-																				att) {
-																			return {
-																				filename : att.filename,
-																				typedArray : att.typedArray,
-																				data : att.typedArray ? binaryToUint8Array(atob(att.data))
-																						: atob(att.data)
-																			};
-																		});
-														item.stateIndex = i;
-														if (c == i) {
-															searchView
-																	.performTransition(
-																			"article",
-																			1,
-																			"none");
-															showBody(
-																	item,
-																	item.body,
-																	fromJSON(localStorage.state_entry));
-
-														} else {
-															showBody(item,
-																	item.body,
-																	-1);
-
-														}
-														return true;
-													}
-												});
-							}
-						}
-						articleBackButton.set("moveTo",
-								newsgroups ? "newsgroup" : "search");
-					}
+					clearRecords("getNewsgroups");
+					clearRecords("selectNewsgroup");
+					clearRecords("getArticles");
+					clearRecords("searchScroll");
+					clearRecords("newsgroupScroll");
+					clearRecords("getBody");
+					clearRecords("selectArticle");
 				}
 			});
 </script>
@@ -2609,18 +2615,19 @@ body,html {
 		</div>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-props="variableHeight:true"
-			data-dojo-id="searchResultsList"
+			data-dojo-id="searchResultsList" id="searchResultsList"
 			data-dojo-mixins="dojox/mobile/LongListMixin">
 		</ul>
 	</div>
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="newsgroup"
-		data-dojo-id="newsgroupView">
+		data-dojo-id="newsgroupView"
+		data-dojo-props="onBeforeTransitionOut:leaveNewsgroupView">
 		<div data-dojo-type="dojox/mobile/Heading" class="newsgroupHeading"
 			data-dojo-id="newsgroupHeading"
 			data-dojo-props="fixed:'top',back:'Search',moveTo:'search'"></div>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-props="variableHeight:true"
-			data-dojo-id="newsgroupResultsList"
+			data-dojo-id="newsgroupResultsList" id="newsgroupResultsList"
 			data-dojo-mixins="dojox/mobile/LongListMixin">
 		</ul>
 	</div>
@@ -2720,7 +2727,7 @@ body,html {
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.4.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
