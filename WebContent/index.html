@@ -21,7 +21,7 @@
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonGreySearch.css"
 	rel="stylesheet"></link>
 
-<script type="text/javascript" src="dojo/dojo/dojo.js"
+<script type="text/javascript" src="dojo/dojo/dojo.js.uncompressed.js"
 	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
 
 <script>
@@ -59,7 +59,7 @@
 					async : true,
 					progress : true,
 					partial : true,
-					state : true
+					state : false
 				};
 
 				//---------- Initialization ----------
@@ -810,7 +810,7 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
-					currentUnrar = unrar(binaryToUint8Array(att.data).buffer,
+					currentUnrar = unrar((att.typedArray ? att.data : binaryToUint8Array(att.data)).buffer,
 							replaying);
 					currentUnrar.then(function(attachments) {
 						currentUnrar = null;
@@ -1413,11 +1413,14 @@
 				}
 
 				function clearList(list) {
-					var children;
 					while ((children = list.getChildren()).length > 0) {
 						var child = children[0];
 						list.removeChild(child);
 						child.destroyRecursive();
+					}
+					var v = viewRegistry.getEnclosingScrollable(list.domNode);
+					if(v){
+						v.autoLoadItem = null;
 					}
 				}
 
@@ -1803,7 +1806,7 @@
 				}
 
 				function record(f, t, a, r) {
-					if (replaying)
+					if (replaying || !settings.state)
 						return;
 					var i;
 					var na = [];
@@ -1864,7 +1867,7 @@
 				}
 
 				function clearRecords(f) {
-					if (replaying)
+					if (replaying || !settings.state)
 						return;
 					for ( var p in localStorage) {
 						if (new RegExp("^s_" + f).test(p))
