@@ -1413,10 +1413,8 @@
 				}
 
 				function clearList(list) {
-					while ((children = list.getChildren()).length > 0) {
-						var child = children[0];
-						list.removeChild(child);
-						child.destroyRecursive();
+					while (list.getChildren().length > 0) {
+						list.removeChild(0);
 					}
 					var v = viewRegistry.getEnclosingScrollable(list.domNode);
 					if(v){
@@ -2747,7 +2745,7 @@ body,html {
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.4.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
