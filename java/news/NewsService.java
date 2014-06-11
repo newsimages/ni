@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import javax.ws.rs.FormParam;
@@ -143,7 +145,7 @@ public class NewsService implements ProtocolCommandListener {
 		long first = info.getFirstArticleLong();
 		long last = info.getLastArticleLong() - offset;
 
-		int blockSize = count;
+		int blockSize = count*2;
 
 		long high = last;
 		long low = Math.max(high - blockSize + 1, first);
@@ -275,7 +277,6 @@ public class NewsService implements ProtocolCommandListener {
 				}
 				synchronized (buffer) {
 					if (filename != null) {
-						String f = filename.toLowerCase();
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
 					}
@@ -406,7 +407,8 @@ public class NewsService implements ProtocolCommandListener {
 						Thread.yield();
 					}
 					body.articles = new ArrayList<ArticleHeader>();
-					parseNzb(new ByteArrayInputStream(a.data), "", body.articles);
+					parseNzb(new ByteArrayInputStream(a.data), "",
+							body.articles);
 				}
 			}
 		}
@@ -748,6 +750,7 @@ public class NewsService implements ProtocolCommandListener {
 				bytes.write(c);
 			}
 		}
+		fileInfo.encoding = CODE_NONE;
 	}
 
 	private void uudecode(BufferedReader reader, FileInfo fileInfo,
@@ -756,7 +759,7 @@ public class NewsService implements ProtocolCommandListener {
 		String line;
 		while ((line = reader.readLine()) != null) {
 
-			if (line.equals("end")){
+			if (line.equals("end")) {
 				fileInfo.encoding = CODE_NONE;
 				break;
 			}
@@ -851,159 +854,92 @@ public class NewsService implements ProtocolCommandListener {
 	private boolean computeMultipart(ArticleHeader article,
 			Map<String, ArticleHeader[]> map) {
 
-		String subject = article.subject;
+		Pattern p = Pattern.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
+		
+		Matcher m = p.matcher(article.subject);
+		if (m.matches() && m.groupCount() == 4) {
+			int partNumber = Integer.parseInt(m.group(2));
+			int partCount = Integer.parseInt(m.group(3));
 
-		int digitCount = 0;
-		int partNumber = 0;
-		int partCount = 0;
-		String prefix = null;
-		String suffix = null;
+			if (partCount != 1 && partNumber != 0) {
 
-		boolean multipartFound = false;
+				String prefix = m.group(1);
+				String suffix = m.group(4);
 
-		int i;
+				String key = prefix + "X/" + partCount + suffix;
 
-		for (int sep = subject.indexOf('/'); sep > 0; sep = subject.indexOf(
-				'/', sep + 1)) {
-			int m = 1;
-			int _digitCount = 0;
-			int _partNumber = 0;
-			int _partCount = 0;
-			String _prefix = null;
-			String _suffix = null;
-			boolean ok = false;
-			for (i = sep - 1; i > 0; i--) {
-				char d = subject.charAt(i);
-				if (d >= '0' && d <= '9') {
-					_digitCount++;
-					_partNumber = _partNumber + m * (d - '0');
-					m *= 10;
-				} else {
-					if (d == '(')
-						ok = true;
-					break;
+				ArticleHeader[] parts = map.get(key);
+				if (parts == null) {
+					parts = new ArticleHeader[partCount];
+					map.put(key, parts);
 				}
-			}
-			if (!ok)
-				continue;
-			_prefix = subject.substring(0, i + 1);
-			m = 1;
-			ok = false;
-			for (i = sep + 1; i < sep + 1 + _digitCount + 1
-					&& i < subject.length(); i++) {
-				char d = subject.charAt(i);
-				if (d >= '0' && d <= '9') {
-					_partCount = _partCount * m + (d - '0');
-					m *= 10;
-				} else {
-					if (d == ')')
-						ok = true;
-					break;
+				parts[partNumber - 1] = article;
+
+				if (parts[0] != null) {
+					parts[0].parts = "";
+					for (int i = 0; i < parts.length; i++) {
+						if (parts[i] == null) {
+							parts[0].parts = "incomplete";
+							break;
+						}
+						if (i > 0) {
+							parts[0].parts += ",";
+							parts[0].bytes += parts[i].bytes;
+						}
+						parts[0].parts += parts[i].articleId;
+					}
 				}
+
+				return partNumber > 1;
 			}
-			if (!ok)
-				continue;
-			_suffix = subject.substring(i);
-
-			multipartFound = true;
-
-			digitCount = _digitCount;
-			partNumber = _partNumber;
-			partCount = _partCount;
-			prefix = _prefix;
-			suffix = _suffix;
 		}
 
-		boolean result = false;
-
-		if (multipartFound && partCount != 1 && partNumber != 0) {
-
-			String x = "";
-			for (i = 0; i < digitCount; i++)
-				x += "X";
-
-			String key = prefix + x + '/' + partCount + suffix;
-
-			ArticleHeader[] parts = map.get(key);
-			if (parts == null) {
-				parts = new ArticleHeader[partCount];
-				map.put(key, parts);
-			}
-			parts[partNumber - 1] = article;
-
-			if (parts[0] != null) {
-				parts[0].parts = "";
-				for (i = 0; i < parts.length; i++) {
-					if (parts[i] == null) {
-						parts[0].parts = "incomplete";
-						break;
-					}
-					if (i > 0) {
-						parts[0].parts += ",";
-						parts[0].bytes += parts[i].bytes;
-					}
-					parts[0].parts += parts[i].articleId;
-				}
-			}
-
-			result = partNumber > 1;
-		}
-
-		return result;
+		return false;
 	}
 
 	private void computeMultivolumes(List<ArticleHeader> list) {
+		
 		Map<String, ArticleHeader[]> map = multivolumeMap;
+		
 		for (int j = 0; j < list.size(); j++) {
+
 			ArticleHeader article = list.get(j);
-			String subject = article.subject;
-			int index = subject.indexOf(".rar\"");
-			if (index > 0) {
-				int i;
-				int digitCount = 0;
-				for (i = index; i > 1; i--) {
-					if (Character.isDigit(subject.charAt(i - 1)))
-						digitCount++;
-					else
-						break;
+
+			Pattern p = Pattern.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
+
+			Matcher m = p.matcher(article.subject);
+			if (m.matches() && m.groupCount() == 2) {
+				
+				String file = m.group(1);
+				String n = m.group(2);
+				int partNumber = Integer.parseInt(n);
+				int partCount = (int) Math.pow(10, n.length());
+
+				String key = file;
+
+				ArticleHeader[] parts = map.get(key);
+				if (parts == null) {
+					parts = new ArticleHeader[partCount];
+					map.put(key, parts);
 				}
-				if (digitCount > 0 && i > 5) {
-					int k = subject.lastIndexOf("\"", i);
-					if (k >= 0) {
-						String file = subject.substring(k, i);
-						if (file.endsWith(".part")) {
-							String ns = subject.substring(i, index);
-							int partNumber = Integer.parseInt(ns);
-							int partCount = (int) Math.pow(10, digitCount);
+				parts[partNumber - 1] = article;
 
-							String key = file;
-
-							ArticleHeader[] parts = map.get(key);
-							if (parts == null) {
-								parts = new ArticleHeader[partCount];
-								map.put(key, parts);
-							}
-							parts[partNumber - 1] = article;
-
-							if (parts[0] != null) {
-								parts[0].vols = "";
-								for (i = 0; i < parts.length; i++) {
-									if (parts[i] == null) {
-										break;
-									}
-									if (i > 0) {
-										parts[0].vols += ",";
-										parts[0].bytes += parts[i].bytes;
-									}
-									parts[0].vols += parts[i].parts;
-								}
-							}
-
-							if (partNumber > 1) {
-								list.remove(j--);
-							}
+				if (parts[0] != null) {
+					parts[0].vols = "";
+					for (int i = 0; i < parts.length; i++) {
+						if (parts[i] == null) {
+							break;
 						}
+						if (i > 0) {
+							parts[0].vols += ",";
+							parts[0].bytes += parts[i].bytes;
+						}
+						parts[0].vols += parts[i].parts;
 					}
+				}
+
+				if (partNumber > 1) {
+					list.remove(j--);
 				}
 			}
 		}

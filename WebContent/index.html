@@ -21,7 +21,7 @@
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonGreySearch.css"
 	rel="stylesheet"></link>
 
-<script type="text/javascript" src="dojo/dojo/dojo.js.uncompressed.js"
+<script type="text/javascript" src="dojo/dojo/dojo.js"
 	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
 
 <script>
@@ -354,6 +354,15 @@
 
 				var itemId = 0;
 
+				function uniqueId(id) {
+					var uid = id;
+					var n = 0;
+					while (registry.byId(uid)) {
+						uid = id + (++n);
+					}
+					return uid;
+				}
+
 				function fillArticleList(list, articles, newsgroup, noscroll) {
 					if (!articles || articles.length == 0) {
 						list.addChild(new ListItem({
@@ -366,10 +375,9 @@
 						for ( var i = 0; i < articles.length; i++) {
 							var a = articles[i];
 							var id = a.vols || a.parts || a.articleId;
-							registry.remove(id);
 							var item = new ListItem(
 									{
-										id : id,
+										id : uniqueId(id),
 										label : a.subject,
 										clickable : true,
 										noArrow : true,
@@ -424,9 +432,8 @@
 						}));
 					} else {
 						array.forEach(newsgroups, function(g) {
-							registry.remove(g.name);
 							list.addChild(new ListItem({
-								id : g.name,
+								id : uniqueId(g.name),
 								label : g.name,
 								clickable : true,
 								noArrow : true,
@@ -719,7 +726,7 @@
 
 					if (body.articles != null) {
 						// NZB index
-						showIndex(body.articles, item);
+						showIndex(ensureArray(body.articles), item);
 					} else {
 						var n = body.attachments.length;
 						if (n > 1) {
@@ -810,8 +817,8 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
-					currentUnrar = unrar((att.typedArray ? att.data : binaryToUint8Array(att.data)).buffer,
-							replaying);
+					currentUnrar = unrar((att.typedArray ? att.data
+							: binaryToUint8Array(att.data)).buffer, replaying);
 					currentUnrar.then(function(attachments) {
 						currentUnrar = null;
 						showMultipleAttachments(attachments, item);
@@ -1413,11 +1420,14 @@
 				}
 
 				function clearList(list) {
-					while (list.getChildren().length > 0) {
-						list.removeChild(0);
+					var children;
+					while ((children = list.getChildren()).length > 0) {
+						var child = children[0];
+						list.removeChild(child);
+						child.destroyRecursive();
 					}
 					var v = viewRegistry.getEnclosingScrollable(list.domNode);
-					if(v){
+					if (v) {
 						v.autoLoadItem = null;
 					}
 				}
@@ -2745,7 +2755,7 @@ body,html {
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.4.3 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
