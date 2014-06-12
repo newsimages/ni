@@ -53,6 +53,7 @@
 				var defaultSettings = {
 					servers : [],
 					currentServer : -1,
+					browse : false,
 					searchFilter : "jpg",
 					searchResultsCount : 100,
 					searchServer : 2,
@@ -83,7 +84,7 @@
 					};
 					searchBox.on("keypress", enterHandler);
 					filterBox.on("keypress", enterHandler);
-					resultsCountBox.on("keypress", enterHandler);
+					//resultsCountBox.on("keypress", enterHandler);
 
 					var bg = dom.byId("imageBackground");
 					on(bg, touch.press, onImageTouchStart);
@@ -270,7 +271,7 @@
 					record("setSearch", null, [ value ]);
 					if (!value)
 						return;
-					if (value.indexOf(".") >= 0) {
+					if (/*value.indexOf(".") >= 0*/settings.browse) {
 						// newsgroup browsing
 						getNewsgroups(value);
 					} else {
@@ -1570,10 +1571,13 @@
 						registry.byId("settings").show();
 					}
 
+					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
 					mostPopularSwitch.set("value",
 							settings.searchServer == 1 ? "on" : "off");
+
+					updateSearchControls();
 
 					asyncSwitch.set("value", settings.async ? "on" : "off");
 					progressSwitch.set("value", settings.progress ? "on"
@@ -1591,6 +1595,7 @@
 					if (!settingsInited)
 						return;
 
+					settings.browse = browseSwitch.get("value") == "on";
 					settings.searchFilter = filterBox.get("value");
 					settings.searchResultsCount = parseInt(resultsCountBox
 							.get("value"));
@@ -1598,6 +1603,16 @@
 							: 2;
 
 					localStorage.settings = json.stringify(settings);
+
+					updateSearchControls();
+				};
+
+				updateSearchControls = function() {
+					disable(filterBox, settings.browse);
+					//disable(resultsCountBox, settings.browse);
+					disable(mostPopularSwitch, settings.browse);
+					searchBox.set("placeholder", settings.browse ? "newsgroups"
+							: "articles");
 				};
 
 				updateLoadSettings = function() {
@@ -2587,9 +2602,8 @@ body,html {
 			data-dojo-props="fixed:'top'">
 			<div class="searchBoxParent">
 				<input data-dojo-type="dojox/mobile/TextBox" class="searchBox"
-					data-dojo-id="searchBox"
-					data-dojo-props="placeHolder:'article / newsgroup'"
-					onfocus="searchFocus()" onblur="searchBlur()">
+					data-dojo-id="searchBox" onfocus="searchFocus()"
+					onblur="searchBlur()">
 			</div>
 			<div class="searchIcon mblDomButtonGreySearch">
 				<div>
@@ -2613,22 +2627,23 @@ body,html {
 		<div class="searchOptions" data-dojo-type="dojox/mobile/View"
 			data-dojo-id="searchOptions">
 			<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Browse
+					newsgroups<span data-dojo-id="browseSwitch"
+					data-dojo-type="dojox/mobile/Switch"
+					data-dojo-props="onStateChanged:updateSearchSettings"></span>
+				</li>
 				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 					data-dojo-props="label:'Filter'"><input
 					data-dojo-id="filterBox" data-dojo-type="dojox/mobile/TextBox"
 					class="inlineTextBox"
 					data-dojo-props="placeHolder:'filter',onChange:updateSearchSettings"
-					onfocus="searchFocus()" onblur="searchBlur()"></input></li>
-				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
-					data-dojo-props="label:'Results'"><input
-					data-dojo-id="resultsCountBox"
-					data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
-					data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings"
-					onfocus="searchFocus()" onblur="searchBlur()"></input></li>
+					onfocus="searchFocus()" onblur="searchBlur()"></input>
+					<div class="itemDisabler"></div></li>
 				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Most
 					popular groups <span data-dojo-id="mostPopularSwitch"
 					data-dojo-type="dojox/mobile/Switch"
 					data-dojo-props="onStateChanged:updateSearchSettings"></span>
+					<div class="itemDisabler"></div>
 				</li>
 			</ul>
 			<div class="searchButtonParent">
@@ -2721,11 +2736,25 @@ body,html {
 		data-dojo-props="onBeforeTransitionOut:cancelRequest">
 		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="label:'Settings',moveTo:'search',back:'Done'"></div>
-		<p class="settingsLabel">Choose a Usenet server:</p>
+		<p class="settingsLabel">Usenet server:</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-id="serverList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'New...',moveTo:'server',userClickAction:editServer"></li>
+		</ul>
+		<p class="settingsLabel">General:</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Search results'"><input
+				data-dojo-id="resultsCountBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox"
+				data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings"
+				onfocus="searchFocus()" onblur="searchBlur()"></input></li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
+				application state<span data-dojo-id="stateSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateStateSettings"></span>
+			</li>
 		</ul>
 		<p class="settingsLabel">Loading:</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
@@ -2747,15 +2776,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="settingsLabel">Application state:</p>
-		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
-				state<span data-dojo-id="stateSwitch"
-				data-dojo-type="dojox/mobile/Switch"
-				data-dojo-props="onStateChanged:updateStateSettings"></span>
-			</li>
-		</ul>
-		<p class="versionLabel">Ni! - Version 3.4.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.5.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
