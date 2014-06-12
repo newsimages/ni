@@ -63,6 +63,9 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static HashMap<String, Stack<ClientInfo>> clientPool = new HashMap<String, Stack<ClientInfo>>();
 
+	private static Pattern multipartPattern = Pattern.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
+	private static Pattern multivolumePattern = Pattern.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
+	
 	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
 	private String multipartMapNewsgroup = "";
@@ -854,9 +857,7 @@ public class NewsService implements ProtocolCommandListener {
 	private boolean computeMultipart(ArticleHeader article,
 			Map<String, ArticleHeader[]> map) {
 
-		Pattern p = Pattern.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
-		
-		Matcher m = p.matcher(article.subject);
+		Matcher m = multipartPattern.matcher(article.subject);
 		if (m.matches() && m.groupCount() == 4) {
 			int partNumber = Integer.parseInt(m.group(2));
 			int partCount = Integer.parseInt(m.group(3));
@@ -905,9 +906,7 @@ public class NewsService implements ProtocolCommandListener {
 
 			ArticleHeader article = list.get(j);
 
-			Pattern p = Pattern.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
-
-			Matcher m = p.matcher(article.subject);
+			Matcher m = multivolumePattern.matcher(article.subject);
 			if (m.matches() && m.groupCount() == 2) {
 				
 				String file = m.group(1);

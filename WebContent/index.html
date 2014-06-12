@@ -1005,10 +1005,10 @@
 					if (!resize)
 						progress();
 
-					if (img.partial) {
+					if (img.partial && !force) {
 						if (img.invalid)
 							img.invalid = false;
-						else if (!force)
+						else
 							return;
 					}
 
@@ -2776,7 +2776,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.5.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.5.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
