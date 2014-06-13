@@ -260,6 +260,8 @@ public class NewsService implements ProtocolCommandListener {
 		public String message;
 		@XmlElement
 		public ArticleBody body;
+		@XmlElement
+		public ArrayList<Integer> attSizes;
 
 		int linesRead;
 		boolean cancelled;
@@ -689,13 +691,14 @@ public class NewsService implements ProtocolCommandListener {
 		ByteArrayOutputStream bytes;
 		if (reader instanceof ProgressReader) {
 			bytes = ((ProgressReader) reader).getBuffer();
+			Progress p = ((ProgressReader) reader).progress;
 			if (fileInfo.filename != null)
-				((ProgressReader) reader).progress.filename = fileInfo.filename;
+				p.filename = fileInfo.filename;
 			if (body.attachments.size() > 0) {
 				// multiple attachments
-				try {
-					((ProgressReader) reader).progress.getProgress();
-				} catch (InterruptedException e) {
+				p.attSizes = new ArrayList<Integer>();
+				for(int i = 0; i < body.attachments.size(); i++){
+					p.attSizes.add(body.attachments.get(i).data.length);
 				}
 			}
 		} else {

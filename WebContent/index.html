@@ -538,12 +538,22 @@
 								p.complete = p.complete == "true";
 								showProgress(p, item.bytes);
 								if (p.chunk) {
-									if (filename && p.filename != filename) {
-										multi = multi || [];
-										multi.push(data);
-										data = "";
-									}
 									data += atob(p.chunk);
+									if (p.attSizes) {
+										// multiple attachments
+										var attSizes = ensureArray(p.attSizes);
+										multi = multi || [];
+										var start = 0;
+										for(var i = multi.length; i < attSizes.length; i++){
+											var size = attSizes[i];
+											if(typeof size == "string"){
+												size = parseInt(size);
+											}
+											multi.push(data.substring(start, start+size));
+											start += size;
+										}
+										data = data.substring(start);
+									}
 								}
 								if (p.filename) {
 									filename = p.filename;
@@ -2782,7 +2792,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.5.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.5.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
