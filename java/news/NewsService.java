@@ -63,9 +63,11 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static HashMap<String, Stack<ClientInfo>> clientPool = new HashMap<String, Stack<ClientInfo>>();
 
-	private static Pattern multipartPattern = Pattern.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
-	private static Pattern multivolumePattern = Pattern.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
-	
+	private static Pattern multipartPattern = Pattern
+			.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
+	private static Pattern multivolumePattern = Pattern
+			.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
+
 	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
 	private String multipartMapNewsgroup = "";
@@ -148,7 +150,7 @@ public class NewsService implements ProtocolCommandListener {
 		long first = info.getFirstArticleLong();
 		long last = info.getLastArticleLong() - offset;
 
-		int blockSize = count*2;
+		int blockSize = count * 2;
 
 		long high = last;
 		long low = Math.max(high - blockSize + 1, first);
@@ -689,6 +691,13 @@ public class NewsService implements ProtocolCommandListener {
 			bytes = ((ProgressReader) reader).getBuffer();
 			if (fileInfo.filename != null)
 				((ProgressReader) reader).progress.filename = fileInfo.filename;
+			if (body.attachments.size() > 0) {
+				// multiple attachments
+				try {
+					((ProgressReader) reader).progress.getProgress();
+				} catch (InterruptedException e) {
+				}
+			}
 		} else {
 			bytes = new ByteArrayOutputStream();
 		}
@@ -899,16 +908,16 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	private void computeMultivolumes(List<ArticleHeader> list) {
-		
+
 		Map<String, ArticleHeader[]> map = multivolumeMap;
-		
+
 		for (int j = 0; j < list.size(); j++) {
 
 			ArticleHeader article = list.get(j);
 
 			Matcher m = multivolumePattern.matcher(article.subject);
 			if (m.matches() && m.groupCount() == 2) {
-				
+
 				String file = m.group(1);
 				String n = m.group(2);
 				int partNumber = Integer.parseInt(n);
