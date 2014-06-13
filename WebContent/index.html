@@ -497,6 +497,8 @@
 					record("selectArticle", item, []);
 
 					currentItem = item;
+					
+					domClass.remove(item.domNode, "error");
 
 					dom.byId("leftArrow").style.visibility = item.prevItem ? "inherit"
 							: "hidden";
@@ -1412,6 +1414,9 @@
 
 				function showError(error, defaultMessage) {
 					showMessage(makeErrorMessage(error, defaultMessage));
+					if(currentItem && currentItem.domNode){
+						domClass.add(currentItem.domNode, "error");
+					}
 				}
 
 				function makeErrorMessage(error, defaultMessage) {
@@ -2028,6 +2033,10 @@ body,html {
 	color: #909090;
 }
 
+.mblEdgeToEdgeList .mblListItem.error {
+	color: #e0a090;
+}
+
 .mblEdgeToEdgeList {
 	border: none;
 }
@@ -2610,6 +2619,7 @@ body,html {
 .mblEdgeToEdgeList .mblListItem.read .archiveEntry {
 	color: #a0a0a0;
 }
+
 </style>
 
 </head>
@@ -2792,7 +2802,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.5.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.5.5 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
