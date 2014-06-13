@@ -497,7 +497,7 @@
 					record("selectArticle", item, []);
 
 					currentItem = item;
-					
+
 					domClass.remove(item.domNode, "error");
 
 					dom.byId("leftArrow").style.visibility = item.prevItem ? "inherit"
@@ -533,85 +533,95 @@
 						}
 						var f = function(id) {
 							currentAsyncId = null;
-							doRequest("p", {
-								id : id
-							}, null, function(result) {
-								var p = result.progress;
-								p.complete = p.complete == "true";
-								showProgress(p, item.bytes);
-								if (p.chunk) {
-									data += atob(p.chunk);
-									if (p.attSizes) {
-										// multiple attachments
-										var attSizes = ensureArray(p.attSizes);
-										multi = multi || [];
-										var start = 0;
-										for(var i = multi.length; i < attSizes.length; i++){
-											var size = attSizes[i];
-											if(typeof size == "string"){
-												size = parseInt(size);
+							doRequest(
+									"p",
+									{
+										id : id
+									},
+									null,
+									function(result) {
+										var p = result.progress;
+										p.complete = p.complete == "true";
+										showProgress(p, item.bytes);
+										if (p.chunk) {
+											data += atob(p.chunk);
+											if (p.attSizes) {
+												// multiple attachments
+												var attSizes = ensureArray(p.attSizes);
+												multi = multi || [];
+												var start = 0;
+												for ( var i = multi.length; i < attSizes.length; i++) {
+													var size = attSizes[i];
+													if (typeof size == "string") {
+														size = parseInt(size);
+													}
+													multi
+															.push(data
+																	.substring(
+																			start,
+																			start
+																					+ size));
+													start += size;
+												}
+												data = data.substring(start);
 											}
-											multi.push(data.substring(start, start+size));
-											start += size;
 										}
-										data = data.substring(start);
-									}
-								}
-								if (p.filename) {
-									filename = p.filename;
-									var suff = suffix(p.filename);
-									switch (suff) {
-									case "jpg":
-									case "gif":
-									case "png":
-										setImageTitle(p.filename);
-										if (settings.partial && p.chunk) {
-											loadImage(data, false, true);
-										}
-										break;
-									case "mpg":
-									case "mp4":
-									case "avi":
-									case "ogg":
-									case "ogv":
-										if (showVideos
-												&& showVideosWhileLoading) {
-											setVideoTitle(p.filename);
-											if (settings.partial && p.chunk) {
-												loadVideo(data, false,
-														p.filename);
+										if (p.filename) {
+											filename = p.filename;
+											var suff = suffix(p.filename);
+											switch (suff) {
+											case "jpg":
+											case "gif":
+											case "png":
+												setImageTitle(p.filename);
+												if (settings.partial && p.chunk) {
+													loadImage(data, false, true);
+												}
 												break;
+											case "mpg":
+											case "mp4":
+											case "avi":
+											case "ogg":
+											case "ogv":
+												if (showVideos
+														&& showVideosWhileLoading) {
+													setVideoTitle(p.filename);
+													if (settings.partial
+															&& p.chunk) {
+														loadVideo(data, false,
+																p.filename);
+														break;
+													}
+												}
 											}
 										}
-									}
-								}
-								if (!p.complete) {
-									f(id);
-								} else {
-									currentAsyncId = null;
-									progress();
-									showProgressBar(false);
-									if (p.exception) {
-										showError(p.exception);
-									} else {
-										if (p.body) {
-											if (multi && data) {
-												multi.push(data);
-											}
-											gotBody(item, p.body, multi
-													|| [ data ]);
+										if (!p.complete) {
+											f(id);
 										} else {
-											getBody(args, item);
+											currentAsyncId = null;
+											progress();
+											showProgressBar(false);
+											if (p.exception) {
+												showError(p.exception);
+											} else {
+												if (p.body) {
+													if (multi && data) {
+														multi.push(data);
+													}
+													gotBody(item, p.body, multi
+															|| [ data ]);
+												} else {
+													getBody(args, item);
+												}
+											}
 										}
-									}
-								}
-							}, function(err) {
-								if (err.dojoType != "cancel") {
-									progress();
-									showProgressBar(false);
-									showError(err);
-								}
-							});
+									}, function(err) {
+										if (err.dojoType != "cancel") {
+											progress();
+											showProgressBar(false);
+											showError(err);
+										}
+									});
 							currentAsyncId = id;
 						};
 						progress(articleView);
@@ -631,6 +641,10 @@
 					var percent = progress.complete ? 100 : progress.bytesRead
 							/ total * 100;
 					progressBar.set("value", percent + "%");
+					if (percent >= 20 && !progress.exception && currentItem
+							&& currentItem.domNode) {
+						domClass.add(currentItem.domNode, "read");
+					}
 					var b = progress.bytesRead, t = total;
 					var k = 1024;
 					var kb = b = Math.round(b / k);
@@ -1414,7 +1428,7 @@
 
 				function showError(error, defaultMessage) {
 					showMessage(makeErrorMessage(error, defaultMessage));
-					if(currentItem && currentItem.domNode){
+					if (currentItem && currentItem.domNode) {
 						domClass.add(currentItem.domNode, "error");
 					}
 				}
@@ -2619,7 +2633,6 @@ body,html {
 .mblEdgeToEdgeList .mblListItem.read .archiveEntry {
 	color: #a0a0a0;
 }
-
 </style>
 
 </head>
@@ -2802,7 +2815,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.5.5 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.5.6 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
