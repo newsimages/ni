@@ -211,12 +211,16 @@ public class NewsService implements ProtocolCommandListener {
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
+		private ArrayList<byte[]> queue = new ArrayList<byte[]>();
 		boolean cancelled;
+		
+		private static int MAX_CHUNK_SIZE = 50000;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
 				chunk.write(c);
+				queue();
 			}
 		}
 
@@ -224,19 +228,38 @@ public class NewsService implements ProtocolCommandListener {
 			if (!cancelled) {
 				super.write(bytes);
 				chunk.write(bytes);
+				queue();
 			}
 		}
 
+		private void queue() {
+			if(chunk.size() >= MAX_CHUNK_SIZE){
+				queue.add(chunk.toByteArray());
+				chunk.reset();
+			}
+		}
+		
 		public synchronized byte[] getChunkBytes() {
-			byte[] bytes = chunk.toByteArray();
-			chunk.reset();
+			byte[] bytes;
+			if(queue.size() > 0){
+				bytes = queue.get(0);
+				queue.remove(0);
+			} else {
+				bytes = chunk.toByteArray();
+				chunk.reset();
+			}
 			return bytes;
+		}
+		
+		synchronized boolean queueEmpty() {
+			return queue.size() == 0;
 		}
 
 		void cancel() {
 			cancelled = true;
 			reset();
 			chunk.reset();
+			queue.clear();
 		}
 	}
 
@@ -265,6 +288,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		int linesRead;
 		boolean cancelled;
+		boolean done;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -286,6 +310,9 @@ public class NewsService implements ProtocolCommandListener {
 					if (filename != null) {
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
+						if(done && buffer.queueEmpty()){
+							complete = true;
+						}
 					}
 				}
 			}
@@ -310,10 +337,6 @@ public class NewsService implements ProtocolCommandListener {
 			if (line != null) {
 				progress.bytesRead += line.length() + 2;
 				progress.linesRead++;
-				if ((progress.linesRead % 1000) == 0) {
-					Thread.yield(); // give a chance for the progress request to
-									// complete
-				}
 			}
 			return line;
 		}
@@ -445,7 +468,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				progress.complete = true;
+				progress.done = true;
 			}
 		}.start();
 
@@ -459,10 +482,10 @@ public class NewsService implements ProtocolCommandListener {
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
 		if (progress != null) {
+			progress.getProgress();
 			if (progress.complete) {
 				progressById.remove(id);
 			}
-			progress.getProgress();
 		}
 		return progress;
 	}
