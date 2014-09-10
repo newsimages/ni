@@ -251,8 +251,8 @@ public class NewsService implements ProtocolCommandListener {
 			return bytes;
 		}
 		
-		synchronized boolean queueEmpty() {
-			return queue.size() == 0;
+		synchronized boolean isEmpty() {
+			return queue.size() == 0 && chunk.size() == 0;
 		}
 
 		void cancel() {
@@ -310,7 +310,7 @@ public class NewsService implements ProtocolCommandListener {
 					if (filename != null) {
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
-						if(done && buffer.queueEmpty()){
+						if(done && buffer.isEmpty()){
 							complete = true;
 						}
 					}
