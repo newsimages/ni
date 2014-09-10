@@ -728,6 +728,7 @@
 						if (show) {
 							showImage();
 							progressBar.set("value", 0);
+							progressBar.progress2.style.width = "0";
 							progressBar.set("label", "");
 						}
 						domClass[show ? "add" : "remove"](progressBarParent,
@@ -861,6 +862,7 @@
 					progress(articleView);
 					showProgressBar(true);
 					progressBar.set("value", 0);
+					progressBar.progress2.style.width = "0";
 					progressBar.set("label", "Unpacking RAR archive...");
 					currentUnrar = unrar((att.typedArray ? att.data
 							: binaryToUint8Array(att.data)).buffer, replaying);
@@ -2832,7 +2834,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.6.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.6.5 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
