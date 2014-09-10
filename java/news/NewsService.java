@@ -214,7 +214,7 @@ public class NewsService implements ProtocolCommandListener {
 		private ArrayList<byte[]> queue = new ArrayList<byte[]>();
 		boolean cancelled;
 		
-		private static int MAX_CHUNK_SIZE = 50000;
+		private static int MAX_CHUNK_SIZE = 10000;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
