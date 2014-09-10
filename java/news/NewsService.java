@@ -211,11 +211,24 @@ public class NewsService implements ProtocolCommandListener {
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
-		private ArrayList<byte[]> queue = new ArrayList<byte[]>();
+		private static class QueuedChunk {
+			byte[] bytes;
+			int bytesRead;
+			QueuedChunk(byte[] bytes, int bytesRead){
+				this.bytes = bytes;
+				this.bytesRead = bytesRead;
+			}
+		}
+		private ArrayList<QueuedChunk> queue = new ArrayList<QueuedChunk>();
 		boolean cancelled;
+		private Progress progress;
 		
 		private static int MAX_CHUNK_SIZE = 10000;
 
+		ProgressByteArrayOutputStream(Progress progress){
+			this.progress = progress;
+		}
+		
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
@@ -234,7 +247,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		private void queue() {
 			if(chunk.size() >= MAX_CHUNK_SIZE){
-				queue.add(chunk.toByteArray());
+				queue.add(new QueuedChunk(chunk.toByteArray(), progress.bytesRead));
 				chunk.reset();
 			}
 		}
@@ -242,7 +255,9 @@ public class NewsService implements ProtocolCommandListener {
 		public synchronized byte[] getChunkBytes() {
 			byte[] bytes;
 			if(queue.size() > 0){
-				bytes = queue.get(0);
+				QueuedChunk qc = queue.get(0);
+				bytes = qc.bytes;
+				progress.bytesRead = qc.bytesRead;
 				queue.remove(0);
 			} else {
 				bytes = chunk.toByteArray();
@@ -270,6 +285,8 @@ public class NewsService implements ProtocolCommandListener {
 		@XmlAttribute
 		public int bytesRead;
 		@XmlAttribute
+		public int bytesReadFromServer;
+		@XmlAttribute
 		public int part;
 		@XmlAttribute
 		public int partCount;
@@ -286,7 +303,6 @@ public class NewsService implements ProtocolCommandListener {
 		@XmlElement
 		public ArrayList<Integer> attSizes;
 
-		int linesRead;
 		boolean cancelled;
 		boolean done;
 
@@ -294,7 +310,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		public ProgressByteArrayOutputStream getBuffer() {
 			if (buffer == null)
-				buffer = new ProgressByteArrayOutputStream();
+				buffer = new ProgressByteArrayOutputStream(this);
 			else
 				buffer.reset();
 			return buffer;
@@ -335,8 +351,9 @@ public class NewsService implements ProtocolCommandListener {
 		public String readLine() throws IOException {
 			String line = super.readLine();
 			if (line != null) {
-				progress.bytesRead += line.length() + 2;
-				progress.linesRead++;
+				int n = line.length() + 2;
+				progress.bytesRead += n;
+				progress.bytesReadFromServer += n;
 			}
 			return line;
 		}
