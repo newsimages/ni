@@ -257,7 +257,8 @@ public class NewsService implements ProtocolCommandListener {
 			if(queue.size() > 0){
 				QueuedChunk qc = queue.get(0);
 				bytes = qc.bytes;
-				progress.bytesRead = Math.max(progress.bytesRead, qc.bytesRead);
+				progress.bytesRead = Math.max(progress.lastBytesRead, qc.bytesRead);
+				progress.lastBytesRead = progress.bytesRead;
 				queue.remove(0);
 			} else {
 				bytes = chunk.toByteArray();
@@ -305,6 +306,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		boolean cancelled;
 		boolean done;
+		int lastBytesRead;
 
 		private ProgressByteArrayOutputStream buffer;
 
