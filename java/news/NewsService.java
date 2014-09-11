@@ -247,7 +247,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		private void queue() {
 			if(chunk.size() >= MAX_CHUNK_SIZE){
-				queue.add(new QueuedChunk(chunk.toByteArray(), progress.bytesRead));
+				queue.add(new QueuedChunk(chunk.toByteArray(), progress.bytesReadFromServer));
 				chunk.reset();
 			}
 		}
