@@ -257,12 +257,12 @@ public class NewsService implements ProtocolCommandListener {
 			if(queue.size() > 0){
 				QueuedChunk qc = queue.get(0);
 				bytes = qc.bytes;
-				progress.bytesRead = Math.max(progress.lastBytesRead, qc.bytesRead);
-				progress.lastBytesRead = progress.bytesRead;
+				progress.bytesRead = qc.bytesRead;
 				queue.remove(0);
 			} else {
 				bytes = chunk.toByteArray();
 				chunk.reset();
+				progress.bytesRead = progress.bytesReadFromServer;
 			}
 			return bytes;
 		}
@@ -353,9 +353,7 @@ public class NewsService implements ProtocolCommandListener {
 		public String readLine() throws IOException {
 			String line = super.readLine();
 			if (line != null) {
-				int n = line.length() + 2;
-				progress.bytesRead += n;
-				progress.bytesReadFromServer += n;
+				progress.bytesReadFromServer += line.length() + 2;
 			}
 			return line;
 		}
