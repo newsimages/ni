@@ -284,8 +284,6 @@ public class NewsService implements ProtocolCommandListener {
 		@XmlAttribute
 		public int bytesRead;
 		@XmlAttribute
-		public int bytesReadFromServer;
-		@XmlAttribute
 		public int part;
 		@XmlAttribute
 		public int partCount;
@@ -304,6 +302,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		boolean cancelled;
 		boolean done;
+		int bytesReadFromServer;
 		long startTime = System.currentTimeMillis();
 		int maxChunkSize = 50000;
 
