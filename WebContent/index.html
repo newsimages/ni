@@ -676,6 +676,13 @@
 						}
 					}
 					progressBar.set("label", label);
+
+					if (progress.thumbnail) {
+						var img = dom.byId("thumbnail");
+						img.setAttribute("src", "data:image/jpeg;base64,"
+								+ progress.thumbnail);
+						img.style.display = "";
+					}
 				}
 
 				leaveArticleView = function() {
@@ -940,6 +947,7 @@
 					if (replaying && replaying != "selectArticle")
 						return;
 					dom.byId("imageBackground").style.visibility = "visible";
+					dom.byId("thumbnail").style.display = "none";
 					textView.domNode.style.visibility = "hidden";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -2516,6 +2524,12 @@ body,html {
 	height: auto;
 }
 
+.thumbnail {
+	position: absolute;
+	right: 100px;
+	bottom: 0px;
+}
+
 .zoomDiv {
 	color: #909090;
 	position: absolute;
@@ -2727,9 +2741,10 @@ body,html {
 				class="imageScroller" data-dojo-id="imageScroller"
 				data-dojo-props="scrollDir:'h'">
 				<img id="articleImage" class="articleImage" onload="fitImage()"
-					onerror="imageError()"></img>
+					onerror="imageError()">
 			</div>
 			<div id="zoomDiv" class="zoomDiv"></div>
+			<img id="thumbnail" class="thumbnail">
 		</div>
 		<div class="textView" data-dojo-type="dojox/mobile/ScrollableView"
 			data-dojo-id="textView"
@@ -2816,7 +2831,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.7.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.8.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

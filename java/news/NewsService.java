@@ -1,5 +1,7 @@
 package news;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -25,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
+import javax.imageio.ImageIO;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -211,22 +214,25 @@ public class NewsService implements ProtocolCommandListener {
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
+
 		private static class QueuedChunk {
 			byte[] bytes;
 			int bytesRead;
-			QueuedChunk(byte[] bytes, int bytesRead){
+
+			QueuedChunk(byte[] bytes, int bytesRead) {
 				this.bytes = bytes;
 				this.bytesRead = bytesRead;
 			}
 		}
+
 		private ArrayList<QueuedChunk> queue = new ArrayList<QueuedChunk>();
 		boolean cancelled;
 		private Progress progress;
-		
-		ProgressByteArrayOutputStream(Progress progress){
+
+		ProgressByteArrayOutputStream(Progress progress) {
 			this.progress = progress;
 		}
-		
+
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
@@ -244,15 +250,16 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		private void queue() {
-			if(chunk.size() >= progress.maxChunkSize){
-				queue.add(new QueuedChunk(chunk.toByteArray(), progress.bytesReadFromServer));
+			if (chunk.size() >= progress.maxChunkSize) {
+				queue.add(new QueuedChunk(chunk.toByteArray(),
+						progress.bytesReadFromServer));
 				chunk.reset();
 			}
 		}
-		
+
 		public synchronized byte[] getChunkBytes() {
 			byte[] bytes;
-			if(queue.size() > 0){
+			if (queue.size() > 0) {
 				QueuedChunk qc = queue.get(0);
 				bytes = qc.bytes;
 				progress.bytesRead = qc.bytesRead;
@@ -264,7 +271,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			return bytes;
 		}
-		
+
 		synchronized boolean isEmpty() {
 			return queue.size() == 0 && chunk.size() == 0;
 		}
@@ -299,12 +306,15 @@ public class NewsService implements ProtocolCommandListener {
 		public ArticleBody body;
 		@XmlElement
 		public ArrayList<Integer> attSizes;
+		@XmlAttribute
+		public byte[] thumbnail;
 
 		boolean cancelled;
 		boolean done;
 		int bytesReadFromServer;
 		long startTime = System.currentTimeMillis();
 		int maxChunkSize = 50000;
+		boolean thumbnailSent;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -316,10 +326,17 @@ public class NewsService implements ProtocolCommandListener {
 			return buffer;
 		}
 
+		void setFilename(String filename) {
+			this.filename = filename;
+			thumbnailSent = false;
+		}
+
 		public void getProgress() throws InterruptedException {
 			// estimate connection speed and adjust max chunk size if necessary:
-			if(bytesRead > 0){
-				maxChunkSize = Math.max(10000, (int)(bytesRead * 1000 / (System.currentTimeMillis() - startTime)));
+			if (bytesRead > 0) {
+				maxChunkSize = Math
+						.max(10000, (int) (bytesRead * 1000 / (System
+								.currentTimeMillis() - startTime)));
 			}
 			if (buffer != null) {
 				if (cancelled) {
@@ -330,11 +347,46 @@ public class NewsService implements ProtocolCommandListener {
 					if (filename != null) {
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
-						if(done && buffer.isEmpty()){
+						if (done && buffer.isEmpty()) {
 							complete = true;
 						}
 					}
 				}
+			}
+		}
+
+		void attachmentDecoded(Attachment att) {
+			String name = att.filename.toLowerCase();
+			if (!complete
+					&& !thumbnailSent
+					&& (name.endsWith(".jpg") || name.endsWith(".gif") || name
+							.endsWith(".png"))) {
+				thumbnail = createThumbnail(att.data, 100);
+				thumbnailSent = true;
+			}
+		}
+
+		private byte[] createThumbnail(byte[] data, int size) {
+			BufferedImage image;
+			try {
+				image = ImageIO.read(new ByteArrayInputStream(data));
+				int iw = image.getWidth();
+				int ih = image.getHeight();
+				int tw = size, th = size;
+				if (ih > iw) {
+					tw = th * iw / ih;
+				} else {
+					th = tw * ih / iw;
+				}
+				BufferedImage thumbnail = new BufferedImage(tw, th,
+						BufferedImage.TYPE_INT_RGB);
+				Graphics2D g = thumbnail.createGraphics();
+				g.drawImage(image, 0, 0, tw, th, null);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				ImageIO.write(thumbnail, "jpg", out);
+				return out.toByteArray();
+			} catch (Exception e) {
+				return null;
 			}
 		}
 	}
@@ -735,11 +787,11 @@ public class NewsService implements ProtocolCommandListener {
 			bytes = ((ProgressReader) reader).getBuffer();
 			Progress p = ((ProgressReader) reader).progress;
 			if (fileInfo.filename != null)
-				p.filename = fileInfo.filename;
+				p.setFilename(fileInfo.filename);
 			if (body.attachments.size() > 0) {
 				// multiple attachments
 				p.attSizes = new ArrayList<Integer>();
-				for(int i = 0; i < body.attachments.size(); i++){
+				for (int i = 0; i < body.attachments.size(); i++) {
 					p.attSizes.add(body.attachments.get(i).data.length);
 				}
 			}
@@ -761,8 +813,13 @@ public class NewsService implements ProtocolCommandListener {
 		bytes.reset();
 
 		if (data.length > 0) {
-			body.attachments.add(new Attachment(fileInfo.filename, data));
+			Attachment att = new Attachment(fileInfo.filename, data);
+			body.attachments.add(att);
 			body.size += data.length;
+			if (reader instanceof ProgressReader) {
+				// notify Progress, e.g. to send a thumbnail
+				((ProgressReader) reader).progress.attachmentDecoded(att);
+			}
 		}
 	}
 
