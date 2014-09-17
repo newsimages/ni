@@ -223,8 +223,6 @@ public class NewsService implements ProtocolCommandListener {
 		boolean cancelled;
 		private Progress progress;
 		
-		private static int MAX_CHUNK_SIZE = 10000;
-
 		ProgressByteArrayOutputStream(Progress progress){
 			this.progress = progress;
 		}
@@ -246,7 +244,7 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		private void queue() {
-			if(chunk.size() >= MAX_CHUNK_SIZE){
+			if(chunk.size() >= progress.maxChunkSize){
 				queue.add(new QueuedChunk(chunk.toByteArray(), progress.bytesReadFromServer));
 				chunk.reset();
 			}
@@ -306,7 +304,8 @@ public class NewsService implements ProtocolCommandListener {
 
 		boolean cancelled;
 		boolean done;
-		int lastBytesRead;
+		long startTime = System.currentTimeMillis();
+		int maxChunkSize = 50000;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -319,6 +318,10 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public void getProgress() throws InterruptedException {
+			// estimate connection speed and adjust max chunk size if necessary:
+			if(bytesRead > 0){
+				maxChunkSize = Math.max(10000, (int)(bytesRead * 1000 / (System.currentTimeMillis() - startTime)));
+			}
 			if (buffer != null) {
 				if (cancelled) {
 					buffer.cancel();
