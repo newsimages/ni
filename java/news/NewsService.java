@@ -1,6 +1,7 @@
 package news;
 
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -379,8 +380,14 @@ public class NewsService implements ProtocolCommandListener {
 					th = tw * ih / iw;
 				}
 				BufferedImage thumbnail = new BufferedImage(tw, th,
-						BufferedImage.TYPE_INT_RGB);
+						image.getType() == 0 ? BufferedImage.TYPE_INT_RGB : image.getType());
 				Graphics2D g = thumbnail.createGraphics();
+			    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+			            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			    g.setRenderingHint(RenderingHints.KEY_RENDERING,
+			            RenderingHints.VALUE_RENDER_QUALITY);
+			    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+			            RenderingHints.VALUE_ANTIALIAS_ON);
 				g.drawImage(image, 0, 0, tw, th, null);
 				ByteArrayOutputStream out = new ByteArrayOutputStream();
 				ImageIO.write(thumbnail, "jpg", out);
