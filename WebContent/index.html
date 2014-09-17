@@ -1111,6 +1111,10 @@
 					}
 
 					img.style.visibility = resize ? oldvis : "visible";
+					
+					var thumbnail = dom.byId("thumbnail");
+					thumbnail.style.right = (bg.offsetWidth - (img.offsetLeft + img.offsetWidth)) + "px";
+					thumbnail.style.bottom = (bg.offsetHeight - (img.offsetTop + img.offsetHeight)) + "px";
 				}
 
 				fitVideo = function() {
@@ -2526,8 +2530,6 @@ body,html {
 
 .thumbnail {
 	position: absolute;
-	right: 100px;
-	bottom: 0px;
 }
 
 .zoomDiv {
@@ -2742,9 +2744,9 @@ body,html {
 				data-dojo-props="scrollDir:'h'">
 				<img id="articleImage" class="articleImage" onload="fitImage()"
 					onerror="imageError()">
+				<img id="thumbnail" class="thumbnail">
 			</div>
 			<div id="zoomDiv" class="zoomDiv"></div>
-			<img id="thumbnail" class="thumbnail">
 		</div>
 		<div class="textView" data-dojo-type="dojox/mobile/ScrollableView"
 			data-dojo-id="textView"
@@ -2831,7 +2833,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.8.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.8.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
