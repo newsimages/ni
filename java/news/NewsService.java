@@ -368,6 +368,7 @@ public class NewsService implements ProtocolCommandListener {
 			String name = att.filename.toLowerCase();
 			if (!complete
 					&& buffer.isAhead()
+					&& part == bodies.length - 1
 					&& (name.endsWith(".jpg") || name.endsWith(".gif") || name
 							.endsWith(".png"))) {
 				byte[] data;
