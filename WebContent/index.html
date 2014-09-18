@@ -681,7 +681,8 @@
 						var img = dom.byId("thumbnail");
 						img.setAttribute("src", "data:image/jpeg;base64,"
 								+ progress.thumbnail);
-						img.style.display = "";
+						domClass.add(img, "visible");
+						console.log("thumbnail received");
 					}
 				}
 
@@ -947,7 +948,7 @@
 					if (replaying && replaying != "selectArticle")
 						return;
 					dom.byId("imageBackground").style.visibility = "visible";
-					dom.byId("thumbnail").style.display = "none";
+					domClass.remove(dom.byId("thumbnail"), "visible");
 					textView.domNode.style.visibility = "hidden";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -2532,6 +2533,17 @@ body,html {
 
 .thumbnail {
 	position: absolute;
+	visibility: hidden;
+	opacity: 0;
+	-webkit-transition-property: visibility, opacity;
+	-webkit-transition-duration: 0.5s;
+	transition-property: visibility, opacity;
+	transition-duration: 0.5s;
+}
+
+.thumbnail.visible {
+	visibility: visible;
+	opacity: 1;
 }
 
 .zoomDiv {
@@ -2835,7 +2847,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 3.8.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 3.8.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
