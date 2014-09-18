@@ -359,8 +359,6 @@ public class NewsService implements ProtocolCommandListener {
 							thumbnail = thumbnailData;
 						}
 						thumbnailData = null;
-						if(thumbnail != null)
-							System.err.println("thumbnail sent");
 					}
 				}
 			}
