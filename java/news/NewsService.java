@@ -371,7 +371,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
 			String name = att.filename.toLowerCase();
-			if (!complete
+			if (!complete && !noChunks
 					&& buffer.isAhead()
 					&& part == bodies.length - 1
 					&& (name.endsWith(".jpg") || name.endsWith(".gif") || name

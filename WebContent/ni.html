@@ -640,10 +640,6 @@
 				var startTime;
 
 				function showProgress(progress, total) {
-					_showProgress(progressBar, progress, total);
-				}
-
-				function _showProgress(progressBar, progress, total) {
 					startTime = startTime || new Date().getTime();
 					if (progress.exception)
 						showMessage(progress.exception);
@@ -1372,15 +1368,15 @@
 
 				function getThumbnail(item) {
 
-					while(item.thumbnailBody && item.nextItem){
+					while (item.thumbnailBody && item.nextItem) {
 						item = item.nextItem;
 					}
-					
+
 					domClass.add(pauseButton.domNode, "pause");
 
 					var args = {
 						articleId : item.articleId,
-						size : 150
+						size : 100
 					};
 
 					var thp = document.createElement("div");
@@ -1398,7 +1394,11 @@
 							}, null, function(result) {
 								var p = result.progress;
 								p.complete = p.complete == "true";
-								_showProgress(indexProgressBar, p, item.bytes);
+
+								indexProgressBar.set("value", (p.complete ? 100
+										: p.bytesRead / item.bytes * 100)
+										+ "%");
+
 								if (!p.complete) {
 									f(id);
 								} else {
@@ -1436,18 +1436,20 @@
 
 				function addThumbnails(body, item, thp) {
 					array.forEach(ensureArray(body.attachments), function(att) {
-						
+
 						item.thumbnailBody = body;
-						
+
 						var th = document.createElement("img");
 						domClass.add(th, "indexThumbnail");
 						th.setAttribute("src", "data:image/jpeg;base64,"
 								+ att.data);
 						th.item = item;
-						on(th, "click", function(){
-							indexView.performTransition("article", -1, "slide");
-							showArticle(item);
-						});
+						on(th, "click",
+								function() {
+									indexView.performTransition("article", -1,
+											"slide");
+									showArticle(item);
+								});
 						thp.appendChild(th);
 
 						if (item.nextItem) {
@@ -2802,9 +2804,9 @@ body,html {
 
 .indexThumbnailParent {
 	margin: 6px;
-	width: 150px;
-	height: 150px;
-	line-height: 150px;
+	width: 100px;
+	height: 100px;
+	line-height: 100px;
 	background-color: #000000;
 	text-align: center;
 	display: inline-block;
@@ -2813,8 +2815,8 @@ body,html {
 }
 
 .indexThumbnail {
-	max-width: 150px;
-	max-height: 150px;
+	max-width: 100px;
+	max-height: 100px;
 	vertical-align: middle;
 }
 
@@ -2826,8 +2828,9 @@ body,html {
 }
 
 .progressBarParent.indexProgressBarParent {
-	left: 30px;
-	right: 30px;
+	left: 10px;
+	right: 10px;
+	height: 20px;
 }
 
 .indexProgressBarParent .mblProgressBarMsg {
@@ -3167,7 +3170,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
