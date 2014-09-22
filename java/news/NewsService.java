@@ -239,7 +239,8 @@ public class NewsService implements ProtocolCommandListener {
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
-				chunk.write(c);
+				if (!progress.noChunks)
+					chunk.write(c);
 				queue();
 			}
 		}
@@ -247,7 +248,8 @@ public class NewsService implements ProtocolCommandListener {
 		public synchronized void write(byte[] bytes) throws IOException {
 			if (!cancelled) {
 				super.write(bytes);
-				chunk.write(bytes);
+				if (!progress.noChunks)
+					chunk.write(bytes);
 				queue();
 			}
 		}
@@ -261,6 +263,8 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public synchronized byte[] getChunkBytes() {
+			if (progress.noChunks)
+				return null;
 			byte[] bytes;
 			if (queue.size() > 0) {
 				QueuedChunk qc = queue.get(0);
@@ -325,6 +329,7 @@ public class NewsService implements ProtocolCommandListener {
 		long startTime = System.currentTimeMillis();
 		int maxChunkSize = 50000;
 		byte[] thumbnailData;
+		boolean noChunks;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -400,37 +405,6 @@ public class NewsService implements ProtocolCommandListener {
 					System.arraycopy(att.data, 0, data, pos, att.data.length);
 				}
 				thumbnailData = createThumbnail(data, 100);
-			}
-		}
-
-		private byte[] createThumbnail(byte[] data, int size) {
-			BufferedImage image;
-			try {
-				image = ImageIO.read(new ByteArrayInputStream(data));
-				int iw = image.getWidth();
-				int ih = image.getHeight();
-				int tw = size, th = size;
-				if (ih > iw) {
-					tw = th * iw / ih;
-				} else {
-					th = tw * ih / iw;
-				}
-				BufferedImage thumbnail = new BufferedImage(tw, th,
-						image.getType() == 0 ? BufferedImage.TYPE_INT_RGB
-								: image.getType());
-				Graphics2D g = thumbnail.createGraphics();
-				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-						RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-				g.setRenderingHint(RenderingHints.KEY_RENDERING,
-						RenderingHints.VALUE_RENDER_QUALITY);
-				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-						RenderingHints.VALUE_ANTIALIAS_ON);
-				g.drawImage(image, 0, 0, tw, th, null);
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				ImageIO.write(thumbnail, "jpg", out);
-				return out.toByteArray();
-			} catch (Exception e) {
-				return null;
 			}
 		}
 	}
@@ -1253,38 +1227,71 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	// ------------------------------
-	// Direct download of attachments
+	// Index thumbnails
 	// ------------------------------
 
-	/*
-	 * @GET
-	 * 
-	 * @Path("a/{host}/{articleId}/{name}") public Response
-	 * getAttachment(@PathParam("host") String host,
-	 * 
-	 * @PathParam("articleId") String articleId,
-	 * 
-	 * @PathParam("name") String name) throws SocketException, IOException,
-	 * RarException {
-	 * 
-	 * ArticleBody body = getBody(host, articleId, null); Attachment att = null;
-	 * try { int index = Integer.valueOf(name); if (body.attachments.size() <=
-	 * index || body.attachments.get(index) == null) throw new
-	 * IOException("Attachment " + name + " not found in article " + articleId);
-	 * att = body.attachments.get(index); } catch (NumberFormatException ex) {
-	 * for (int i = 0; i < body.attachments.size(); i++) { Attachment a =
-	 * body.attachments.get(i); if (a.filename.equals(name)) { att = a; break; }
-	 * } if (att == null) { throw new IOException("Attachment " + name +
-	 * " not found in article " + articleId); } } InputStream result = new
-	 * ByteArrayInputStream(att.data); name = name.toLowerCase(); String type;
-	 * if (name.endsWith(".jpg")) type = "image/jpg"; else if
-	 * (name.endsWith(".gif")) type = "image/gif"; else if
-	 * (name.endsWith(".png")) type = "image/png"; else if
-	 * (name.endsWith(".mpg")) type = "video/mpg"; else if
-	 * (name.endsWith(".avi")) type = "video/avi"; else if
-	 * (name.endsWith(".mp4")) type = "video/mp4"; else type = "text/plain";
-	 * return Response.ok(result, type).build(); }
-	 */
+	@POST
+	@Path("th")
+	@Produces(MediaType.APPLICATION_JSON)
+	public ArticleBody getThumbnail(@FormParam("host") String host,
+			@FormParam("articleId") String articleId,
+			@FormParam("size") int size) throws SocketException, IOException,
+			ParserConfigurationException, SAXException {
+		return getThumbnail(host, articleId, size, null);
+	}
+
+	@POST
+	@Path("tha")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getThumbnailAsync(@FormParam("host") final String host,
+			@FormParam("articleId") final String articleId,
+			@FormParam("size") final int size) throws SocketException,
+			IOException, ParserConfigurationException, SAXException {
+
+		final Progress progress = new Progress();
+
+		final String id = String.valueOf(++progressId);
+		progressById.put(id, progress);
+
+		new Thread() {
+			public void run() {
+				try {
+					progress.body = getThumbnail(host, articleId, size,
+							progress);
+				} catch (Throwable ex) {
+					progress.exception = ex.getMessage();
+				}
+				progress.done = true;
+			}
+		}.start();
+
+		return id;
+	}
+
+	private ArticleBody getThumbnail(String host, String articleId, int size,
+			Progress progress) throws SocketException, IOException,
+			ParserConfigurationException, SAXException {
+
+		ArticleBody body = getBody(host, articleId, progress);
+
+		ArticleBody thumbnailBody = new ArticleBody();
+		thumbnailBody.text = "-- Thumbnail --\n\n" + body.text;
+
+		for (int i = 0; i < body.attachments.size(); i++) {
+			Attachment a = body.attachments.get(i);
+			String name = a.filename.toLowerCase();
+			if (name.endsWith(".jpg") || name.endsWith(".gif")
+					|| name.endsWith(".png")) {
+				byte[] data = createThumbnail(a.data, size);
+				if (data != null) {
+					thumbnailBody.attachments.add(new Attachment(a.filename,
+							data));
+				}
+			}
+		}
+
+		return thumbnailBody;
+	}
 
 	// ---------
 	// Utilities
@@ -1300,5 +1307,36 @@ public class NewsService implements ProtocolCommandListener {
 				return true;
 		}
 		return false;
+	}
+
+	private static byte[] createThumbnail(byte[] data, int size) {
+		BufferedImage image;
+		try {
+			image = ImageIO.read(new ByteArrayInputStream(data));
+			int iw = image.getWidth();
+			int ih = image.getHeight();
+			int tw = size, th = size;
+			if (ih > iw) {
+				tw = th * iw / ih;
+			} else {
+				th = tw * ih / iw;
+			}
+			BufferedImage thumbnail = new BufferedImage(tw, th,
+					image.getType() == 0 ? BufferedImage.TYPE_INT_RGB
+							: image.getType());
+			Graphics2D g = thumbnail.createGraphics();
+			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+					RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g.setRenderingHint(RenderingHints.KEY_RENDERING,
+					RenderingHints.VALUE_RENDER_QUALITY);
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+					RenderingHints.VALUE_ANTIALIAS_ON);
+			g.drawImage(image, 0, 0, tw, th, null);
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			ImageIO.write(thumbnail, "jpg", out);
+			return out.toByteArray();
+		} catch (Exception e) {
+			return null;
+		}
 	}
 }

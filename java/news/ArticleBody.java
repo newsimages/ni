@@ -18,7 +18,6 @@ public class ArticleBody {
 		ArticleBody b = new ArticleBody();
 		b.text = text;
 		b.size = size;
-		b.attachments = new ArrayList<Attachment>();
 		for(int i = 0; i < attachments.size(); i++){
 			Attachment att = attachments.get(i);
 			Attachment a = new Attachment(att.filename, null);
