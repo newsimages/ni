@@ -41,6 +41,8 @@
 					ScrollableView, ToolBarButton, mobile, JSUnzip, JSInflate,
 					unrar) {
 
+				alert(dojo.version);
+				
 				var showVideos = true;
 				var showVideosWhileLoading = false;
 
@@ -209,13 +211,7 @@
 					}
 				}
 
-				ready(function() {
-					try {
-						init();
-					} catch (err) {
-						alert(err);
-					}
-				});
+				ready(init);
 
 				//---------- Search ----------
 
