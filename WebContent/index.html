@@ -209,7 +209,13 @@
 					}
 				}
 
-				ready(init);
+				ready(function() {
+					try {
+						init();
+					} catch (err) {
+						alert(err);
+					}
+				});
 
 				//---------- Search ----------
 
