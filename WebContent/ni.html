@@ -494,7 +494,7 @@
 					showArticle(this);
 				}
 
-				function showArticle(item) {
+				function showArticle(item, previewData) {
 
 					clearRecords("selectArticle");
 					record("selectArticle", item, []);
@@ -545,7 +545,8 @@
 									function(result) {
 										var p = result.progress;
 										p.complete = p.complete == "true";
-										showProgress(p, item.bytes);
+										showProgress(p, item.bytes, previewData);
+										previewData = null;
 										if (p.chunk) {
 											data += atob(p.chunk);
 											if (p.attSizes) {
@@ -637,7 +638,7 @@
 
 				var startTime;
 
-				function showProgress(progress, total) {
+				function showProgress(progress, total, previewData) {
 					startTime = startTime || new Date().getTime();
 					if (progress.exception)
 						showMessage(progress.exception);
@@ -679,10 +680,11 @@
 					}
 					progressBar.set("label", label);
 
-					if (progress.thumbnail) {
+					previewData = progress.thumbnail || previewData;
+					if (previewData) {
 						var img = dom.byId("thumbnail");
 						img.setAttribute("src", "data:image/jpeg;base64,"
-								+ progress.thumbnail);
+								+ previewData);
 						domClass.add(img, "visible");
 					}
 				}
@@ -1334,32 +1336,34 @@
 				//---------- Image index ----------
 
 				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6;
-				var indexParent, indexProgressBarParent;
+				var indexParent, indexProgressBarParent, thumbnailClicked;
 
 				function initThumbnails() {
 					indexProgressBarParent = dom.byId("indexProgressBarParent");
 					indexParent = dom.byId("indexParent");
-					
+
 					computeThumbnailSize();
 				}
-				
+
 				function computeThumbnailSize() {
 					var w = mobile.getScreenSize().w;
-					var cols = Math.floor(w / (preferredThumbnailSize + 2*thumbnailMargin));
+					var cols = Math.floor(w
+							/ (preferredThumbnailSize + 2 * thumbnailMargin));
 					cols = Math.max(cols, 2);
-					thumbnailSize = Math.floor((w / cols) - 2*thumbnailMargin);
+					thumbnailSize = Math
+							.floor((w / cols) - 2 * thumbnailMargin);
 				}
-				
+
 				function resizeThumbnails() {
 					computeThumbnailSize();
-					
+
 					var sz = thumbnailSize + "px";
-					array.forEach(indexParent.childNodes, function(thp){
+					array.forEach(indexParent.childNodes, function(thp) {
 						thp.style.width = sz;
 						thp.style.height = sz;
 						thp.style.lineHeight = sz;
 						var th = thp.firstChild;
-						if(th.tagName == "IMG"){
+						if (th.tagName == "IMG") {
 							th.style.maxWidth = sz;
 							th.style.maxHeight = sz;
 						}
@@ -1383,6 +1387,10 @@
 
 				leaveIndexView = function() {
 					stopThumbnails();
+					if (!thumbnailClicked && currentItem) {
+						showArticle(currentItem);
+					}
+					thumbnailClicked = false;
 				};
 
 				function stopThumbnails() {
@@ -1486,9 +1494,10 @@
 						th.item = item;
 						on(th, "click",
 								function() {
+									thumbnailClicked = true;
 									indexView.performTransition("article", -1,
 											"slide");
-									showArticle(item);
+									showArticle(item, att.data);
 								});
 						thp.appendChild(th);
 
@@ -3114,7 +3123,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.4 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
