@@ -404,7 +404,7 @@ public class NewsService implements ProtocolCommandListener {
 					}
 					System.arraycopy(att.data, 0, data, pos, att.data.length);
 				}
-				thumbnailData = createThumbnail(data, 100);
+				thumbnailData = createThumbnail(data, 150);
 			}
 		}
 	}

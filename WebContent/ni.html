@@ -546,7 +546,6 @@
 										var p = result.progress;
 										p.complete = p.complete == "true";
 										showProgress(p, item.bytes, previewData);
-										previewData = null;
 										if (p.chunk) {
 											data += atob(p.chunk);
 											if (p.attSizes) {
@@ -680,12 +679,15 @@
 					}
 					progressBar.set("label", label);
 
-					previewData = progress.thumbnail || previewData;
-					if (previewData) {
-						var img = dom.byId("thumbnail");
-						img.setAttribute("src", "data:image/jpeg;base64,"
-								+ previewData);
-						domClass.add(img, "visible");
+					// show preview thubmnail?
+					var img = dom.byId("thumbnail");
+					if (!domClass.contains(img, "visible")) {
+						previewData = progress.thumbnail || previewData;
+						if (previewData) {
+							img.setAttribute("src", "data:image/jpeg;base64,"
+									+ previewData);
+							domClass.add(img, "visible");
+						}
 					}
 				}
 
@@ -3123,7 +3125,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.4 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.5 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
