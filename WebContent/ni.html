@@ -63,8 +63,6 @@
 					state : false
 				};
 
-				var indexProgressBarParent;
-
 				//---------- Initialization ----------
 
 				function init() {
@@ -96,6 +94,8 @@
 							onImageWheel);
 
 					articleImage = dom.byId("articleImage");
+
+					initThumbnails();
 
 					fitVideo();
 
@@ -209,8 +209,6 @@
 					} else {
 						clearState();
 					}
-
-					indexProgressBarParent = dom.byId("indexProgressBarParent");
 				}
 
 				ready(init);
@@ -1330,20 +1328,53 @@
 				resize = function() {
 					fitImage(true);
 					fitVideo();
+					resizeThumbnails();
 				}
 
 				//---------- Image index ----------
 
+				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6;
+				var indexParent, indexProgressBarParent;
+
+				function initThumbnails() {
+					indexProgressBarParent = dom.byId("indexProgressBarParent");
+					indexParent = dom.byId("indexParent");
+					
+					computeThumbnailSize();
+				}
+				
+				function computeThumbnailSize() {
+					var w = mobile.getScreenSize().w;
+					var cols = Math.floor(w / (preferredThumbnailSize + 2*thumbnailMargin));
+					cols = Math.max(cols, 2);
+					thumbnailSize = Math.floor((w / cols) - 2*thumbnailMargin);
+				}
+				
+				function resizeThumbnails() {
+					computeThumbnailSize();
+					
+					var sz = thumbnailSize + "px";
+					array.forEach(indexParent.childNodes, function(thp){
+						thp.style.width = sz;
+						thp.style.height = sz;
+						thp.style.lineHeight = sz;
+						var th = thp.firstChild;
+						if(th.tagName == "IMG"){
+							th.style.maxWidth = sz;
+							th.style.maxHeight = sz;
+						}
+					});
+				}
+
 				var currentThumbnailItem, currentThumbnailParent;
 
 				showThumbnails = function() {
-					showIndexControls();
 					articleView.performTransition("index", 1, "slide");
 					getThumbnail(currentItem);
 				};
 
 				pauseResumeThumbnails = function() {
-					if (domClass.contains(pauseButton.domNode, "pause")) {
+					if (pauseButton.get("label") == "Pause") {
 						stopThumbnails();
 					} else {
 						getThumbnail(currentThumbnailItem || currentItem);
@@ -1356,14 +1387,12 @@
 
 				function stopThumbnails() {
 					cancelRequest();
-					domClass.remove(pauseButton.domNode, "pause");
+					pauseButton.set("label", "Resume");
 					showIndexProgressBar(false);
 					progress();
 					if (currentThumbnailParent
-							&& currentThumbnailParent.parentNode == dom
-									.byId("indexParent"))
-						dom.byId("indexParent").removeChild(
-								currentThumbnailParent);
+							&& currentThumbnailParent.parentNode == indexParent)
+						indexParent.removeChild(currentThumbnailParent);
 				}
 
 				function getThumbnail(item) {
@@ -1372,16 +1401,21 @@
 						item = item.nextItem;
 					}
 
-					domClass.add(pauseButton.domNode, "pause");
+					pauseButton.set("label", "Pause");
 
 					var args = {
 						articleId : item.articleId,
-						size : 100
+						size : preferredThumbnailSize
 					};
 
 					var thp = document.createElement("div");
 					domClass.add(thp, "indexThumbnailParent");
-					dom.byId("indexParent").appendChild(thp);
+					thp.style.margin = thumbnailMargin + "px";
+					var sz = thumbnailSize + "px";
+					thp.style.width = sz;
+					thp.style.height = sz;
+					thp.style.lineHeight = sz;
+					indexParent.appendChild(thp);
 
 					currentThumbnailParent = thp;
 					currentThumbnailItem = item;
@@ -1395,6 +1429,9 @@
 								var p = result.progress;
 								p.complete = p.complete == "true";
 
+								if (p.filename) {
+									indexHeading.set("label", p.filename);
+								}
 								indexProgressBar.set("value", (p.complete ? 100
 										: p.bytesRead / item.bytes * 100)
 										+ "%");
@@ -1441,6 +1478,9 @@
 
 						var th = document.createElement("img");
 						domClass.add(th, "indexThumbnail");
+						var sz = thumbnailSize + "px";
+						th.style.maxWidth = sz;
+						th.style.maxHeight = sz;
 						th.setAttribute("src", "data:image/jpeg;base64,"
 								+ att.data);
 						th.item = item;
@@ -1452,36 +1492,12 @@
 								});
 						thp.appendChild(th);
 
+						indexHeading.set("label", att.filename);
+
 						if (item.nextItem) {
 							getThumbnail(item.nextItem);
 						}
 					});
-				}
-
-				var ilastX, ilastY, icontrolsTimer;
-
-				showIndexControls = function(e) {
-					if (e) {
-						if (Math.abs(e.pageX - ilastX) < 4
-								&& Math.abs(e.pageY - ilastY) < 4)
-							return;
-						ilastX = e.pageX;
-						ilastY = e.pageY;
-					}
-					domClass.remove(dom.byId("indexControls"), "hidden");
-					hideIndexControls(5000);
-				}
-
-				function hideIndexControls(delay) {
-					var c = dom.byId("indexControls");
-					if (domClass.contains(c, "hidden"))
-						return;
-					if (icontrolsTimer)
-						clearTimeout(icontrolsTimer);
-					icontrolsTimer = setTimeout(function() {
-						icontrolsTimer = null;
-						domClass.add(c, "hidden");
-					}, delay);
 				}
 
 				function showIndexProgressBar(parent) {
@@ -2559,7 +2575,7 @@ body,html {
 	position: absolute;
 	top: 0px;
 	left: 65px;
-	right: 30px;
+	right: 50px;
 	color: #d0d0d0;
 	font-size: small;
 	font-family: sans-serif;
@@ -2573,7 +2589,7 @@ body,html {
 	text-overflow: ellipsis;
 }
 
-.articleBackButton,.indexBackButton {
+.articleBackButton {
 	position: absolute;
 	top: -1px;
 	left: -3px;
@@ -2587,83 +2603,13 @@ body,html {
 	position: absolute;
 	top: 3px;
 	right: 0px;
-	width: 24px;
-	height: 24px;
 	padding: 0;
+	font-size: 13px;
+	font-weight: bold;
 	pointer-events: all !important;
 }
 
-.indexButton>div {
-	position: absolute;
-	width: 8px;
-	height: 8px;
-	background-color: #606060;
-}
-
-.indexButtonSQ1 {
-	left: 3px;
-	top: 3px;
-}
-
-.indexButtonSQ2 {
-	top: 3px;
-	left: 15px;
-}
-
-.indexButtonSQ3 {
-	top: 15px;
-	left: 3px;
-}
-
-.indexButtonSQ4 {
-	left: 15px;
-	top: 15px;
-}
-
-.pauseButton {
-	position: absolute;
-	top: 3px;
-	right: 0px;
-	width: 24px;
-	height: 24px;
-	padding: 0;
-	pointer-events: all !important;
-}
-
-.pauseButton>div {
-	position: absolute;
-	width: 6px;
-	height: 18px;
-	background-color: #606060;
-}
-
-.pauseButton.pause .pauseButton1 {
-	left: 2px;
-	top: 3px;
-	width: 6px;
-	height: 18px;
-	transform: rotate(0deg);
-}
-
-.pauseButton.pause .pauseButton2 {
-	left: 12px;
-	top: 3px;
-	height: 18px;
-	background-color: #606060;
-}
-
-.pauseButton .pauseButton1 {
-	width: 14px;
-	height: 14px;
-	transform: translate(0, 2px) rotate(45deg) translate(2px, 2px);
-}
-
-.pauseButton .pauseButton2 {
-	height: 20px;
-	background-color: #202020;
-}
-
-.imageBackground,.indexBackground {
+.imageBackground {
 	background: black;
 	width: 100%;
 	height: 100%;
@@ -2793,9 +2739,31 @@ body,html {
 	right: 0;
 }
 
-.imageScroller,.indexScroller {
+.imageScroller {
 	width: auto;
 	height: auto;
+}
+
+.indexView {
+	background: black;
+}
+
+.indexView .mblHeading {
+	background: #202020;
+	border: none;
+	color: #d0d0d0;
+}
+
+.indexView .mblHeading * {
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.pauseButton {
+	position: absolute;
+	top: 3px;
+	right: 0px;
+	padding: 0;
 }
 
 .indexParent {
@@ -2803,10 +2771,6 @@ body,html {
 }
 
 .indexThumbnailParent {
-	margin: 6px;
-	width: 100px;
-	height: 100px;
-	line-height: 100px;
 	background-color: #000000;
 	text-align: center;
 	display: inline-block;
@@ -2815,11 +2779,10 @@ body,html {
 }
 
 .indexThumbnail {
-	max-width: 100px;
-	max-height: 100px;
 	vertical-align: middle;
 }
 
+}
 .zoomDiv {
 	color: #909090;
 	position: absolute;
@@ -2828,8 +2791,8 @@ body,html {
 }
 
 .progressBarParent.indexProgressBarParent {
-	left: 10px;
-	right: 10px;
+	left: 20px;
+	right: 20px;
 	height: 20px;
 }
 
@@ -3081,12 +3044,7 @@ body,html {
 				data-dojo-props="moveTo:'search',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
 			</div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="indexButton"
-				data-dojo-props="onClick: showThumbnails">
-				<div class="indexButtonSQ1"></div>
-				<div class="indexButtonSQ2"></div>
-				<div class="indexButtonSQ3"></div>
-				<div class="indexButtonSQ4"></div>
-			</div>
+				data-dojo-props="label: 'Index', onClick: showThumbnails"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
@@ -3096,32 +3054,18 @@ body,html {
 				data-dojo-id="progressBar" class="progressBar"></div>
 		</div>
 	</div>
-	<div data-dojo-type="dojox/mobile/View" id="index" class="indexView"
-		data-dojo-id="indexView" onclick="showIndexControls()"
-		data-dojo-props="onBeforeTransitionOut:leaveIndexView"
-		onmousemove="showIndexControls(event)">
-		<div class="indexBackground" id="indexBackground">
-			<div data-dojo-type="dojox/mobile/ScrollableView"
-				class="indexScroller" data-dojo-id="indexScroller"
-				data-dojo-props="scrollDir:'v'">
-				<div id="indexParent" class="indexParent"></div>
-			</div>
-		</div>
-		<div id="indexControls" class="indexControls hidden">
-			<div id="indexTitleBg" class="indexTitleBg"></div>
-			<div id="indexTitleLabel" class="indexTitleLabel"></div>
-			<div data-dojo-type="dojox/mobile/ToolBarButton"
-				data-dojo-id="indexBackButton" class="indexBackButton"
-				data-dojo-props="moveTo:'article',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
-			</div>
+	<div data-dojo-type="dojox/mobile/ScrollableView" id="index"
+		class="indexView" data-dojo-id="indexView"
+		data-dojo-props="onBeforeTransitionOut:leaveIndexView">
+		<div data-dojo-type="dojox/mobile/Heading" data-dojo-id="indexHeading"
+			data-dojo-props="fixed:'top',label:'Index',moveTo:'article',back:'Back'">
 			<div data-dojo-type="dojox/mobile/ToolBarButton"
 				class="pauseButton pause" id="pauseButton"
 				data-dojo-id="pauseButton"
-				data-dojo-props="onClick: pauseResumeThumbnails">
-				<div class="pauseButton1"></div>
-				<div class="pauseButton2"></div>
+				data-dojo-props="onClick: pauseResumeThumbnails, label:'Pause'">
 			</div>
 		</div>
+		<div id="indexParent" class="indexParent"></div>
 		<div id="indexProgressBarParent"
 			class="progressBarParent indexProgressBarParent">
 			<div data-dojo-type="dojox/mobile/ProgressBar"
@@ -3170,7 +3114,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.3 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
