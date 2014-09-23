@@ -231,6 +231,7 @@ public class NewsService implements ProtocolCommandListener {
 		private ArrayList<QueuedChunk> queue = new ArrayList<QueuedChunk>();
 		boolean cancelled;
 		private Progress progress;
+		boolean noChunks;
 
 		ProgressByteArrayOutputStream(Progress progress) {
 			this.progress = progress;
@@ -239,18 +240,20 @@ public class NewsService implements ProtocolCommandListener {
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
-				if (!progress.noChunks)
+				if (!noChunks) {
 					chunk.write(c);
-				queue();
+					queue();
+				}
 			}
 		}
 
 		public synchronized void write(byte[] bytes) throws IOException {
 			if (!cancelled) {
 				super.write(bytes);
-				if (!progress.noChunks)
+				if (!noChunks) {
 					chunk.write(bytes);
-				queue();
+					queue();
+				}
 			}
 		}
 
@@ -263,8 +266,6 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public synchronized byte[] getChunkBytes() {
-			if (progress.noChunks)
-				return null;
 			byte[] bytes;
 			if (queue.size() > 0) {
 				QueuedChunk qc = queue.get(0);
@@ -329,7 +330,7 @@ public class NewsService implements ProtocolCommandListener {
 		long startTime = System.currentTimeMillis();
 		int maxChunkSize = 50000;
 		byte[] thumbnailData;
-		boolean noChunks;
+		int thumbnailSize;
 
 		private ProgressByteArrayOutputStream buffer;
 
@@ -338,6 +339,9 @@ public class NewsService implements ProtocolCommandListener {
 				buffer = new ProgressByteArrayOutputStream(this);
 			else
 				buffer.reset();
+			if (thumbnailSize > 0) {
+				buffer.noChunks = true;
+			}
 			return buffer;
 		}
 
@@ -355,6 +359,20 @@ public class NewsService implements ProtocolCommandListener {
 				}
 				synchronized (buffer) {
 					if (filename != null) {
+						if (thumbnailSize > 0) {
+							if (isImage(filename)) {
+								byte[] data = buffer.toByteArray();
+								if(thumbnailData != null){
+									byte[] d = new byte[thumbnailData.length+data.length];
+									System.arraycopy(thumbnailData, 0,  d,  0,  thumbnailData.length);
+									System.arraycopy(data, 0, d, thumbnailData.length, data.length);
+									data = d;
+								}
+								chunk = createThumbnail(data, thumbnailSize);
+								complete = done;
+							}
+							return;
+						}
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
 						if (done && buffer.isEmpty()) {
@@ -370,45 +388,49 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
-			String name = att.filename.toLowerCase();
-			if (!complete && !noChunks
-					&& buffer.isAhead()
-					&& part == bodies.length - 1
-					&& (name.endsWith(".jpg") || name.endsWith(".gif") || name
-							.endsWith(".png"))) {
-				byte[] data;
-				if (bodies.length == 1 || part == 0) {
-					data = att.data;
-				} else {
-					ArrayList<byte[]> dl = new ArrayList<byte[]>();
-					for (int i = 0; i < part; i++) {
-						ArrayList<Attachment> atts = bodies[i].attachments;
-						if (atts != null && atts.size() > 0) {
-							byte[] b = atts.get(0).data;
-							if (b != null) {
-								dl.add(b);
-							}
-						}
-					}
-					int size = 0;
-					for (int i = 0; i < dl.size(); i++) {
-						size += dl.get(i).length;
-					}
-					size += att.data.length;
-					data = new byte[size];
-					int pos = 0;
-					for (int i = 0; i < dl.size(); i++) {
-						byte[] d = dl.get(i);
-						System.arraycopy(d, 0, data, pos, d.length);
-						pos += d.length;
-					}
-					System.arraycopy(att.data, 0, data, pos, att.data.length);
-				}
+			if (!complete && buffer.isAhead() && part == bodies.length - 1
+					&& isImage(att.filename)) {
+				byte[] data = concatData(att, part, bodies);
 				thumbnailData = createThumbnail(data, 150);
 			}
+			if(thumbnailSize > 0 && isImage(filename) && bodies.length > 1){
+				thumbnailData = concatData(att, part, bodies);
+			}
+		}
+		
+		private byte[] concatData(Attachment att, int part, ArticleBody[] bodies){
+			byte[] data;
+			if (bodies.length == 1 || part == 0) {
+				data = att.data;
+			} else {
+				ArrayList<byte[]> dl = new ArrayList<byte[]>();
+				for (int i = 0; i < part; i++) {
+					ArrayList<Attachment> atts = bodies[i].attachments;
+					if (atts != null && atts.size() > 0) {
+						byte[] b = atts.get(0).data;
+						if (b != null) {
+							dl.add(b);
+						}
+					}
+				}
+				int size = 0;
+				for (int i = 0; i < dl.size(); i++) {
+					size += dl.get(i).length;
+				}
+				size += att.data.length;
+				data = new byte[size];
+				int pos = 0;
+				for (int i = 0; i < dl.size(); i++) {
+					byte[] d = dl.get(i);
+					System.arraycopy(d, 0, data, pos, d.length);
+					pos += d.length;
+				}
+				System.arraycopy(att.data, 0, data, pos, att.data.length);
+			}
+			return data;
 		}
 	}
-
+	
 	private static class ProgressReader extends BufferedReader {
 
 		private Progress progress;
@@ -1249,6 +1271,7 @@ public class NewsService implements ProtocolCommandListener {
 			IOException, ParserConfigurationException, SAXException {
 
 		final Progress progress = new Progress();
+		progress.thumbnailSize = size;
 
 		final String id = String.valueOf(++progressId);
 		progressById.put(id, progress);
@@ -1279,9 +1302,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		for (int i = 0; i < body.attachments.size(); i++) {
 			Attachment a = body.attachments.get(i);
-			String name = a.filename.toLowerCase();
-			if (name.endsWith(".jpg") || name.endsWith(".gif")
-					|| name.endsWith(".png")) {
+			if (isImage(a.filename)) {
 				byte[] data = createThumbnail(a.data, size);
 				if (data != null) {
 					thumbnailBody.attachments.add(new Attachment(a.filename,
@@ -1296,6 +1317,12 @@ public class NewsService implements ProtocolCommandListener {
 	// ---------
 	// Utilities
 	// ---------
+
+	private static boolean isImage(String filename) {
+		String name = filename.toLowerCase();
+		return name.endsWith(".jpg") || name.endsWith(".gif")
+				|| name.endsWith(".png");
+	}
 
 	private boolean isHidden(String subject, String filter) {
 		if (!(filter.isEmpty() || subject.contains(filter))) {

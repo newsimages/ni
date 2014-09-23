@@ -1338,10 +1338,9 @@
 				//---------- Image index ----------
 
 				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6;
-				var indexParent, indexProgressBarParent, thumbnailClicked;
+				var indexParent, thumbnailClicked;
 
 				function initThumbnails() {
-					indexProgressBarParent = dom.byId("indexProgressBarParent");
 					indexParent = dom.byId("indexParent");
 
 					computeThumbnailSize();
@@ -1398,7 +1397,6 @@
 				function stopThumbnails() {
 					cancelRequest();
 					pauseButton.set("label", "Resume");
-					showIndexProgressBar(false);
 					progress();
 					if (currentThumbnailParent
 							&& currentThumbnailParent.parentNode == indexParent)
@@ -1418,15 +1416,9 @@
 						size : preferredThumbnailSize
 					};
 
-					var thp = document.createElement("div");
-					domClass.add(thp, "indexThumbnailParent");
-					thp.style.margin = thumbnailMargin + "px";
-					var sz = thumbnailSize + "px";
-					thp.style.width = sz;
-					thp.style.height = sz;
-					thp.style.lineHeight = sz;
-					indexParent.appendChild(thp);
-
+					var thp = createThumbnailParent();
+					var th;
+					
 					currentThumbnailParent = thp;
 					currentThumbnailItem = item;
 
@@ -1442,9 +1434,14 @@
 								if (p.filename) {
 									indexHeading.set("label", p.filename);
 								}
-								indexProgressBar.set("value", (p.complete ? 100
-										: p.bytesRead / item.bytes * 100)
-										+ "%");
+								if(p.chunk){
+									if(!th){
+										th = createThumbnail(p.chunk, item, thp);
+									} else {
+										th.setAttribute("src", "data:image/jpeg;base64,"
+												+ p.chunk);
+									}
+								}
 
 								if (!p.complete) {
 									f(id);
@@ -1453,26 +1450,23 @@
 									currentThumbnailItem = null;
 									currentThumbnailParent = null;
 									progress();
-									showIndexProgressBar(false);
 									if (p.exception) {
 										showError(p.exception);
 									} else {
 										if (p.body) {
-											addThumbnails(p.body, item, thp);
+											addThumbnails(p.body, item, thp, th);
 										}
 									}
 								}
 							}, function(err) {
 								if (err.dojoType != "cancel") {
 									progress();
-									showIndexProgressBar(null);
 									showError(err);
 								}
 							});
 							currentAsyncId = id;
 						};
 						progress(thp);
-						showIndexProgressBar(thp);
 						doRequest("tha", args, null, f);
 					} else {
 						doRequest("th", arg, thp, function(result) {
@@ -1481,46 +1475,63 @@
 					}
 				}
 
-				function addThumbnails(body, item, thp) {
+				function addThumbnails(body, item, thp, th) {
 					array.forEach(ensureArray(body.attachments), function(att) {
 
 						item.thumbnailBody = body;
-
-						var th = document.createElement("img");
-						domClass.add(th, "indexThumbnail");
-						var sz = thumbnailSize + "px";
-						th.style.maxWidth = sz;
-						th.style.maxHeight = sz;
-						th.setAttribute("src", "data:image/jpeg;base64,"
-								+ att.data);
-						th.item = item;
-						on(th, "click",
-								function() {
-									thumbnailClicked = true;
-									indexView.performTransition("article", -1,
-											"slide");
-									showArticle(item, att.data);
-								});
-						thp.appendChild(th);
+						
+						if(!thp){
+							thp = createThumbnailParent();
+						}
+						
+						if(!th){
+							th = createThumbnail(att.data, item, thp);
+						} else {
+							th.setAttribute("src", "data:image/jpeg;base64,"
+									+ att.data);
+						}
 
 						indexHeading.set("label", att.filename);
-
-						if (item.nextItem) {
-							getThumbnail(item.nextItem);
-						}
+						
+						thp = null;
+						th = null;
 					});
-				}
 
-				function showIndexProgressBar(parent) {
-					if (settings.progress) {
-						if (parent) {
-							parent.appendChild(indexProgressBarParent);
-							indexProgressBar.set("value", 0);
-							indexProgressBar.set("label", "");
-						}
-						domClass[parent ? "add" : "remove"](
-								indexProgressBarParent, "visible");
+					if (item.nextItem) {
+						getThumbnail(item.nextItem);
 					}
+				}
+				
+				function createThumbnailParent(){
+					var thp = document.createElement("div");
+					domClass.add(thp, "indexThumbnailParent");
+					thp.style.margin = thumbnailMargin + "px";
+					var sz = thumbnailSize + "px";
+					thp.style.width = sz;
+					thp.style.height = sz;
+					thp.style.lineHeight = sz;
+					indexParent.appendChild(thp);
+					return thp;
+				}
+				
+				function createThumbnail(data, item, thp){
+					var th = document.createElement("img");
+					domClass.add(th, "indexThumbnail");
+					var sz = thumbnailSize + "px";
+					th.style.maxWidth = sz;
+					th.style.maxHeight = sz;
+					th.setAttribute("src", "data:image/jpeg;base64,"
+							+ data);
+					th.item = item;
+					on(th, "click",
+							function() {
+								thumbnailClicked = true;
+								indexView.performTransition("article", -1,
+										"slide");
+								showArticle(item, data);
+							});
+					thp.appendChild(th);
+					return th;
 				}
 
 				//---------- Utility methods ----------
@@ -2801,16 +2812,6 @@ body,html {
 	bottom: 3px;
 }
 
-.progressBarParent.indexProgressBarParent {
-	left: 20px;
-	right: 20px;
-	height: 20px;
-}
-
-.indexProgressBarParent .mblProgressBarMsg {
-	line-height: 10px;
-}
-
 .progressBarParent {
 	visibility: hidden;
 	opacity: 0;
@@ -3077,11 +3078,6 @@ body,html {
 			</div>
 		</div>
 		<div id="indexParent" class="indexParent"></div>
-		<div id="indexProgressBarParent"
-			class="progressBarParent indexProgressBarParent">
-			<div data-dojo-type="dojox/mobile/ProgressBar"
-				data-dojo-id="indexProgressBar" class="progressBar indexProgressBar"></div>
-		</div>
 	</div>
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="settings"
 		data-dojo-id="settingsView"
@@ -3125,7 +3121,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.5 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.6 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
