@@ -1337,22 +1337,6 @@
 							.floor((w / cols) - 2 * thumbnailMargin);
 				}
 
-				function resizeThumbnails() {
-					computeThumbnailSize();
-
-					var sz = thumbnailSize + "px";
-					array.forEach(indexParent.childNodes, function(thp) {
-						thp.style.width = sz;
-						thp.style.height = sz;
-						thp.style.lineHeight = sz;
-						var th = thp.firstChild;
-						if (th.tagName == "IMG") {
-							th.style.maxWidth = sz;
-							th.style.maxHeight = sz;
-						}
-					});
-				}
-
 				var currentThumbnailItem, currentThumbnailParent;
 
 				showThumbnails = function() {
@@ -1370,7 +1354,8 @@
 
 				clearThumbnails = function() {
 					var thp;
-					while ((thp = indexParent.firstChild) && thp.complete) {
+					while ((thp = indexParent.firstChild) && thp.item) {
+						thp.item.thumbnailBody = null;
 						indexParent.removeChild(thp);
 					}
 					domClass.add(clearButton.domNode, "disabled");
@@ -1422,6 +1407,9 @@
 										var p = result.progress;
 										p.complete = p.complete == "true";
 
+										if(p.filename){
+											setThumbnailName(thp, p.filename);
+										}
 										if (p.chunk) {
 											if (!th) {
 												th = createThumbnail(p.chunk,
@@ -1471,11 +1459,11 @@
 				function addThumbnails(body, item, thp, th) {
 					array.forEach(ensureArray(body.attachments), function(att) {
 
-						item.thumbnailBody = body;
-
 						if (!thp) {
 							thp = createThumbnailParent();
 						}
+						
+						setThumbnailName(thp, att.filename);
 
 						if (!th) {
 							th = createThumbnail(att.data, item, thp);
@@ -1484,7 +1472,8 @@
 									+ att.data);
 						}
 
-						thp.complete = true;
+						item.thumbnailBody = body;
+						thp.item = item;
 
 						thp = null;
 						th = null;
@@ -1500,13 +1489,24 @@
 				function createThumbnailParent() {
 					var thp = document.createElement("div");
 					domClass.add(thp, "indexThumbnailParent");
-					thp.style.margin = thumbnailMargin + "px";
+					var m = thumbnailMargin + "px";
+					thp.style.margin = m + " " + m + " " + (thumbnailMargin+10) + "px" + " " +  m;
 					var sz = thumbnailSize + "px";
 					thp.style.width = sz;
 					thp.style.height = sz;
 					thp.style.lineHeight = sz;
+					var t = document.createElement("div");
+					t.style.lineHeight = "10px";
+					t.style.top = sz;
+					domClass.add(t, "indexThumbnailName");
+					thp.appendChild(t);
+					thp.nameDiv = t;
 					indexParent.appendChild(thp);
 					return thp;
+				}
+				
+				function setThumbnailName(thp, name) {
+					thp.nameDiv.innerText = name;
 				}
 
 				function createThumbnail(data, item, thp) {
@@ -1516,14 +1516,31 @@
 					th.style.maxWidth = sz;
 					th.style.maxHeight = sz;
 					th.setAttribute("src", "data:image/jpeg;base64," + data);
-					th.item = item;
 					on(th, "click", function() {
 						thumbnailClicked = true;
 						indexView.performTransition("article", -1, "slide");
 						showArticle(item);
 					});
 					thp.appendChild(th);
+					thp.th = th;
 					return th;
+				}
+
+				function resizeThumbnails() {
+					computeThumbnailSize();
+
+					var sz = thumbnailSize + "px";
+					array.forEach(indexParent.childNodes, function(thp) {
+						thp.style.width = sz;
+						thp.style.height = sz;
+						thp.style.lineHeight = sz;
+						var th = thp.th;
+						if(th){
+							th.style.maxWidth = sz;
+							th.style.maxHeight = sz;
+						}
+						var t = thp.nameDiv;
+					});
 				}
 
 				//---------- Utility methods ----------
@@ -2789,6 +2806,16 @@ body,html {
 	cursor: pointer;
 }
 
+.indexThumbnailName {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -12px;
+	font-size: x-small;
+	color: #c0c0c0;
+	text-align: center;
+}
+
 .indexThumbnail {
 	vertical-align: middle;
 }
@@ -3112,7 +3139,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.9 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.1.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
