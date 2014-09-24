@@ -286,10 +286,6 @@ public class NewsService implements ProtocolCommandListener {
 			return queue.size() == 0 && chunk.size() == 0;
 		}
 
-		boolean isAhead() {
-			return queue.size() > 0;
-		}
-
 		void cancel() {
 			cancelled = true;
 			reset();
@@ -320,8 +316,6 @@ public class NewsService implements ProtocolCommandListener {
 		public ArticleBody body;
 		@XmlElement
 		public ArrayList<Integer> attSizes;
-		@XmlAttribute
-		public byte[] thumbnail;
 
 		boolean cancelled;
 		boolean done;
@@ -377,22 +371,13 @@ public class NewsService implements ProtocolCommandListener {
 						chunk = bytes;
 						if (done && buffer.isEmpty()) {
 							complete = true;
-							thumbnail = null;
-						} else {
-							thumbnail = thumbnailData;
 						}
-						thumbnailData = null;
 					}
 				}
 			}
 		}
 
 		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
-			if (!complete && buffer.isAhead() && part == bodies.length - 1
-					&& isImage(att.filename)) {
-				byte[] data = concatData(att, part, bodies);
-				thumbnailData = createThumbnail(data, 150);
-			}
 			if(thumbnailSize > 0 && isImage(filename) && bodies.length > 1){
 				thumbnailData = concatData(att, part, bodies);
 			}

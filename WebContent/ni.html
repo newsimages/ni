@@ -494,7 +494,7 @@
 					showArticle(this);
 				}
 
-				function showArticle(item, previewData) {
+				function showArticle(item) {
 
 					clearRecords("selectArticle");
 					record("selectArticle", item, []);
@@ -545,7 +545,7 @@
 									function(result) {
 										var p = result.progress;
 										p.complete = p.complete == "true";
-										showProgress(p, item.bytes, previewData);
+										showProgress(p, item.bytes);
 										if (p.chunk) {
 											data += atob(p.chunk);
 											if (p.attSizes) {
@@ -637,7 +637,7 @@
 
 				var startTime;
 
-				function showProgress(progress, total, previewData) {
+				function showProgress(progress, total) {
 					startTime = startTime || new Date().getTime();
 					if (progress.exception)
 						showMessage(progress.exception);
@@ -678,17 +678,6 @@
 						}
 					}
 					progressBar.set("label", label);
-
-					// show preview thubmnail?
-					var img = dom.byId("thumbnail");
-					if (!domClass.contains(img, "visible")) {
-						previewData = progress.thumbnail || previewData;
-						if (previewData) {
-							img.setAttribute("src", "data:image/jpeg;base64,"
-									+ previewData);
-							domClass.add(img, "visible");
-						}
-					}
 				}
 
 				leaveArticleView = function(to) {
@@ -956,7 +945,6 @@
 					if (replaying && replaying != "selectArticle")
 						return;
 					dom.byId("imageBackground").style.visibility = "visible";
-					domClass.remove(dom.byId("thumbnail"), "visible");
 					textView.domNode.style.visibility = "hidden";
 					videoView.domNode.style.visibility = "hidden";
 					frameView.domNode.style.visibility = "hidden";
@@ -1120,12 +1108,6 @@
 					}
 
 					img.style.visibility = resize ? oldvis : "visible";
-
-					var thumbnail = dom.byId("thumbnail");
-					thumbnail.style.right = (bg.offsetWidth - (img.offsetLeft + img.offsetWidth))
-							+ "px";
-					thumbnail.style.bottom = (bg.offsetHeight - (img.offsetTop + img.offsetHeight))
-							+ "px";
 				}
 
 				fitVideo = function() {
@@ -1386,6 +1368,24 @@
 					}
 				};
 
+				clearThumbnails = function() {
+					var running = pauseButton.get("label") == "Pause";
+					if (running) {
+						pauseResumeThumbnails();
+					}
+					var ok = confirm("Clear thumbnails?");
+					if (running) {
+						pauseResumeThumbnails();
+					}
+					if (ok) {
+						var thp;
+						while ((thp = indexParent.firstChild) && thp.complete) {
+							indexParent.removeChild(thp);
+						}
+						domClass.add(clearButton.domNode, "disabled");
+					}
+				};
+
 				leaveIndexView = function() {
 					stopThumbnails();
 					if (!thumbnailClicked && currentItem) {
@@ -1418,7 +1418,7 @@
 
 					var thp = createThumbnailParent();
 					var th;
-					
+
 					currentThumbnailParent = thp;
 					currentThumbnailItem = item;
 
@@ -1427,43 +1427,50 @@
 							currentAsyncId = null;
 							doRequest("p", {
 								id : id
-							}, null, function(result) {
-								var p = result.progress;
-								p.complete = p.complete == "true";
+							}, null,
+									function(result) {
+										var p = result.progress;
+										p.complete = p.complete == "true";
 
-								if (p.filename) {
-									indexHeading.set("label", p.filename);
-								}
-								if(p.chunk){
-									if(!th){
-										th = createThumbnail(p.chunk, item, thp);
-									} else {
-										th.setAttribute("src", "data:image/jpeg;base64,"
-												+ p.chunk);
-									}
-								}
-
-								if (!p.complete) {
-									f(id);
-								} else {
-									currentAsyncId = null;
-									currentThumbnailItem = null;
-									currentThumbnailParent = null;
-									progress();
-									if (p.exception) {
-										showError(p.exception);
-									} else {
-										if (p.body) {
-											addThumbnails(p.body, item, thp, th);
+										if (p.filename) {
+											indexHeading.set("label",
+													p.filename);
 										}
-									}
-								}
-							}, function(err) {
-								if (err.dojoType != "cancel") {
-									progress();
-									showError(err);
-								}
-							});
+										if (p.chunk) {
+											if (!th) {
+												th = createThumbnail(p.chunk,
+														item, thp);
+											} else {
+												th.setAttribute("src",
+														"data:image/jpeg;base64,"
+																+ p.chunk);
+											}
+											if (p.chunk.length > 1000)
+												progress();
+										}
+
+										if (!p.complete) {
+											f(id);
+										} else {
+											currentAsyncId = null;
+											currentThumbnailItem = null;
+											currentThumbnailParent = null;
+											progress();
+											if (p.exception) {
+												showError(p.exception);
+											} else {
+												if (p.body) {
+													addThumbnails(p.body, item,
+															thp, th);
+												}
+											}
+										}
+									}, function(err) {
+										if (err.dojoType != "cancel") {
+											progress();
+											showError(err);
+										}
+									});
 							currentAsyncId = id;
 						};
 						progress(thp);
@@ -1479,12 +1486,12 @@
 					array.forEach(ensureArray(body.attachments), function(att) {
 
 						item.thumbnailBody = body;
-						
-						if(!thp){
+
+						if (!thp) {
 							thp = createThumbnailParent();
 						}
-						
-						if(!th){
+
+						if (!th) {
 							th = createThumbnail(att.data, item, thp);
 						} else {
 							th.setAttribute("src", "data:image/jpeg;base64,"
@@ -1492,17 +1499,21 @@
 						}
 
 						indexHeading.set("label", att.filename);
-						
+
+						thp.complete = true;
+
 						thp = null;
 						th = null;
 					});
+
+					domClass.remove(clearButton.domNode, "disabled");
 
 					if (item.nextItem) {
 						getThumbnail(item.nextItem);
 					}
 				}
-				
-				function createThumbnailParent(){
+
+				function createThumbnailParent() {
 					var thp = document.createElement("div");
 					domClass.add(thp, "indexThumbnailParent");
 					thp.style.margin = thumbnailMargin + "px";
@@ -1513,23 +1524,20 @@
 					indexParent.appendChild(thp);
 					return thp;
 				}
-				
-				function createThumbnail(data, item, thp){
+
+				function createThumbnail(data, item, thp) {
 					var th = document.createElement("img");
 					domClass.add(th, "indexThumbnail");
 					var sz = thumbnailSize + "px";
 					th.style.maxWidth = sz;
 					th.style.maxHeight = sz;
-					th.setAttribute("src", "data:image/jpeg;base64,"
-							+ data);
+					th.setAttribute("src", "data:image/jpeg;base64," + data);
 					th.item = item;
-					on(th, "click",
-							function() {
-								thumbnailClicked = true;
-								indexView.performTransition("article", -1,
-										"slide");
-								showArticle(item, data);
-							});
+					on(th, "click", function() {
+						thumbnailClicked = true;
+						indexView.performTransition("article", -1, "slide");
+						showArticle(item);
+					});
 					thp.appendChild(th);
 					return th;
 				}
@@ -2653,21 +2661,6 @@ body,html {
 	visibility: hidden;
 }
 
-.thumbnail {
-	position: absolute;
-	visibility: hidden;
-	opacity: 0;
-	-webkit-transition-property: visibility, opacity;
-	-webkit-transition-duration: 0.5s;
-	transition-property: visibility, opacity;
-	transition-duration: 0.5s;
-}
-
-.thumbnail.visible {
-	visibility: visible;
-	opacity: 1;
-}
-
 .articleControls,.indexControls {
 	position: absolute;
 	top: 0;
@@ -2784,8 +2777,19 @@ body,html {
 .pauseButton {
 	position: absolute;
 	top: 3px;
+	right: 50px;
+	padding: 0;
+}
+
+.clearButton {
+	position: absolute;
+	top: 3px;
 	right: 0px;
 	padding: 0;
+}
+
+.clearButton.disabled {
+	opacity: 0.5;
 }
 
 .indexParent {
@@ -2798,13 +2802,13 @@ body,html {
 	display: inline-block;
 	vertical-align: middle;
 	position: relative;
+	cursor: pointer;
 }
 
 .indexThumbnail {
 	vertical-align: middle;
 }
 
-}
 .zoomDiv {
 	color: #909090;
 	position: absolute;
@@ -3019,7 +3023,6 @@ body,html {
 					onerror="imageError()">
 			</div>
 			<div id="zoomDiv" class="zoomDiv"></div>
-			<img id="thumbnail" class="thumbnail">
 		</div>
 		<div class="textView" data-dojo-type="dojox/mobile/ScrollableView"
 			data-dojo-id="textView"
@@ -3076,6 +3079,10 @@ body,html {
 				data-dojo-id="pauseButton"
 				data-dojo-props="onClick: pauseResumeThumbnails, label:'Pause'">
 			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton"
+				class="clearButton disabled" id="clearButton"
+				data-dojo-id="clearButton"
+				data-dojo-props="onClick: clearThumbnails, label:'Clear'"></div>
 		</div>
 		<div id="indexParent" class="indexParent"></div>
 	</div>
@@ -3121,7 +3128,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.6 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.8 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
