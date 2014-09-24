@@ -1319,7 +1319,7 @@
 
 				//---------- Image index ----------
 
-				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6;
+				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6, thumbnailNameHeight = 10;
 				var indexParent, thumbnailClicked;
 
 				function initThumbnails() {
@@ -1419,8 +1419,6 @@
 														"data:image/jpeg;base64,"
 																+ p.chunk);
 											}
-											if (p.chunk.length > 1000)
-												progress();
 										}
 
 										if (!p.complete) {
@@ -1490,15 +1488,17 @@
 					var thp = document.createElement("div");
 					domClass.add(thp, "indexThumbnailParent");
 					var m = thumbnailMargin + "px";
-					thp.style.margin = m + " " + m + " " + (thumbnailMargin+10) + "px" + " " +  m;
+					thp.style.margin = m + " " + m + " " + (2*thumbnailMargin+thumbnailNameHeight*2) + "px" + " " +  m;
 					var sz = thumbnailSize + "px";
+					var psz = preferredThumbnailSize + "px";
 					thp.style.width = sz;
-					thp.style.height = sz;
-					thp.style.lineHeight = sz;
+					thp.style.height = psz;
+					thp.style.lineHeight = psz;
 					var t = document.createElement("div");
-					t.style.lineHeight = "10px";
-					t.style.top = sz;
 					domClass.add(t, "indexThumbnailName");
+					t.style.height = thumbnailNameHeight + "px";
+					t.style.lineHeight = thumbnailNameHeight + "px";
+					t.style.top = (preferredThumbnailSize + thumbnailMargin) + "px";
 					thp.appendChild(t);
 					thp.nameDiv = t;
 					indexParent.appendChild(thp);
@@ -1530,16 +1530,20 @@
 					computeThumbnailSize();
 
 					var sz = thumbnailSize + "px";
+					var psz = preferredThumbnailSize + "px";
 					array.forEach(indexParent.childNodes, function(thp) {
 						thp.style.width = sz;
-						thp.style.height = sz;
-						thp.style.lineHeight = sz;
+						thp.style.height = psz;
+						thp.style.lineHeight = psz;
 						var th = thp.th;
 						if(th){
 							th.style.maxWidth = sz;
 							th.style.maxHeight = sz;
 						}
 						var t = thp.nameDiv;
+						if(t){
+							t.style.top = (preferredThumbnailSize + thumbnailMargin) + "px";
+						}
 					});
 				}
 
@@ -2810,7 +2814,6 @@ body,html {
 	position: absolute;
 	left: 0;
 	right: 0;
-	bottom: -12px;
 	font-size: x-small;
 	color: #c0c0c0;
 	text-align: center;
@@ -3139,7 +3142,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.1.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.1.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
