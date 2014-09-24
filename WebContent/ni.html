@@ -1369,21 +1369,11 @@
 				};
 
 				clearThumbnails = function() {
-					var running = pauseButton.get("label") == "Pause";
-					if (running) {
-						pauseResumeThumbnails();
+					var thp;
+					while ((thp = indexParent.firstChild) && thp.complete) {
+						indexParent.removeChild(thp);
 					}
-					var ok = confirm("Clear thumbnails?");
-					if (running) {
-						pauseResumeThumbnails();
-					}
-					if (ok) {
-						var thp;
-						while ((thp = indexParent.firstChild) && thp.complete) {
-							indexParent.removeChild(thp);
-						}
-						domClass.add(clearButton.domNode, "disabled");
-					}
+					domClass.add(clearButton.domNode, "disabled");
 				};
 
 				leaveIndexView = function() {
@@ -1432,10 +1422,6 @@
 										var p = result.progress;
 										p.complete = p.complete == "true";
 
-										if (p.filename) {
-											indexHeading.set("label",
-													p.filename);
-										}
 										if (p.chunk) {
 											if (!th) {
 												th = createThumbnail(p.chunk,
@@ -1497,8 +1483,6 @@
 							th.setAttribute("src", "data:image/jpeg;base64,"
 									+ att.data);
 						}
-
-						indexHeading.set("label", att.filename);
 
 						thp.complete = true;
 
@@ -2777,7 +2761,7 @@ body,html {
 .pauseButton {
 	position: absolute;
 	top: 3px;
-	right: 50px;
+	right: 44px;
 	padding: 0;
 }
 
@@ -3128,7 +3112,7 @@ body,html {
 				<div class="itemDisabler"></div>
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.0.8 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.0.9 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
