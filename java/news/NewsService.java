@@ -356,13 +356,10 @@ public class NewsService implements ProtocolCommandListener {
 						if (thumbnailSize > 0) {
 							if (isImage(filename)) {
 								byte[] data = buffer.toByteArray();
-								if (thumbnailData != null) {
-									byte[] d = new byte[thumbnailData.length
-											+ data.length];
-									System.arraycopy(thumbnailData, 0, d, 0,
-											thumbnailData.length);
-									System.arraycopy(data, 0, d,
-											thumbnailData.length, data.length);
+								if(thumbnailData != null){
+									byte[] d = new byte[thumbnailData.length+data.length];
+									System.arraycopy(thumbnailData, 0,  d,  0,  thumbnailData.length);
+									System.arraycopy(data, 0, d, thumbnailData.length, data.length);
 									data = d;
 								}
 								chunk = createThumbnail(data, thumbnailSize);
@@ -381,12 +378,12 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
-			if (thumbnailSize > 0 && isImage(filename) && bodies.length > 1) {
+			if(thumbnailSize > 0 && isImage(filename) && bodies.length > 1){
 				thumbnailData = concatData(att, part, bodies);
 			}
 		}
-
-		private byte[] concatData(Attachment att, int part, ArticleBody[] bodies) {
+		
+		private byte[] concatData(Attachment att, int part, ArticleBody[] bodies){
 			byte[] data;
 			if (bodies.length == 1 || part == 0) {
 				data = att.data;
@@ -418,20 +415,13 @@ public class NewsService implements ProtocolCommandListener {
 			return data;
 		}
 	}
+	
+	private static class ProgressReader extends BufferedReader {
 
-	private static interface LineReader {
-		public String readLine() throws IOException;
-
-		public void close() throws IOException;
-	}
-
-	private static class ProgressReader implements LineReader {
-
-		private LineReader reader;
 		private Progress progress;
 
-		public ProgressReader(LineReader reader, Progress progress) {
-			this.reader = reader;
+		public ProgressReader(BufferedReader reader, Progress progress) {
+			super(reader);
 			this.progress = progress;
 		}
 
@@ -440,93 +430,11 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public String readLine() throws IOException {
-			String line = reader.readLine();
+			String line = super.readLine();
 			if (line != null) {
 				progress.bytesReadFromServer += line.length() + 2;
 			}
 			return line;
-		}
-
-		public void close() throws IOException {
-			reader.close();
-		}
-	}
-
-	private static class CacheReader implements LineReader {
-
-		private BufferedReader reader;
-		private ArrayList<String> lines;
-		private String key;
-		private int pos;
-		private int size;
-
-		private static class CacheEntry {
-			ArrayList<String> lines;
-			int size;
-		}
-
-		private static HashMap<String, CacheEntry> cache = new HashMap<String, CacheEntry>();
-		private static int cacheSize = 0;
-		private static ArrayList<String> cacheFifo = new ArrayList<String>();
-		private static final int MAX_SIZE = 10000000; // 10 Mb
-
-		public CacheReader(BufferedReader reader, String key) {
-			this.reader = reader;
-			this.key = key;
-			lines = new ArrayList<String>();
-			size = 0;
-		}
-
-		private CacheReader(ArrayList<String> lines) {
-			this.lines = lines;
-		}
-
-		public static CacheReader get(String key) {
-			CacheEntry entry = cache.get(key);
-			if (entry != null) {
-				return new CacheReader(entry.lines);
-			} else {
-				return null;
-			}
-		}
-
-		private void put(String key) {
-			cacheSize += size;
-			while (cacheSize > MAX_SIZE) {
-				String k = cacheFifo.remove(0);
-				CacheEntry e = cache.get(k);
-				cacheSize -= e.size;
-				cache.remove(k);
-			}
-			CacheEntry entry = new CacheEntry();
-			entry.lines = lines;
-			entry.size = size;
-			cache.put(key, entry);
-			cacheFifo.add(key);
-		}
-
-		public String readLine() throws IOException {
-			if (reader != null) {
-				String line = reader.readLine();
-				if (line != null) {
-					lines.add(line);
-					size += line.length();
-				}
-				return line;
-			} else {
-				if (pos < lines.size()) {
-					return lines.get(pos++);
-				} else {
-					return null;
-				}
-			}
-		}
-
-		public void close() throws IOException {
-			if (reader != null) {
-				reader.close();
-				put(key);
-			}
 		}
 	}
 
@@ -559,17 +467,11 @@ public class NewsService implements ProtocolCommandListener {
 			if (aid.charAt(aid.length() - 1) != '>')
 				aid = aid + ">";
 
-			LineReader reader = CacheReader.get(aid);
+			BufferedReader reader = (BufferedReader) client
+					.retrieveArticle(aid);
 
-			if (reader == null) {
-				BufferedReader breader = (BufferedReader) client
-						.retrieveArticle(aid);
-
-				if (breader == null)
-					throw new IOException(client.getReplyString());
-
-				reader = new CacheReader(breader, aid);
-			}
+			if (reader == null)
+				throw new IOException(client.getReplyString());
 
 			if (progress != null) {
 				reader = new ProgressReader(reader, progress);
@@ -580,8 +482,6 @@ public class NewsService implements ProtocolCommandListener {
 			ArticleBody part = new ArticleBody();
 
 			readBody(reader, part, i, bodies, fileInfo);
-			
-			reader.close();
 
 			bodies[i] = part;
 		}
@@ -800,7 +700,7 @@ public class NewsService implements ProtocolCommandListener {
 			throw new NewsException(event.getMessage());
 	}
 
-	private FileInfo readHeaders(LineReader reader, FileInfo fileInfo)
+	private FileInfo readHeaders(BufferedReader reader, FileInfo fileInfo)
 			throws IOException {
 		String wrappedLine = "";
 		String line;
@@ -850,7 +750,7 @@ public class NewsService implements ProtocolCommandListener {
 		return s;
 	}
 
-	private void readBody(LineReader reader, ArticleBody body, int part,
+	private void readBody(BufferedReader reader, ArticleBody body, int part,
 			ArticleBody[] bodies, FileInfo fileInfo) throws IOException {
 
 		StringBuffer text = new StringBuffer();
@@ -903,8 +803,8 @@ public class NewsService implements ProtocolCommandListener {
 		body.size += text.length();
 	}
 
-	private void decode(LineReader reader, ArticleBody body, StringBuffer text,
-			int part, ArticleBody[] bodies, FileInfo fileInfo)
+	private void decode(BufferedReader reader, ArticleBody body,
+			StringBuffer text, int part, ArticleBody[] bodies, FileInfo fileInfo)
 			throws IOException {
 
 		ByteArrayOutputStream bytes;
@@ -949,7 +849,7 @@ public class NewsService implements ProtocolCommandListener {
 		}
 	}
 
-	private void ydecode(LineReader reader, FileInfo fileInfo,
+	private void ydecode(BufferedReader reader, FileInfo fileInfo,
 			ByteArrayOutputStream bytes) throws IOException {
 
 		String line;
@@ -993,7 +893,7 @@ public class NewsService implements ProtocolCommandListener {
 		fileInfo.encoding = CODE_NONE;
 	}
 
-	private void uudecode(LineReader reader, FileInfo fileInfo,
+	private void uudecode(BufferedReader reader, FileInfo fileInfo,
 			ByteArrayOutputStream bytes) throws IOException {
 
 		String line;
@@ -1035,7 +935,7 @@ public class NewsService implements ProtocolCommandListener {
 		}
 	}
 
-	private void base64decode(LineReader reader, FileInfo fileInfo,
+	private void base64decode(BufferedReader reader, FileInfo fileInfo,
 			ByteArrayOutputStream bytes) throws IOException {
 
 		String line;
