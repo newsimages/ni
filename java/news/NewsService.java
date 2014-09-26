@@ -216,33 +216,17 @@ public class NewsService implements ProtocolCommandListener {
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
 
-		private static class QueuedChunk {
-			byte[] bytes;
-			int bytesRead;
-			int part;
-
-			QueuedChunk(byte[] bytes, int bytesRead, int part) {
-				this.bytes = bytes;
-				this.bytesRead = bytesRead;
-				this.part = part;
-			}
-		}
-
-		private ArrayList<QueuedChunk> queue = new ArrayList<QueuedChunk>();
 		boolean cancelled;
-		private Progress progress;
 		boolean noChunks;
-
-		ProgressByteArrayOutputStream(Progress progress) {
-			this.progress = progress;
-		}
+		private long lastTime = System.currentTimeMillis();
+		private int maxChunkSize = 10000;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
 				if (!noChunks) {
 					chunk.write(c);
-					queue();
+					waitForClient();
 				}
 			}
 		}
@@ -252,45 +236,40 @@ public class NewsService implements ProtocolCommandListener {
 				super.write(bytes);
 				if (!noChunks) {
 					chunk.write(bytes);
-					queue();
+					waitForClient();
 				}
 			}
 		}
 
-		private void queue() {
-			if (false && chunk.size() >= progress.maxChunkSize) {
-				queue.add(new QueuedChunk(chunk.toByteArray(),
-						progress.bytesReadFromServer, progress.currentPart));
-				chunk.reset();
+		private synchronized void waitForClient() {
+			while (chunk.size() > maxChunkSize) {
+				try {
+					wait();
+				} catch (InterruptedException e) {
+				}
 			}
 		}
 
 		public synchronized byte[] getChunkBytes() {
-			byte[] bytes;
-			if (queue.size() > 0) {
-				QueuedChunk qc = queue.get(0);
-				bytes = qc.bytes;
-				progress.bytesRead = qc.bytesRead;
-				progress.part = qc.part;
-				queue.remove(0);
-			} else {
-				bytes = chunk.toByteArray();
-				chunk.reset();
-				progress.bytesRead = progress.bytesReadFromServer;
-				progress.part = progress.currentPart;
-			}
-			return bytes;
-		}
 
-		synchronized boolean isEmpty() {
-			return queue.size() == 0 && chunk.size() == 0;
+			long t = System.currentTimeMillis();
+			if (t - lastTime < 500) {
+				maxChunkSize = Math.min(1000000, maxChunkSize * 2);
+			}
+			if (chunk.size() > 0) {
+				lastTime = t;
+			}
+
+			byte[] bytes = chunk.toByteArray();
+			chunk.reset();
+			notify();
+			return bytes;
 		}
 
 		void cancel() {
 			cancelled = true;
 			reset();
 			chunk.reset();
-			queue.clear();
 		}
 	}
 
@@ -318,11 +297,6 @@ public class NewsService implements ProtocolCommandListener {
 		public ArrayList<Integer> attSizes;
 
 		boolean cancelled;
-		boolean done;
-		int bytesReadFromServer;
-		int currentPart;
-		long startTime = System.currentTimeMillis();
-		int maxChunkSize = 50000;
 		byte[] thumbnailData;
 		int thumbnailSize;
 
@@ -330,7 +304,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		public ProgressByteArrayOutputStream getBuffer() {
 			if (buffer == null)
-				buffer = new ProgressByteArrayOutputStream(this);
+				buffer = new ProgressByteArrayOutputStream();
 			else
 				buffer.reset();
 			if (thumbnailSize > 0) {
@@ -341,11 +315,6 @@ public class NewsService implements ProtocolCommandListener {
 
 		public void getProgress() throws InterruptedException {
 			// estimate connection speed and adjust max chunk size if necessary:
-			if (bytesRead > 0) {
-				maxChunkSize = Math
-						.max(10000, (int) (bytesRead * 1000 / (System
-								.currentTimeMillis() - startTime)));
-			}
 			if (buffer != null) {
 				if (cancelled) {
 					buffer.cancel();
@@ -356,34 +325,33 @@ public class NewsService implements ProtocolCommandListener {
 						if (thumbnailSize > 0) {
 							if (isImage(filename)) {
 								byte[] data = buffer.toByteArray();
-								if(thumbnailData != null){
-									byte[] d = new byte[thumbnailData.length+data.length];
-									System.arraycopy(thumbnailData, 0,  d,  0,  thumbnailData.length);
-									System.arraycopy(data, 0, d, thumbnailData.length, data.length);
+								if (thumbnailData != null) {
+									byte[] d = new byte[thumbnailData.length
+											+ data.length];
+									System.arraycopy(thumbnailData, 0, d, 0,
+											thumbnailData.length);
+									System.arraycopy(data, 0, d,
+											thumbnailData.length, data.length);
 									data = d;
 								}
 								chunk = createThumbnail(data, thumbnailSize);
-								complete = done;
 							}
 							return;
 						}
 						byte[] bytes = buffer.getChunkBytes();
 						chunk = bytes;
-						if (done && buffer.isEmpty()) {
-							complete = true;
-						}
 					}
 				}
 			}
 		}
 
 		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
-			if(thumbnailSize > 0 && isImage(filename) && bodies.length > 1){
+			if (thumbnailSize > 0 && isImage(filename) && bodies.length > 1) {
 				thumbnailData = concatData(att, part, bodies);
 			}
 		}
-		
-		private byte[] concatData(Attachment att, int part, ArticleBody[] bodies){
+
+		private byte[] concatData(Attachment att, int part, ArticleBody[] bodies) {
 			byte[] data;
 			if (bodies.length == 1 || part == 0) {
 				data = att.data;
@@ -415,7 +383,7 @@ public class NewsService implements ProtocolCommandListener {
 			return data;
 		}
 	}
-	
+
 	private static class ProgressReader extends BufferedReader {
 
 		private Progress progress;
@@ -432,7 +400,7 @@ public class NewsService implements ProtocolCommandListener {
 		public String readLine() throws IOException {
 			String line = super.readLine();
 			if (line != null) {
-				progress.bytesReadFromServer += line.length() + 2;
+				progress.bytesRead += line.length() + 2;
 			}
 			return line;
 		}
@@ -457,7 +425,7 @@ public class NewsService implements ProtocolCommandListener {
 		for (int i = 0; i < aids.length; i++) {
 
 			if (progress != null) {
-				progress.currentPart = i + 1;
+				progress.part = i + 1;
 			}
 
 			String aid = aids[i];
@@ -564,7 +532,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				progress.done = true;
+				progress.complete = true;
 			}
 		}.start();
 
@@ -1269,7 +1237,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				progress.done = true;
+				progress.complete = true;
 			}
 		}.start();
 
