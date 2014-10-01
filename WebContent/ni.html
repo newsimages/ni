@@ -60,7 +60,8 @@
 					async : true,
 					progress : true,
 					partial : true,
-					state : false
+					state : false,
+					thumbnailSize : 100
 				};
 
 				//---------- Initialization ----------
@@ -1319,40 +1320,51 @@
 
 				//---------- Image index ----------
 
-				var thumbnailSize, preferredThumbnailSize = 150, thumbnailMargin = 6, thumbnailNameHeight = 10;
-				var indexParent, thumbnailClicked;
+				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 10;
+				var indexParent, thumbnailClicked, down = true, pauseClicked;
 
 				function initThumbnails() {
 					indexParent = dom.byId("indexParent");
 
-					computeThumbnailSize();
+					computeThumbnailColWidth();
 				}
 
-				function computeThumbnailSize() {
+				function computeThumbnailColWidth() {
 					var w = mobile.getScreenSize().w;
 					var cols = Math.floor(w
-							/ (preferredThumbnailSize + 2 * thumbnailMargin));
+							/ (settings.thumbnailSize + 2 * thumbnailMargin));
 					cols = Math.max(cols, 2);
-					thumbnailSize = Math
-							.floor((w / cols) - 2 * thumbnailMargin);
+					thumbnailColWidth = Math.floor((w / cols) - 2
+							* thumbnailMargin);
 				}
 
 				var currentThumbnailItem, currentThumbnailParent;
 
 				showThumbnails = function() {
 					articleView.performTransition("index", 1, "slide");
-					getThumbnail(currentItem);
+					if (!pauseClicked) {
+						getThumbnail(currentItem);
+					}
 				};
 
 				pauseResumeThumbnails = function() {
 					if (pauseButton.get("label") == "Pause") {
+						pauseClicked = true;
 						stopThumbnails();
 					} else {
+						pauseClicked = false;
 						getThumbnail(currentThumbnailItem || currentItem);
 					}
 				};
 
+				toggleThumbnailsDir = function() {
+					down = !down;
+					console.log("down set to " + down);
+					upDownButton.set("label", down ? "▲" : "▼");
+				};
+
 				clearThumbnails = function() {
+					stopThumbnails();
 					var thp;
 					while ((thp = indexParent.firstChild) && thp.item) {
 						thp.item.thumbnailBody = null;
@@ -1373,22 +1385,35 @@
 					cancelRequest();
 					pauseButton.set("label", "Resume");
 					progress();
-					if (currentThumbnailParent
-							&& currentThumbnailParent.parentNode == indexParent)
-						indexParent.removeChild(currentThumbnailParent);
+					removeThumbnailParent();
 				}
 
-				function getThumbnail(item) {
+				function removeThumbnailParent() {
+					if (currentThumbnailParent) {
+						if (currentThumbnailParent.parentNode == indexParent) {
+							indexParent.removeChild(currentThumbnailParent);
+						}
+						currentThumbnailParent = null;
+					}
+				}
 
-					while (item.thumbnailBody && item.nextItem) {
-						item = item.nextItem;
+				function getThumbnail(item, next) {
+
+					while (item && (next || item.thumbnailBody)) {
+						next = false;
+						item = (down ? item.nextItem : item.prevItem);
+					}
+
+					if (!item) {
+						pauseButton.set("label", "Resume");
+						return;
 					}
 
 					pauseButton.set("label", "Pause");
 
 					var args = {
 						articleId : item.articleId,
-						size : preferredThumbnailSize
+						size : settings.thumbnailSize
 					};
 
 					var thp = createThumbnailParent();
@@ -1407,7 +1432,7 @@
 										var p = result.progress;
 										p.complete = p.complete == "true";
 
-										if(p.filename){
+										if (p.filename) {
 											setThumbnailName(thp, p.filename);
 										}
 										if (p.chunk) {
@@ -1438,6 +1463,7 @@
 											}
 										}
 									}, function(err) {
+										removeThumbnailParent();
 										if (err.dojoType != "cancel") {
 											progress();
 											showError(err);
@@ -1460,7 +1486,7 @@
 						if (!thp) {
 							thp = createThumbnailParent();
 						}
-						
+
 						setThumbnailName(thp, att.filename);
 
 						if (!th) {
@@ -1479,32 +1505,33 @@
 
 					domClass.remove(clearButton.domNode, "disabled");
 
-					if (item.nextItem) {
-						getThumbnail(item.nextItem);
-					}
+					getThumbnail(item, true);
 				}
 
 				function createThumbnailParent() {
 					var thp = document.createElement("div");
 					domClass.add(thp, "indexThumbnailParent");
 					var m = thumbnailMargin + "px";
-					thp.style.margin = m + " " + m + " " + (2*thumbnailMargin+thumbnailNameHeight*2) + "px" + " " +  m;
-					var sz = thumbnailSize + "px";
-					var psz = preferredThumbnailSize + "px";
+					thp.style.margin = m + " " + m + " "
+							+ (2 * thumbnailMargin + thumbnailNameHeight * 2)
+							+ "px" + " " + m;
+					var sz = thumbnailColWidth + "px";
+					var thsz = settings.thumbnailSize + "px";
 					thp.style.width = sz;
-					thp.style.height = psz;
-					thp.style.lineHeight = psz;
+					thp.style.height = thsz;
+					thp.style.lineHeight = thsz;
 					var t = document.createElement("div");
 					domClass.add(t, "indexThumbnailName");
 					t.style.height = thumbnailNameHeight + "px";
 					t.style.lineHeight = thumbnailNameHeight + "px";
-					t.style.top = (preferredThumbnailSize + thumbnailMargin) + "px";
+					t.style.top = (settings.thumbnailSize + thumbnailMargin)
+							+ "px";
 					thp.appendChild(t);
 					thp.nameDiv = t;
 					indexParent.appendChild(thp);
 					return thp;
 				}
-				
+
 				function setThumbnailName(thp, name) {
 					thp.nameDiv.innerText = name;
 				}
@@ -1512,7 +1539,7 @@
 				function createThumbnail(data, item, thp) {
 					var th = document.createElement("img");
 					domClass.add(th, "indexThumbnail");
-					var sz = thumbnailSize + "px";
+					var sz = thumbnailColWidth + "px";
 					th.style.maxWidth = sz;
 					th.style.maxHeight = sz;
 					th.setAttribute("src", "data:image/jpeg;base64," + data);
@@ -1527,24 +1554,28 @@
 				}
 
 				function resizeThumbnails() {
-					computeThumbnailSize();
+					computeThumbnailColWidth();
 
-					var sz = thumbnailSize + "px";
-					var psz = preferredThumbnailSize + "px";
-					array.forEach(indexParent.childNodes, function(thp) {
-						thp.style.width = sz;
-						thp.style.height = psz;
-						thp.style.lineHeight = psz;
-						var th = thp.th;
-						if(th){
-							th.style.maxWidth = sz;
-							th.style.maxHeight = sz;
-						}
-						var t = thp.nameDiv;
-						if(t){
-							t.style.top = (preferredThumbnailSize + thumbnailMargin) + "px";
-						}
-					});
+					var sz = thumbnailColWidth + "px";
+					var thsz = settings.thumbnailSize + "px";
+					array
+							.forEach(
+									indexParent.childNodes,
+									function(thp) {
+										thp.style.width = sz;
+										thp.style.height = thsz;
+										thp.style.lineHeight = thsz;
+										var th = thp.th;
+										if (th) {
+											th.style.maxWidth = sz;
+											th.style.maxHeight = sz;
+										}
+										var t = thp.nameDiv;
+										if (t) {
+											t.style.top = (settings.thumbnailSize + thumbnailMargin)
+													+ "px";
+										}
+									});
 				}
 
 				//---------- Utility methods ----------
@@ -1861,6 +1892,8 @@
 
 					stateSwitch.set("value", settings.state ? "on" : "off");
 
+					thumbnailSizeBox.set("value", settings.thumbnailSize);
+
 					settingsInited = true;
 				}
 
@@ -1908,6 +1941,18 @@
 					settings.state = stateSwitch.get("value") == "on";
 
 					localStorage.settings = json.stringify(settings);
+				};
+
+				updateThumbnailsSettings = function() {
+					if (!settingsInited)
+						return;
+
+					settings.thumbnailSize = parseInt(thumbnailSizeBox
+							.get("value"));
+
+					localStorage.settings = json.stringify(settings);
+
+					resizeThumbnails();
 				};
 
 				function disable(w, disable) {
@@ -2782,7 +2827,14 @@ body,html {
 .pauseButton {
 	position: absolute;
 	top: 3px;
-	right: 44px;
+	right: 60px;
+	padding: 0;
+}
+
+.upDownButton {
+	position: absolute;
+	top: 3px;
+	right: 40px;
 	padding: 0;
 }
 
@@ -3093,6 +3145,9 @@ body,html {
 				data-dojo-id="pauseButton"
 				data-dojo-props="onClick: pauseResumeThumbnails, label:'Pause'">
 			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton" class="upDownButton"
+				id="upDownButton" data-dojo-id="upDownButton"
+				data-dojo-props="onClick: toggleThumbnailsDir, label:'▲'"></div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton"
 				class="clearButton disabled" id="clearButton"
 				data-dojo-id="clearButton"
@@ -3117,8 +3172,8 @@ body,html {
 				data-dojo-props="label:'Search results'"><input
 				data-dojo-id="resultsCountBox" data-dojo-type="dojox/mobile/TextBox"
 				class="inlineTextBox"
-				data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings"
-				onfocus="searchFocus()" onblur="searchBlur()"></input></li>
+				data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings">
+				</input></li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
 				state<span data-dojo-id="stateSwitch"
 				data-dojo-type="dojox/mobile/Switch"
@@ -3141,8 +3196,14 @@ body,html {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Thumbnail size'"><input
+				data-dojo-id="thumbnailSizeBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
+				</input></li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.1.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.2.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
