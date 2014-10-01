@@ -1399,8 +1399,10 @@
 
 				function getThumbnail(item, next) {
 
+					var prev;
 					while (item && (next || item.thumbnailBody)) {
 						next = false;
+						prev = item;
 						item = (down ? item.nextItem : item.prevItem);
 					}
 
@@ -1411,72 +1413,85 @@
 
 					pauseButton.set("label", "Pause");
 
-					var args = {
-						articleId : item.articleId,
-						size : settings.thumbnailSize
-					};
-
 					var thp = createThumbnailParent();
 					var th;
 
 					currentThumbnailParent = thp;
-					currentThumbnailItem = item;
 
-					if (settings.async) {
-						var f = function(id) {
-							currentAsyncId = null;
-							doRequest("p", {
-								id : id
-							}, null,
-									function(result) {
-										var p = result.progress;
-										p.complete = p.complete == "true";
+					var loadThumbnail = function(item) {
 
-										if (p.filename) {
-											setThumbnailName(thp, p.filename);
-										}
-										if (p.chunk) {
-											if (!th) {
-												th = createThumbnail(p.chunk,
-														item, thp);
-											} else {
-												th.setAttribute("src",
-														"data:image/jpeg;base64,"
-																+ p.chunk);
-											}
-										}
+						currentThumbnailItem = item;
+						
+						var args = {
+								articleId : item.articleId,
+								size : settings.thumbnailSize
+							};
 
-										if (!p.complete) {
-											f(id);
+						if (settings.async) {
+							var f = function(id) {
+								currentAsyncId = null;
+								doRequest("p", {
+									id : id
+								}, null, function(result) {
+									var p = result.progress;
+									p.complete = p.complete == "true";
+
+									if (p.filename) {
+										setThumbnailName(thp, p.filename);
+									}
+									if (p.chunk) {
+										if (!th) {
+											th = createThumbnail(p.chunk, item,
+													thp);
 										} else {
-											currentAsyncId = null;
-											currentThumbnailItem = null;
-											currentThumbnailParent = null;
-											progress();
-											if (p.exception) {
-												showError(p.exception);
-											} else {
-												if (p.body) {
-													addThumbnails(p.body, item,
-															thp, th);
-												}
+											th.setAttribute("src",
+													"data:image/jpeg;base64,"
+															+ p.chunk);
+										}
+									}
+
+									if (!p.complete) {
+										f(id);
+									} else {
+										currentAsyncId = null;
+										currentThumbnailItem = null;
+										currentThumbnailParent = null;
+										progress();
+										if (p.exception) {
+											showError(p.exception);
+										} else {
+											if (p.body) {
+												addThumbnails(p.body, item,
+														thp, th);
 											}
 										}
-									}, function(err) {
-										removeThumbnailParent();
-										if (err.dojoType != "cancel") {
-											progress();
-											showError(err);
-										}
-									});
-							currentAsyncId = id;
-						};
+									}
+								}, function(err) {
+									removeThumbnailParent();
+									if (err.dojoType != "cancel") {
+										progress();
+										showError(err);
+									}
+								});
+								currentAsyncId = id;
+							};
+							progress(thp);
+							doRequest("tha", args, null, f);
+						} else {
+							doRequest("th", arg, thp, function(result) {
+								addThumbnails(result.body, item, thp);
+							});
+						}
+					}
+					
+					if(!item.isMoreItem){
+						loadThumbnail(item);
+					}else if(prev){
 						progress(thp);
-						doRequest("tha", args, null, f);
-					} else {
-						doRequest("th", arg, thp, function(result) {
-							addThumbnails(result.body, item, thp);
-						});
+						item.itemsLoaded = function(){
+							loadThumbnail(prev.nextItem);
+						}
+						item.onClick();
 					}
 				}
 
@@ -3203,7 +3218,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 				</input></li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.2.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.2.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
