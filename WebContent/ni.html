@@ -61,7 +61,7 @@
 					progress : true,
 					partial : true,
 					state : false,
-					thumbnailSize : 100
+					thumbnailSize : 150
 				};
 
 				//---------- Initialization ----------
@@ -1345,6 +1345,7 @@
 					if (!pauseClicked) {
 						getThumbnail(currentItem);
 					}
+					resize(); // ???
 				};
 
 				pauseResumeThumbnails = function() {
@@ -1364,7 +1365,6 @@
 				};
 
 				clearThumbnails = function() {
-					stopThumbnails();
 					var thp;
 					while ((thp = indexParent.firstChild) && thp.item) {
 						thp.item.thumbnailBody = null;
@@ -1421,11 +1421,11 @@
 					var loadThumbnail = function(item) {
 
 						currentThumbnailItem = item;
-						
+
 						var args = {
-								articleId : item.articleId,
-								size : settings.thumbnailSize
-							};
+							articleId : item.articleId,
+							size : settings.thumbnailSize
+						};
 
 						if (settings.async) {
 							var f = function(id) {
@@ -1483,12 +1483,12 @@
 							});
 						}
 					}
-					
-					if(!item.isMoreItem){
+
+					if (!item.isMoreItem) {
 						loadThumbnail(item);
-					}else if(prev){
+					} else if (prev) {
 						progress(thp);
-						item.itemsLoaded = function(){
+						item.itemsLoaded = function() {
 							loadThumbnail(prev.nextItem);
 						}
 						item.onClick();
@@ -1750,6 +1750,7 @@
 					if (v) {
 						v.autoLoadItem = null;
 					}
+					clearThumbnails();
 				}
 
 				function suffix(name) {
@@ -3188,7 +3189,7 @@ body,html {
 				data-dojo-id="resultsCountBox" data-dojo-type="dojox/mobile/TextBox"
 				class="inlineTextBox"
 				data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings">
-				</input></li>
+			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
 				state<span data-dojo-id="stateSwitch"
 				data-dojo-type="dojox/mobile/Switch"
@@ -3216,9 +3217,9 @@ body,html {
 				data-dojo-id="thumbnailSizeBox"
 				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
-				</input></li>
+			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.2.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.2.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
