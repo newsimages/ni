@@ -297,6 +297,7 @@ public class NewsService implements ProtocolCommandListener {
 		public ArrayList<Integer> attSizes;
 
 		boolean cancelled;
+		boolean updated;
 		byte[] thumbnailData;
 		int thumbnailSize;
 
@@ -400,7 +401,11 @@ public class NewsService implements ProtocolCommandListener {
 		public String readLine() throws IOException {
 			String line = super.readLine();
 			if (line != null) {
-				progress.bytesRead += line.length() + 2;
+				synchronized (progress) {
+					progress.bytesRead += line.length() + 2;
+					progress.updated = true;
+					progress.notify();
+				}
 			}
 			return line;
 		}
@@ -532,7 +537,11 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				progress.complete = true;
+				synchronized (progress) {
+					progress.complete = true;
+					progress.updated = true;
+					progress.notify();
+				}
 			}
 		}.start();
 
@@ -546,12 +555,19 @@ public class NewsService implements ProtocolCommandListener {
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
 		if (progress != null) {
-			progress.getProgress();
-			if (progress.complete) {
-				progressById.remove(id);
+			synchronized (progress) {
+				while (!progress.updated) {
+					progress.wait();
+				}
+				progress.getProgress();
+				if (progress.complete) {
+					progressById.remove(id);
+				}
+				progress.updated = false;
+				return progress;
 			}
 		}
-		return progress;
+		return null;
 	}
 
 	@POST
@@ -1237,7 +1253,11 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				progress.complete = true;
+				synchronized (progress) {
+					progress.complete = true;
+					progress.updated = true;
+					progress.notify();
+				}
 			}
 		}.start();
 

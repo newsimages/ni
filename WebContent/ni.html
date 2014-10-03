@@ -1458,6 +1458,7 @@
 										currentThumbnailParent = null;
 										progress();
 										if (p.exception) {
+											thp.innerText = p.exception;
 											showError(p.exception);
 										} else {
 											if (p.body) {
@@ -2876,6 +2877,9 @@ body,html {
 	vertical-align: middle;
 	position: relative;
 	cursor: pointer;
+	font-size: x-small;
+	color: #c0c0c0;
+	text-align: center;
 }
 
 .indexThumbnailName {
@@ -3219,7 +3223,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.2.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.2.3 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
