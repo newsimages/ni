@@ -9,6 +9,9 @@ import javax.xml.bind.annotation.XmlTransient;
 
 @XmlRootElement
 public class ArticleBody {
+	@XmlAttribute public String from;
+	@XmlAttribute public String date;
+	@XmlAttribute public String newsgroups;
 	@XmlAttribute public String text;
 	@XmlElement public ArrayList<Attachment> attachments = new ArrayList<Attachment>();
 	@XmlTransient public int size;
@@ -17,6 +20,9 @@ public class ArticleBody {
 	public ArticleBody cloneWithoutData(){
 		ArticleBody b = new ArticleBody();
 		b.text = text;
+		b.from = from;
+		b.date = date;
+		b.newsgroups = newsgroups;
 		b.size = size;
 		for(int i = 0; i < attachments.size(); i++){
 			Attachment att = attachments.get(i);

@@ -792,7 +792,7 @@
 									if (showVideos) {
 										showVideo(att);
 									} else {
-										showText(body.text, att, "video/"
+										showText(body, null, att, "video/"
 												+ suff);
 									}
 									break;
@@ -806,23 +806,23 @@
 									break;
 								case "txt":
 									setArticleTitle(att.filename);
-									showText(att.data);
+									showText(body, att.data);
 									break;
 								case "exe":
-									showText(body.text, att,
+									showText(body, null, att,
 											"application/x-msdownload");
 									break;
 								case "pdf":
-									showText(body.text, att, "application/pdf");
+									showText(body, null, att, "application/pdf");
 									break;
 								default:
-									showText(body.text, att);
+									showText(body, null, att);
 								}
 							} else {
-								showText(body.text);
+								showText(body);
 							}
 						} else {
-							showText(body.text);
+							showText(body);
 						}
 					}
 				}
@@ -947,8 +947,8 @@
 						return;
 					dom.byId("imageBackground").style.visibility = "visible";
 					textView.domNode.style.visibility = "hidden";
+					domClass.remove(textView.domNode, "showArticleText");
 					videoView.domNode.style.visibility = "hidden";
-					frameView.domNode.style.visibility = "hidden";
 					domClass.add(dom.byId("articleMessage"), "hidden");
 					if (att) {
 						setImageTitle(att.filename);
@@ -962,7 +962,7 @@
 					videoView.show();
 					videoView.domNode.style.visibility = "visible";
 					textView.domNode.style.visibility = "hidden";
-					frameView.domNode.style.visibility = "hidden";
+					domClass.remove(textView.domNode, "showArticleText");
 					dom.byId("imageBackground").style.visibility = "hidden";
 					if (att) {
 						setVideoTitle(att.filename);
@@ -970,13 +970,16 @@
 					}
 				}
 
-				function showText(text, att, type) {
+				function showText(body, text, att, type) {
+					if (!body) {
+						return;
+					}
 					if (replaying && replaying != "selectArticle")
 						return;
 					textView.domNode.style.visibility = "visible";
 					videoView.domNode.style.visibility = "hidden";
-					frameView.domNode.style.visibility = "hidden";
 					dom.byId("imageBackground").style.visibility = "hidden";
+					text = text || body.text;
 					if (!text.match(/<\/\w*>/)) {
 						text = "<pre>" + text + "</pre>";
 					}
@@ -993,9 +996,25 @@
 						x : 0,
 						y : 0
 					});
+					dom.byId("from").innerHTML = body.from;
+					dom.byId("date").innerHTML = body.date;
+					dom.byId("newsgroups").innerHTML = body.newsgroups;
 					dom.byId("textRect").innerHTML = text;
 					progress();
 				}
+
+				showArticleText = function() {
+					if (currentItem && currentItem.body) {
+						domClass.add(textView.domNode, "showArticleText");
+						showText(currentItem.body);
+					}
+				};
+
+				showArticleBody = function() {
+					if (currentItem && currentItem.body) {
+						showBody(currentItem, currentItem.body);
+					}
+				};
 
 				function setArticleTitle(s) {
 					setImageTitle(s);
@@ -1035,7 +1054,6 @@
 					articleImage.style.visibility = "hidden";
 					textView.domNode.style.visibility = "hidden";
 					videoView.domNode.style.visibility = "hidden";
-					frameView.domNode.style.visibility = "hidden";
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
@@ -2698,11 +2716,55 @@ body,html {
 
 .indexButton {
 	position: absolute;
-	top: 3px;
-	right: 0px;
+	top: 5px;
+	right: 3px;
+	width: 22px;
+	height: 22px;
 	padding: 0;
-	font-size: 13px;
+	pointer-events: all !important;
+}
+
+.indexButton .indexButtonDiv {
+	position: absolute;
+	width: 8px;
+	height: 8px;
+	background-color: rgba(0, 122, 255, 0.5);
+}
+
+.indexButton .indexButtonDiv1 {
+	top: 0;
+	left: 0;
+}
+
+.indexButton .indexButtonDiv2 {
+	top: 0;
+	left: 12px;
+}
+
+.indexButton .indexButtonDiv3 {
+	top: 12px;
+	left: 0;
+}
+
+.indexButton .indexButtonDiv4 {
+	top: 12px;
+	left: 12px;
+}
+
+.textButton {
+	position: absolute;
+	top: 3px;
+	right: 40px;
+	font-size: 12px;
+	width: 22px;
+	height: 22px;
+	line-height: 22px;
+	font-family: times;
 	font-weight: bold;
+	border-color: rgba(0, 122, 255, 0.5);
+	border-width: 1px;
+	border-style: solid;
+	padding: 0;
 	pointer-events: all !important;
 }
 
@@ -2943,6 +3005,21 @@ body,html {
 	background: white;
 }
 
+.smallHeading .mblToolBarButton {
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.bodyButton {
+	visibility: hidden;
+	position: absolute;
+	right: 0;
+}
+
+.showArticleText .bodyButton {
+	visibility: visible;
+}
+
 .newsgroupHeading .mblHeadingDivTitle,.smallHeading .mblHeadingDivTitle
 	{
 	font-family: sans-serif;
@@ -2965,26 +3042,25 @@ body,html {
 	display: none !important;
 }
 
+.headerTable {
+	padding-top: 6px;
+	padding-left: 9px;
+}
+
+.headerRow {
+	background: white;
+	font-size: small;
+}
+
+.headerLabel {
+	font-weight: bold;
+}
+
 .textRect {
 	padding-left: 12px;
 	padding-right: 12px;
 	background: white;
 	font-size: small;
-}
-
-.frameView {
-	position: absolute;
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-.frame {
-	position: absolute;
-	top: 0;
-	border: none;
-	width: 100%;
-	height: 100%;
 }
 
 .videoView {
@@ -3115,7 +3191,24 @@ body,html {
 			data-dojo-props="scrollDir:'vh',height:'inherit'">
 			<div data-dojo-type="dojox/mobile/Heading" data-dojo-id="textHeading"
 				class="smallHeading"
-				data-dojo-props="back:'Back',moveTo:'search',fixed:'top'"></div>
+				data-dojo-props="back:'Back',moveTo:'search',fixed:'top'">
+				<div data-dojo-type="dojox/mobile/ToolBarButton" class="bodyButton"
+					data-dojo-props="label: 'Attachment', onClick: showArticleBody"></div>
+			</div>
+			<table class="headerTable">
+				<tr class="headerRow">
+					<td class="headerLabel">From:</td>
+					<td id="from" class="headerValue"></td>
+				</tr>
+				<tr class="headerRow">
+					<td class="headerLabel">Date:</td>
+					<td id="date" class="headerValue"></td>
+				</tr>
+				<tr class="headerRow">
+					<td class="headerLabel">Newsgroups:</td>
+					<td id="newsgroups" class="headerValue"></td>
+				</tr>
+			</table>
 			<div id="textRect" class="textRect"></div>
 		</div>
 		<div class="videoView" data-dojo-type="dojox/mobile/View"
@@ -3124,10 +3217,6 @@ body,html {
 				data-dojo-id="videoHeading" class="smallHeading"
 				data-dojo-props="back:'Back',moveTo:'search',fixed:'top'"></div>
 			<video id="video" class="video" controls autoplay></video>
-		</div>
-		<div data-dojo-type="dojox/mobile/View" data-dojo-id="frameView"
-			class="frameView">
-			<iframe class="frame" id="frame"></iframe>
 		</div>
 		<div id="articleControls" class="articleControls hidden">
 			<div id="leftArrow" class="arrowContainer leftArrowContainer"
@@ -3145,7 +3234,14 @@ body,html {
 				data-dojo-props="moveTo:'search',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
 			</div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="indexButton"
-				data-dojo-props="label: 'Index', onClick: showThumbnails"></div>
+				data-dojo-props="onClick: showThumbnails">
+				<div class="indexButtonDiv indexButtonDiv1"></div>
+				<div class="indexButtonDiv indexButtonDiv2"></div>
+				<div class="indexButtonDiv indexButtonDiv3"></div>
+				<div class="indexButtonDiv indexButtonDiv4"></div>
+			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
+				data-dojo-props="label: 'T', onClick: showArticleText"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
@@ -3223,7 +3319,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.2.3 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.3.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

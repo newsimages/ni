@@ -450,9 +450,9 @@ public class NewsService implements ProtocolCommandListener {
 				reader = new ProgressReader(reader, progress);
 			}
 
-			readHeaders(reader, fileInfo);
-
 			ArticleBody part = new ArticleBody();
+
+			readHeaders(reader, part, fileInfo);
 
 			readBody(reader, part, i, bodies, fileInfo);
 
@@ -470,6 +470,12 @@ public class NewsService implements ProtocolCommandListener {
 			body.text = "";
 			for (int i = 0; i < aids.length; i++) {
 				ArticleBody b = bodies[i];
+				if (body.from == null)
+					body.from = b.from;
+				if (body.date == null)
+					body.date = b.date;
+				if (body.newsgroups == null)
+					body.newsgroups = b.newsgroups;
 				body.text += b.text;
 				for (int j = 0; j < b.attachments.size(); j++) {
 					Attachment atti = b.attachments.get(j);
@@ -684,8 +690,8 @@ public class NewsService implements ProtocolCommandListener {
 			throw new NewsException(event.getMessage());
 	}
 
-	private FileInfo readHeaders(BufferedReader reader, FileInfo fileInfo)
-			throws IOException {
+	private FileInfo readHeaders(BufferedReader reader, ArticleBody body,
+			FileInfo fileInfo) throws IOException {
 		String wrappedLine = "";
 		String line;
 		while ((line = reader.readLine()) != null) {
@@ -716,6 +722,12 @@ public class NewsService implements ProtocolCommandListener {
 									}
 								}
 							}
+						} else if (h.equals("from")) {
+							body.from = s[1];
+						} else if (h.equals("date")) {
+							body.date = s[1];
+						} else if (h.equals("newsgroups")) {
+							body.newsgroups = s[1];
 						}
 					}
 				}
@@ -749,7 +761,7 @@ public class NewsService implements ProtocolCommandListener {
 				if (line.equals(fileInfo.boundary)) {
 					fileInfo.encoding = CODE_NONE;
 					fileInfo.filename = null;
-					readHeaders(reader, fileInfo);
+					readHeaders(reader, body, fileInfo);
 					if (fileInfo.encoding != CODE_NONE)
 						decode(reader, body, text, part, bodies, fileInfo);
 					continue;
@@ -825,6 +837,7 @@ public class NewsService implements ProtocolCommandListener {
 			Attachment att = new Attachment(fileInfo.filename, data);
 			body.attachments.add(att);
 			body.size += data.length;
+			text.append("[attachment: " + att.filename + " (" + (part+1) + "/" + bodies.length + ")]\n"); 
 			if (reader instanceof ProgressReader) {
 				// notify Progress, e.g. to send a thumbnail
 				Progress progress = ((ProgressReader) reader).progress;
