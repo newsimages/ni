@@ -96,6 +96,8 @@
 
 					articleImage = dom.byId("articleImage");
 
+					textView.domNode.style.visibility = "";
+
 					initThumbnails();
 
 					fitVideo();
@@ -945,10 +947,9 @@
 				function showImage(att) {
 					if (replaying && replaying != "selectArticle")
 						return;
-					dom.byId("imageBackground").style.visibility = "visible";
-					textView.domNode.style.visibility = "hidden";
+					domClass.remove(articleView.domNode, "text video");
+					domClass.add(articleView.domNode, "image");
 					domClass.remove(textView.domNode, "showArticleText");
-					videoView.domNode.style.visibility = "hidden";
 					domClass.add(dom.byId("articleMessage"), "hidden");
 					if (att) {
 						setImageTitle(att.filename);
@@ -960,10 +961,8 @@
 					if (replaying && replaying != "selectArticle")
 						return;
 					videoView.show();
-					videoView.domNode.style.visibility = "visible";
-					textView.domNode.style.visibility = "hidden";
-					domClass.remove(textView.domNode, "showArticleText");
-					dom.byId("imageBackground").style.visibility = "hidden";
+					domClass.remove(articleView.domNode, "text image");
+					domClass.add(articleView.domNode, "video");
 					if (att) {
 						setVideoTitle(att.filename);
 						loadVideo(att.data, att.typedArray, att.filename);
@@ -976,9 +975,8 @@
 					}
 					if (replaying && replaying != "selectArticle")
 						return;
-					textView.domNode.style.visibility = "visible";
-					videoView.domNode.style.visibility = "hidden";
-					dom.byId("imageBackground").style.visibility = "hidden";
+					domClass.remove(articleView.domNode, "image video");
+					domClass.add(articleView.domNode, "text");
 					text = text || body.text;
 					if (!text.match(/<\/\w*>/)) {
 						text = "<pre>" + text + "</pre>";
@@ -1050,10 +1048,8 @@
 				}
 
 				function hideArticle() {
-					dom.byId("imageBackground").style.visibility = "visible";
+					domClass.remove(articleView.domNode, "image text video");
 					articleImage.style.visibility = "hidden";
-					textView.domNode.style.visibility = "hidden";
-					videoView.domNode.style.visibility = "hidden";
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
@@ -1126,7 +1122,7 @@
 						});
 					}
 
-					img.style.visibility = resize ? oldvis : "visible";
+					img.style.visibility = resize ? oldvis : "inherit";
 				}
 
 				fitVideo = function() {
@@ -2670,6 +2666,22 @@ body,html {
 	height: 100%;
 }
 
+.imageBackground,.textView,.videoView {
+	visibility: hidden;
+}
+
+.image .imageBackground {
+	visibility: visible;
+}
+
+.text .textView {
+	visibility: visible;
+}
+
+.video .videoView {
+	visibility: visible;
+}
+
 .indexView {
 	height: 100%;
 }
@@ -2690,7 +2702,7 @@ body,html {
 	position: absolute;
 	top: 0px;
 	left: 65px;
-	right: 50px;
+	right: 65px;
 	color: #d0d0d0;
 	font-size: small;
 	font-family: sans-serif;
@@ -2754,7 +2766,7 @@ body,html {
 .textButton {
 	position: absolute;
 	top: 3px;
-	right: 40px;
+	right: 35px;
 	font-size: 12px;
 	width: 22px;
 	height: 22px;
@@ -3014,6 +3026,7 @@ body,html {
 	visibility: hidden;
 	position: absolute;
 	right: 0;
+	padding-right: 0;
 }
 
 .showArticleText .bodyButton {
@@ -3036,6 +3049,10 @@ body,html {
 	text-overflow: ellipsis;
 	left: 65px;
 	font-size: small !important;
+}
+
+.showArticleText .smallHeading .mblHeadingDivTitle {
+	right: 80px;
 }
 
 .smallHeading .mblHeadingSpanTitle {
@@ -3319,7 +3336,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.3.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.3.1 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
