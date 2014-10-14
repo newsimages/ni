@@ -518,7 +518,7 @@
 
 					// try to get body from item first for multiple attachments
 					var body = item.body;
-
+					
 					if (body) {
 						cancelRequest();
 						showProgressBar(false);
@@ -526,6 +526,8 @@
 						return;
 					}
 
+					domClass.add(textButton.domNode, "disabled");
+					
 					var args = {
 						articleId : item.articleId
 					};
@@ -768,6 +770,7 @@
 				function showBody(item, body) {
 
 					domClass.add(item.domNode, "read");
+					domClass.remove(textButton.domNode, "disabled");
 
 					if (body.articles != null) {
 						// NZB index
@@ -2729,7 +2732,7 @@ body,html {
 .indexButton {
 	position: absolute;
 	top: 5px;
-	right: 3px;
+	right: 35px;
 	width: 22px;
 	height: 22px;
 	padding: 0;
@@ -2766,7 +2769,7 @@ body,html {
 .textButton {
 	position: absolute;
 	top: 3px;
-	right: 35px;
+	right: 3px;
 	font-size: 12px;
 	width: 22px;
 	height: 22px;
@@ -2778,6 +2781,10 @@ body,html {
 	border-style: solid;
 	padding: 0;
 	pointer-events: all !important;
+}
+
+.textButton.disabled {
+	opacity: 0.5;
 }
 
 .imageBackground {
@@ -3257,7 +3264,7 @@ body,html {
 				<div class="indexButtonDiv indexButtonDiv3"></div>
 				<div class="indexButtonDiv indexButtonDiv4"></div>
 			</div>
-			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
+			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton" data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
@@ -3336,7 +3343,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.3.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.3.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
