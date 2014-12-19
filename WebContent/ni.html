@@ -86,6 +86,7 @@
 					searchBox.on("keypress", enterHandler);
 					filterBox.on("keypress", enterHandler);
 					//resultsCountBox.on("keypress", enterHandler);
+					ngSearchBox.on("keypress", enterHandler);
 
 					var bg = dom.byId("imageBackground");
 					on(bg, touch.press, onImageTouchStart);
@@ -317,16 +318,19 @@
 						clearRecords("selectArticle");
 						record("getArticles", null, a, result);
 
-						var c = list.getChildren(), l = c.length;
 						if (item) {
 							list.removeChild(item);
+							if(item.prevItem){
+								item.prevItem.nextItem = null;
+							}
 						}
 						var articles = ensureArray(result.articleList.articles);
 						if (reverse && articles)
 							articles.reverse();
 						list.view = view;
 						fillArticleList(list, articles, newsgroup, offset > 0);
-						if (result.articleList.available > 0) {
+						if (result.articleList.available > 0 && articles
+								&& articles.length > 0) {
 							var moreItem = new ListItem({
 								label : "More...",
 								clickable : true,
@@ -339,11 +343,13 @@
 							});
 							moreItem.isMoreItem = true;
 							view.autoLoadItem = moreItem;
-							domClass.add(moreItem.domNode, "moreItem");
-							c = list.getChildren();
-							l = c.length;
-							if (l > 0)
-								c[l - 1].nextItem = moreItem;
+							domClass.add(moreItem.domNode, "grayItem");
+							var c = list.getChildren(), l = c.length;
+							if (l > 0) {
+								var prev = c[l - 1];
+								prev.nextItem = moreItem;
+								moreItem.prevItem = prev;
+							}
 							list.addChild(moreItem);
 						}
 						if (item && item.itemsLoaded) {
@@ -372,9 +378,13 @@
 
 				function fillArticleList(list, articles, newsgroup, noscroll) {
 					if (!articles || articles.length == 0) {
-						list.addChild(new ListItem({
-							label : "No articles found."
-						}));
+						var noArticlesItem = new ListItem(
+								{
+									label : list.getChildren().length > 0 ? "No more articles found."
+											: "No articles found."
+								});
+						domClass.add(noArticlesItem.domNode, "grayItem");
+						list.addChild(noArticlesItem);
 					} else {
 						var children = list.getChildren();
 						var prevItem = children.length > 0 ? children[children.length - 1]
@@ -414,6 +424,8 @@
 				}
 
 				//---------- Newsgroup browsing ----------
+
+				var currentNewsgroup;
 
 				function getNewsgroups(value) {
 					if (!currentServer) {
@@ -459,12 +471,13 @@
 					clearRecords("getBody");
 					clearRecords("getArticles");
 					record("selectNewsgroup", this, []);
-					var newsgroup = this.get("label");
+					var newsgroup = currentNewsgroup = this.get("label");
 					var l = newsgroup;
 					if (l.length > 20) {
 						l = l.replace(/(\w)\w*\./g, "$1.");
 					}
 					newsgroupHeading.set("label", l);
+					ngSearchBox.set("value", "");
 					searchView.performTransition("newsgroup", 1,
 							replaying ? "none" : "slide");
 					clearList(newsgroupResultsList);
@@ -472,12 +485,18 @@
 						getHeaders(newsgroup, 0);
 				}
 
-				function getHeaders(newsgroup, offset) {
+				function getHeaders(newsgroup, offset, filter) {
 					getArticles("h", {
 						newsgroup : newsgroup,
-						filter : /*settings.searchFilter || */" ",
+						filter : filter || " ",
 						count : settings.searchResultsCount
 					}, offset, false, newsgroupResultsList, newsgroupView);
+				}
+
+				newsgroupSearch = function() {
+					var v = ngSearchBox.get("value");
+					clearList(newsgroupResultsList);
+					getHeaders(currentNewsgroup, 0, v);
 				}
 
 				//---------- Article ----------
@@ -518,7 +537,7 @@
 
 					// try to get body from item first for multiple attachments
 					var body = item.body;
-					
+
 					if (body) {
 						cancelRequest();
 						showProgressBar(false);
@@ -527,7 +546,7 @@
 					}
 
 					domClass.add(textButton.domNode, "disabled");
-					
+
 					var args = {
 						articleId : item.articleId
 					};
@@ -3058,6 +3077,38 @@ body,html {
 	font-size: small !important;
 }
 
+.ngSearchBoxParent {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 100px;
+}
+
+.ngSearchIcon {
+	position: absolute;
+	right: 110px;
+	top: 11px;
+}
+
+.ngSearchBox {
+	position: absolute;
+	right: 0;
+	top: 2px;
+	width: 100%;
+	border: none;
+	height: 20px;
+	padding-left: 27px;
+	padding-right: 7px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	border-radius: 6px;
+}
+
+.dj_iphone .ngSearchBox {
+	padding-top: 2px;
+	height: 22px;
+}
+
 .showArticleText .smallHeading .mblHeadingDivTitle {
 	right: 80px;
 }
@@ -3098,7 +3149,7 @@ body,html {
 	position: absolute;
 }
 
-.moreItem {
+.grayItem {
 	color: gray;
 }
 
@@ -3143,8 +3194,6 @@ body,html {
 				<div class="settingsButtonL2"></div>
 				<div class="settingsButtonL3"></div>
 			</div>
-			<div data-dojo-type="dojox/mobile/ToolBarButton"
-				data-dojo-id="invisibleButton" class="invisibleButton"></div>
 		</div>
 		<div class="searchOptions" data-dojo-type="dojox/mobile/View"
 			data-dojo-id="searchOptions">
@@ -3187,9 +3236,19 @@ body,html {
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="newsgroup"
 		data-dojo-id="newsgroupView"
 		data-dojo-props="onBeforeTransitionOut:leaveNewsgroupView">
-		<div data-dojo-type="dojox/mobile/Heading" class="newsgroupHeading"
-			data-dojo-id="newsgroupHeading"
-			data-dojo-props="fixed:'top',back:'Search',moveTo:'search'"></div>
+		<div data-dojo-type="dojox/mobile/Heading"
+			class="newsgroupHeading smallheading" data-dojo-id="newsgroupHeading"
+			data-dojo-props="fixed:'top',back:'Search',moveTo:'search'">
+			<div class="ngSearchBoxParent">
+				<input data-dojo-type="dojox/mobile/TextBox" class="ngSearchBox"
+					data-dojo-id="ngSearchBox" onchange="newsgroupSearch()">
+			</div>
+			<div class="ngSearchIcon mblDomButtonGreySearch">
+				<div>
+					<div></div>
+				</div>
+			</div>
+		</div>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-props="variableHeight:true"
 			data-dojo-id="newsgroupResultsList" id="newsgroupResultsList"
@@ -3264,7 +3323,8 @@ body,html {
 				<div class="indexButtonDiv indexButtonDiv3"></div>
 				<div class="indexButtonDiv indexButtonDiv4"></div>
 			</div>
-			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton" data-dojo-id="textButton"
+			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
+				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
@@ -3343,7 +3403,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.3.2 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.4.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -3410,5 +3470,7 @@ body,html {
 			class="mblSimpleDialogButton mblBlueButton"
 			data-dojo-props="onClick:function(){msgDialog.hide();}">OK</button>
 	</div>
+	<div data-dojo-type="dojox/mobile/ToolBarButton"
+		data-dojo-id="invisibleButton" class="invisibleButton"></div>
 </body>
 </html>

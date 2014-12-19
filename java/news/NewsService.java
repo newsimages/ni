@@ -138,7 +138,7 @@ public class NewsService implements ProtocolCommandListener {
 			@FormParam("offset") int offset) throws SocketException,
 			IOException {
 
-		filter = filter.trim();
+		filter = filter.trim().toLowerCase();
 
 		NNTPClient client = connect(host);
 
@@ -161,6 +161,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		ArticleList list = new ArticleList();
 		int start = 0;
+		int received = 0;
 
 		while (true) {
 			BufferedReader reader = client.retrieveArticleInfo(low, high);
@@ -181,12 +182,14 @@ public class NewsService implements ProtocolCommandListener {
 						list.articles.add(start, header);
 
 					offset++;
+					received++;
 				}
 			}
 
 			computeMultivolumes(list.articles);
 
-			if (list.articles.size() >= count || low <= first)
+			if (list.articles.size() >= count || low <= first ||
+					(filter.length() > 0 && list.articles.size() > 0 && received >= count*100))
 				break;
 
 			high = Math.max(high - blockSize, first);
@@ -1091,7 +1094,7 @@ public class NewsService implements ProtocolCommandListener {
 			@FormParam("offset") int offset) throws MalformedURLException,
 			IOException, ParserConfigurationException, SAXException {
 
-		filter = filter.trim();
+		filter = filter.trim().toLowerCase();
 
 		String host = "http://www.binsearch.info";
 		String req = "/?q="
@@ -1311,7 +1314,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	private boolean isHidden(String subject, String filter) {
-		if (!(filter.isEmpty() || subject.contains(filter))) {
+		if (!(filter.isEmpty() || subject.toLowerCase().contains(filter))) {
 			return true;
 		}
 		if (HIDE_PAR_FILES) {
