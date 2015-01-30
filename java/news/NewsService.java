@@ -41,6 +41,9 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import news.search.BinSearch;
+import news.search.SearchEngine;
+
 import org.apache.commons.net.ProtocolCommandEvent;
 import org.apache.commons.net.ProtocolCommandListener;
 import org.apache.commons.net.nntp.NNTPClient;
@@ -1088,91 +1091,25 @@ public class NewsService implements ProtocolCommandListener {
 	@POST
 	@Path("s")
 	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleList getNzb(@FormParam("pattern") String pattern,
+	public ArticleList getNzb(@FormParam("engine") String engine,
+			@FormParam("pattern") String pattern,
 			@FormParam("filter") String filter, @FormParam("max") int max,
-			@FormParam("age") int age, @FormParam("server") int server,
+			@FormParam("age") int age,
 			@FormParam("offset") int offset) throws MalformedURLException,
 			IOException, ParserConfigurationException, SAXException {
 
 		filter = filter.trim().toLowerCase();
 
-		String host = "http://www.binsearch.info";
-		String req = "/?q="
-				+ URLEncoder.encode(pattern + " " + filter, "UTF-8") + "&max="
-				+ max + "&adv_age=" + age + "&server=" + server;
-		if (offset > 0)
-			req += "&min=" + offset;
-
-		String url = host + req;
-
-		HttpURLConnection conn = (HttpURLConnection) new URL(url)
-				.openConnection();
-		conn.setRequestMethod("GET");
-		conn.setRequestProperty("Accept", "text/html");
-		conn.setRequestProperty("Accept-Encoding", "gzip");
-		GZIPInputStream gzip = new GZIPInputStream(conn.getInputStream());
-		BufferedReader reader = new BufferedReader(new InputStreamReader(gzip));
-
-		String checkBox = "<input type=\"checkbox\" name=\"";
-		String records = "+ records <a";
-
-		ArrayList<String> names = new ArrayList<String>();
-
-		boolean available = false;
-
-		String line;
-		while ((line = reader.readLine()) != null) {
-			for (int i = line.indexOf(checkBox); i >= 0; i = line.indexOf(
-					checkBox, i)) {
-				i += checkBox.length();
-				int j = line.indexOf('"', i);
-				if (j > 0) {
-					String name = line.substring(i, j);
-					if (!name.equals("00000001")) {
-						names.add(name);
-					}
-					if (names.size() >= 200)
-						break;
-				}
-			}
-			if (line.indexOf(records) > 0)
-				available = true;
-		}
-
-		reader.close();
-
 		ArticleList list = new ArticleList();
 
-		if (names.size() > 0) {
-
-			String nzburl = host + "/fcgi/nzb.fcgi" + req;
-
-			conn = (HttpURLConnection) new URL(nzburl).openConnection();
-			conn.setRequestProperty("Accept", "text/html");
-			conn.setRequestProperty("Accept-Encoding", "gzip");
-			conn.setRequestProperty("Content-Type",
-					"application/x-www-form-urlencoded");
-			conn.setRequestProperty("Referer", url);
-			conn.setRequestProperty("Origin", host);
-			conn.setDoOutput(true);
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
-					conn.getOutputStream()));
-			for (int i = 0; i < names.size(); i++) {
-				writer.write(names.get(i) + "=on&");
-			}
-			writer.write("action=nzb");
-			writer.flush();
-
-			gzip = new GZIPInputStream(conn.getInputStream());
-
-			parseNzb(gzip, filter, list.articles);
-
-			writer.close();
-			gzip.close();
-
+		SearchEngine searchEngine = SearchEngine.get(engine);
+		SearchEngine.Result result = searchEngine.search(pattern, filter, max, age, offset);
+		
+		if(result != null) {
+			parseNzb(result.getNzb(), filter, list.articles);
+			list.available = result.isMoreAvailable() ? max : 0;
 		}
 
-		list.available = available ? max : 0;
 		list.offset = offset + max + 1;
 
 		return list;
@@ -1231,6 +1168,8 @@ public class NewsService implements ProtocolCommandListener {
 			articles.add(article);
 		}
 		computeMultivolumes(articles);
+		
+		in.close();
 	}
 
 	// ------------------------------

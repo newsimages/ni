@@ -56,7 +56,7 @@
 					browse : false,
 					searchFilter : "jpg",
 					searchResultsCount : 100,
-					searchServer : 2,
+					searchEngine : "BinSearch",
 					async : true,
 					progress : true,
 					partial : true,
@@ -296,11 +296,11 @@
 					getArticles(
 							"s",
 							{
+								engine : settings.searchEngine,
 								pattern : value,
 								filter : settings.searchFilter || " ",
 								max : settings.searchResultsCount,
 								age : (currentServer && currentServer.retention) || 1000,
-								server : settings.searchServer,
 							}, 0, true, searchResultsList, searchView);
 				}
 
@@ -320,7 +320,7 @@
 
 						if (item) {
 							list.removeChild(item);
-							if(item.prevItem){
+							if (item.prevItem) {
 								item.prevItem.nextItem = null;
 							}
 						}
@@ -1931,8 +1931,8 @@
 					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
-					mostPopularSwitch.set("value",
-							settings.searchServer == 1 ? "on" : "off");
+					searchEngineSwitch.set("value",
+							settings.searchEngine === "NZBIndex" ? "on" : "off");
 
 					updateSearchControls();
 
@@ -1958,8 +1958,8 @@
 					settings.searchFilter = filterBox.get("value");
 					settings.searchResultsCount = parseInt(resultsCountBox
 							.get("value"));
-					settings.searchServer = mostPopularSwitch.get("value") == "on" ? 1
-							: 2;
+					settings.searchEngine = searchEngineSwitch.get("value") == "on" ? "NZBIndex"
+							: "BinSearch";
 
 					localStorage.settings = json.stringify(settings);
 
@@ -1969,7 +1969,7 @@
 				updateSearchControls = function() {
 					disable(filterBox, settings.browse);
 					//disable(resultsCountBox, settings.browse);
-					disable(mostPopularSwitch, settings.browse);
+					disable(searchEngineSwitch, settings.browse);
 					searchBox.set("placeholder", settings.browse ? "newsgroups"
 							: "articles");
 				};
@@ -2529,6 +2529,10 @@ body,html {
 
 .searchOptions .mblListItem {
 	height: 44px;
+}
+
+#searchEngineSwitch {
+	width: 120px;
 }
 
 .searchButtonParent {
@@ -3210,10 +3214,10 @@ body,html {
 					data-dojo-props="placeHolder:'filter',onChange:updateSearchSettings"
 					onfocus="searchFocus()" onblur="searchBlur()"></input>
 					<div class="itemDisabler"></div></li>
-				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Most
-					popular groups <span data-dojo-id="mostPopularSwitch"
-					data-dojo-type="dojox/mobile/Switch"
-					data-dojo-props="onStateChanged:updateSearchSettings"></span>
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Search
+					engine<span data-dojo-id="searchEngineSwitch"
+					id="searchEngineSwitch" data-dojo-type="dojox/mobile/Switch"
+					data-dojo-props="onStateChanged:updateSearchSettings, leftLabel: 'NZBIndex', rightLabel: 'BinSearch'"></span>
 					<div class="itemDisabler"></div>
 				</li>
 			</ul>
@@ -3403,7 +3407,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.4.0 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.5.0 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
