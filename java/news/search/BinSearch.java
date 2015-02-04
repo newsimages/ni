@@ -13,14 +13,18 @@ import java.util.zip.GZIPInputStream;
 
 public class BinSearch extends SearchEngine {
 
-	private int _server = 2;
+	private int server;
+	
+	protected BinSearch(int server) {
+		this.server = server;
+	}
 	
 	public SearchEngine.Result search(String pattern, String filter, int max,
 			int age, int offset) throws IOException {
 		String host = "http://www.binsearch.info";
 		String req = "/?q="
 				+ URLEncoder.encode(pattern + " " + filter, "UTF-8") + "&max="
-				+ max + "&adv_age=" + age + "&server=" + _server;
+				+ max + "&adv_age=" + age + "&server=" + server;
 		if (offset > 0)
 			req += "&min=" + offset;
 

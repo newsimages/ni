@@ -56,7 +56,7 @@
 					browse : false,
 					searchFilter : "jpg",
 					searchResultsCount : 100,
-					searchEngine : "BinSearch",
+					searchEngine : "BinSearch2",
 					async : true,
 					progress : true,
 					partial : true,
@@ -85,7 +85,6 @@
 					};
 					searchBox.on("keypress", enterHandler);
 					filterBox.on("keypress", enterHandler);
-					//resultsCountBox.on("keypress", enterHandler);
 					ngSearchBox.on("keypress", enterHandler);
 
 					var bg = dom.byId("imageBackground");
@@ -1931,9 +1930,8 @@
 					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
-					searchEngineSwitch.set("value",
-							settings.searchEngine === "NZBIndex" ? "on" : "off");
-
+					checkToggle(registry.byId(settings.searchEngine) || defaultSettings.searchEngine);
+					
 					updateSearchControls();
 
 					asyncSwitch.set("value", settings.async ? "on" : "off");
@@ -1951,25 +1949,34 @@
 				}
 
 				updateSearchSettings = function() {
+
 					if (!settingsInited)
 						return;
+
+					if (this.declaredClass === "dojox.mobile.ToggleButton") {
+						checkToggle(this);
+						settings.searchEngine = this.domNode.id;
+					}
 
 					settings.browse = browseSwitch.get("value") == "on";
 					settings.searchFilter = filterBox.get("value");
 					settings.searchResultsCount = parseInt(resultsCountBox
 							.get("value"));
-					settings.searchEngine = searchEngineSwitch.get("value") == "on" ? "NZBIndex"
-							: "BinSearch";
-
+					
 					localStorage.settings = json.stringify(settings);
 
 					updateSearchControls();
 				};
 
+				function checkToggle(t) {
+					array.forEach(t.getParent().getChildren(), function(c) {
+						c.set("checked", c === t);
+					})
+				}
+
 				updateSearchControls = function() {
 					disable(filterBox, settings.browse);
-					//disable(resultsCountBox, settings.browse);
-					disable(searchEngineSwitch, settings.browse);
+					disable(searchEngineToggles, settings.browse);
 					searchBox.set("placeholder", settings.browse ? "newsgroups"
 							: "articles");
 				};
@@ -2536,8 +2543,19 @@ body,html {
 	top: 9px;
 }
 
-#searchEngineSwitch {
-	width: 120px;
+.searchOptions .mblListItem .mblContainer {
+	position: absolute;
+	right: 12px;
+	top: 0px;
+}
+
+.searchOptions .mblListItem .mblToggleButton {
+	padding: 0 5px 0 5px;
+	margin: 0 -2px 0 -2px;
+}
+
+.searchOptions .mblListItem .mblToggleButtonChecked:after {
+	display: none;
 }
 
 .searchButtonParent {
@@ -3219,10 +3237,19 @@ body,html {
 					data-dojo-props="placeHolder:'filter',onChange:updateSearchSettings"
 					onfocus="searchFocus()" onblur="searchBlur()"></input>
 					<div class="itemDisabler"></div></li>
-				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Search
-					engine<span data-dojo-id="searchEngineSwitch"
-					id="searchEngineSwitch" data-dojo-type="dojox/mobile/Switch"
-					data-dojo-props="onStateChanged:updateSearchSettings, leftLabel: 'NZBIndex', rightLabel: 'BinSearch'"></span>
+				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Engine:<span
+					data-dojo-type="dojox/mobile/Container"
+					data-dojo-id="searchEngineToggles">
+						<button id="NZBIndex"
+							data-dojo-type="dojox/mobile/ToggleButton"
+							data-dojo-props="onClick:updateSearchSettings, label:'NZBIndex'"></button>
+						<button id="BinSearch2"
+							data-dojo-type="dojox/mobile/ToggleButton"
+							data-dojo-props="onClick:updateSearchSettings, label:'BinSearch'"></button>
+						<button id="BinSearch1"
+							data-dojo-type="dojox/mobile/ToggleButton"
+							data-dojo-props="onClick:updateSearchSettings, label:'BinSearch (pop)'"></button>
+				</span>
 					<div class="itemDisabler"></div>
 				</li>
 			</ul>
@@ -3412,7 +3439,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.5.1 - &copy; 2014 Mobile
+		<p class="versionLabel">Ni! - Version 4.5.2 - &copy; 2014 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
