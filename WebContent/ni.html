@@ -2553,6 +2553,7 @@ body,html {
 	height: 30px;
 	line-height: 30px;
 	border: none;
+	-webkit-appearance: none;
 	color: #007aff;
 	background: white;
 	right: 12px;
@@ -3267,7 +3268,7 @@ body,html {
 				<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Search
 					engine: <select id="searchEngineSelect" class="searchEngineSelect"
 					onchange="updateSearchSettings()" tabIndex="-1"
-					onfocus="searchFocus()">
+					onfocus="searchFocus()" onblur="searchBlur()">
 						<option value="NZBIndex">NZBIndex</option>
 						<option value="BinSearch2">BinSearch</option>
 						<option value="BinSearch1">BinSearch (most pop.)</option>
