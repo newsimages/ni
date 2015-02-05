@@ -1930,13 +1930,8 @@
 					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
-					try{
-					var select = dom.byId("searchEngineSelect");
-					select.value = settings.searchEngine;
-					dom.byId("searchEngineDiv").innerText = select.options[select.selectedIndex].text;
-					}catch(err){
-						alert(select.selectedIndex);
-					}
+					dom.byId("searchEngineSelect").value = settings.searchEngine;
+					updateDisplayedEngine();
 
 					updateSearchControls();
 
@@ -1963,23 +1958,22 @@
 					settings.searchFilter = filterBox.get("value");
 					settings.searchResultsCount = parseInt(resultsCountBox
 							.get("value"));
-					try{
-					var select = dom.byId("searchEngineSelect");
-					settings.searchEngine = select.value;
-					dom.byId("searchEngineDiv").innerText = select.options[select.selectedIndex].text;
-				}catch(err){
-					alert(err);
-				}
+					settings.searchEngine = dom.byId("searchEngineSelect").value;
+					updateDisplayedEngine();
 
 					localStorage.settings = json.stringify(settings);
 
 					updateSearchControls();
 				};
-
-				function checkToggle(t) {
-					array.forEach(t.getParent().getChildren(), function(c) {
-						c.set("checked", c === t);
-					})
+				
+				function updateDisplayedEngine() {
+					var select = dom.byId("searchEngineSelect");
+					for(var i = 0; i < select.options.length; i++){
+						var o = select.options[i];
+						if(o.selected){
+							dom.byId("searchEngineDiv").innerText = o.text;
+						}
+					}
 				}
 
 				updateSearchControls = function() {
