@@ -3096,7 +3096,7 @@ body,html {
 	background: white;
 }
 
-.smallHeading .mblToolBarButton {
+.mblHeading .mblToolBarButton {
 	font-size: 13px;
 	font-weight: bold;
 }
@@ -3112,8 +3112,8 @@ body,html {
 	visibility: visible;
 }
 
-.newsgroupHeading .mblHeadingDivTitle,.smallHeading .mblHeadingDivTitle
-	{
+.mblHeading .mblHeadingDivTitle
+{
 	font-family: sans-serif;
 	font-weight: bold;
 	font-size: 12pt !important;
@@ -3435,7 +3435,7 @@ body,html {
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="settings"
 		data-dojo-id="settingsView"
 		data-dojo-props="onBeforeTransitionOut:cancelRequest">
-		<div data-dojo-type="dojox/mobile/Heading" class="smallHeading"
+		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="fixed:'top',label:'Settings',moveTo:'search',back:'Done'"></div>
 		<p class="settingsLabel">Usenet server:</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
@@ -3480,13 +3480,13 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.5.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.5.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
 	<div data-dojo-type="dojox/mobile/View" id="server"
 		data-dojo-id="serverView">
-		<div data-dojo-type="dojox/mobile/Heading" class="smallHeading"
+		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="label:'Server'">
 			<span data-dojo-type="dojox/mobile/ToolBarButton"
 				data-dojo-props="label:'Cancel',moveTo:'settings',transition:'slide', transitionDir:-1"
