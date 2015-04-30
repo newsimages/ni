@@ -3157,9 +3157,27 @@ body,html {
 	border-radius: 6px;
 }
 
+.newsgroupHeading .mblHeadingDivTitle {
+	right: 100px;
+}
+
 .dj_iphone .ngSearchBox {
 	padding-top: 2px;
 	height: 22px;
+}
+
+@media (max-width: 320px) {
+.ngSearchBoxParent {
+	width: 50px;
+}
+
+.newsgroupHeading .mblHeadingDivTitle {
+	right: 50px;
+}
+
+.ngSearchIcon {
+	right: 60px;
+}
 }
 
 .showArticleText .smallHeading .mblHeadingDivTitle {
@@ -3296,7 +3314,7 @@ body,html {
 		data-dojo-id="newsgroupView"
 		data-dojo-props="onBeforeTransitionOut:leaveNewsgroupView">
 		<div data-dojo-type="dojox/mobile/Heading"
-			class="newsgroupHeading smallheading" data-dojo-id="newsgroupHeading"
+			class="newsgroupHeading smallHeading" data-dojo-id="newsgroupHeading"
 			data-dojo-props="fixed:'top',back:'Search',moveTo:'search'">
 			<div class="ngSearchBoxParent">
 				<input data-dojo-type="dojox/mobile/TextBox" class="ngSearchBox"
@@ -3417,7 +3435,7 @@ body,html {
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="settings"
 		data-dojo-id="settingsView"
 		data-dojo-props="onBeforeTransitionOut:cancelRequest">
-		<div data-dojo-type="dojox/mobile/Heading"
+		<div data-dojo-type="dojox/mobile/Heading" class="smallHeading"
 			data-dojo-props="fixed:'top',label:'Settings',moveTo:'search',back:'Done'"></div>
 		<p class="settingsLabel">Usenet server:</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
@@ -3462,13 +3480,13 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.5.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.5.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
 	<div data-dojo-type="dojox/mobile/View" id="server"
 		data-dojo-id="serverView">
-		<div data-dojo-type="dojox/mobile/Heading"
+		<div data-dojo-type="dojox/mobile/Heading" class="smallHeading"
 			data-dojo-props="label:'Server'">
 			<span data-dojo-type="dojox/mobile/ToolBarButton"
 				data-dojo-props="label:'Cancel',moveTo:'settings',transition:'slide', transitionDir:-1"
