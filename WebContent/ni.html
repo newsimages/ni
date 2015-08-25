@@ -324,8 +324,10 @@
 							}
 						}
 						var articles = ensureArray(result.articleList.articles);
-						if (reverse && articles)
+						if (reverse && articles){
+							articles = articles.slice();
 							articles.reverse();
+						}
 						list.view = view;
 						fillArticleList(list, articles, newsgroup, offset > 0);
 						if (result.articleList.available > 0 && articles
@@ -1395,7 +1397,6 @@
 
 				toggleThumbnailsDir = function() {
 					down = !down;
-					console.log("down set to " + down);
 					upDownButton.set("label", down ? "▲" : "▼");
 				};
 
@@ -2198,16 +2199,138 @@
 
 				//---------- Current state ----------
 
-				function save(p, v) {
-					localStorage["s_" + p] = typeof v == "string" ? v : json
-							.stringify(v);
+				var funcnames = [
+					"setSearch",
+					"getNewsgroups",
+					"selectNewsgroup",
+					"getArticles",
+					"searchScroll",
+					"newsgroupScroll",
+					"getBody",
+					"selectArticle"
+				];
+				
+				function LocalStorage() {
+					this.record = function(f, r) {
+						var n = this._load(f + "_count", 0);
+						while (true) {
+							try {
+								this._save(f + "_" + n, r);
+								n++;
+								this._save(f + "_count", n);
+								break;
+							} catch (e1) {
+								var deleted = null;
+								for (i = 0; i < n; i++) {
+									deleted = "s_" + f + "_" + i;
+									if (deleted in localStorage) {
+										delete localStorage[deleted];
+										break;
+									} else {
+										deleted = null;
+									}
+								}
+								if (!deleted) {
+									break;
+								}
+							}
+						}
+						
+					};
+					this.load = function(cb) {
+						var state = {};
+						array.forEach(funcnames, lang.hitch(this, function(f) { 
+							var a = state[f] = [];
+							var n = this._load(f + "_count", 0);
+							for ( var i = 0; i < n; i++) {
+								var r = this._load(f + "_" + i);
+								if (r) {
+									a.push(r);
+								}
+							}
+						}));
+						cb(state);
+					};
+					this.clear = function(f) {
+						for (var p in localStorage) {
+							if (new RegExp("^s_" + (f||"")).test(p))
+								delete localStorage[p];
+						}
+					};
+					// private
+					this._save = function(p, v) {
+						localStorage["s_" + p] = typeof v == "string" ? v : json
+								.stringify(v);
+					};
+					this._load = function(p, d) {
+						var s = localStorage["s_" + p];
+						return s ? json.parse(s) : d;
+					};
 				}
-
-				function load(p, d) {
-					var s = localStorage["s_" + p];
-					return s ? json.parse(s) : d;
+				
+				function SQLStorage() {
+					this._init = function() {
+						if(!this.db){
+							this.db = openDatabase('NI', '1.0', 'App state storage DB', 50 * 1024 * 1024);
+							this.db.transaction(lang.hitch(this, function (tx) {
+								tx.executeSql('CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
+										null, null, lang.hitch(this, "_error"));
+							}));
+						}
+					};
+					this.record = function(f, r) {
+						this._init();
+						this.db.transaction(lang.hitch(this, function (tx) {  
+							tx.executeSql('INSERT INTO STATE (f, r) VALUES (?, ?)', [f, json.stringify(r)], lang.hitch(this, "_dump"), lang.hitch(this, "_error"));
+						}));
+					};
+					this.load = function(cb) {
+						this._init();
+						var state = {};
+						array.forEach(funcnames, function(f) { state[f] = []; });
+						this.db.transaction(lang.hitch(this, function (tx) {  
+							tx.executeSql('SELECT * FROM STATE ORDER BY i', null, function(tx, results){
+								for(var i = 0; i < results.rows.length; i++){
+									var row = results.rows.item(i);
+									state[row.f].push(json.parse(row.r));
+								}
+								cb(state);
+							}, lang.hitch(this, "_error"));
+						}));
+					};					
+					this.clear = function(f) {
+						this._init();
+						this.db.transaction(lang.hitch(this, function (tx) {
+							if(f){
+								tx.executeSql('DELETE FROM STATE WHERE f=?', [f]);
+							} else {
+								tx.executeSql('DROP TABLE STATE');
+								this.db = null;
+							}
+						}));
+					};
+					this._dump = function(){
+						/*
+						this.db.transaction(function (tx) {
+							tx.executeSql('SELECT * FROM STATE', null, function(tx, results){
+								console.log("--------------------")
+								for(var i = 0; i < results.rows.length; i++){
+									var row = results.rows.item(i);
+									console.log(row);
+								}
+								console.log("--------------------")
+							});
+						});
+						*/
+					};
+					this._error = function(tx, err){
+						console.log("SQL error " + err.code + ": " + err.message);
+					};
 				}
-
+				
+				var storage = new SQLStorage();
+				//var storage = new LocalStorage();
+				
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
 						return;
@@ -2237,34 +2360,7 @@
 						};
 					}
 					try {
-						var n = load(f + "_count", 0);
-						while (true) {
-							try {
-								save(f + "_" + n, {
-									f : f,
-									t : t,
-									a : na,
-									r : r
-								});
-								n++;
-								save(f + "_count", n);
-								break;
-							} catch (e1) {
-								var deleted = null;
-								for (i = 0; i < n; i++) {
-									deleted = "s_" + f + "_" + i;
-									if (deleted in localStorage) {
-										delete localStorage[deleted];
-										break;
-									} else {
-										deleted = null;
-									}
-								}
-								if (!deleted) {
-									break;
-								}
-							}
-						}
+						storage.record(f, {f:f, t:t, a:na, r:r});
 					} catch (err) {
 					}
 				}
@@ -2272,10 +2368,7 @@
 				function clearRecords(f) {
 					if (replaying || !settings.state)
 						return;
-					for ( var p in localStorage) {
-						if (new RegExp("^s_" + f).test(p))
-							delete localStorage[p];
-					}
+					storage.clear(f);
 				}
 
 				var replaying, replayResult;
@@ -2314,16 +2407,6 @@
 					f.apply(r.t, a);
 				}
 
-				function replayAll(f) {
-					var n = load(f + "_count", 0);
-					for ( var i = 0; i < n; i++) {
-						var r = load(f + "_" + i);
-						if (r) {
-							replay(r);
-						}
-					}
-				}
-
 				function setSearch(value) {
 					searchBox.set("value", value);
 				}
@@ -2353,25 +2436,21 @@
 
 				function restoreState() {
 					try {
-						replayAll("setSearch");
-						replayAll("getNewsgroups");
-						replayAll("selectNewsgroup");
-						replayAll("getArticles");
-						replayAll("searchScroll");
-						replayAll("newsgroupScroll");
-						replayAll("getBody");
-						replayAll("selectArticle");
+						storage.load(function(state){
+							array.forEach(funcnames, function(f) {
+								array.forEach(state[f], function(r){
+									replay(r);
+								})
+							});
+							replaying = null;
+						});
 					} catch (err) {
+						replaying = null;
 					}
-					replaying = null;
 				}
 
 				function clearState() {
-					for ( var p in localStorage) {
-						if (/^s_/.test(p)) {
-							delete localStorage[p];
-						}
-					}
+					storage.clear();
 				}
 			});
 </script>
@@ -3486,7 +3565,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.5.8 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.6.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
