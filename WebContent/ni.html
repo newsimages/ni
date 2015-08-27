@@ -2269,23 +2269,17 @@
 				}
 				
 				function SQLStorage() {
-					this._init = function() {
-						if(!this.db){
-							this.db = openDatabase('NI', '1.0', 'App state storage DB', 50 * 1024 * 1024);
-							this.db.transaction(lang.hitch(this, function (tx) {
-								tx.executeSql('CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
-										null, null, lang.hitch(this, "_error"));
-							}));
-						}
-					};
+					this.db = openDatabase('NI', '1.0', 'App state storage DB', 50 * 1024 * 1024);
+					this.db.transaction(lang.hitch(this, function (tx) {
+						tx.executeSql('CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
+								null, null, lang.hitch(this, "_error"));
+					}));
 					this.record = function(f, r) {
-						this._init();
 						this.db.transaction(lang.hitch(this, function (tx) {  
 							tx.executeSql('INSERT INTO STATE (f, r) VALUES (?, ?)', [f, json.stringify(r)], lang.hitch(this, "_dump"), lang.hitch(this, "_error"));
 						}));
 					};
 					this.load = function(cb) {
-						this._init();
 						var state = {};
 						array.forEach(funcnames, function(f) { state[f] = []; });
 						this.db.transaction(lang.hitch(this, function (tx) {  
@@ -2299,13 +2293,11 @@
 						}));
 					};					
 					this.clear = function(f) {
-						this._init();
 						this.db.transaction(lang.hitch(this, function (tx) {
 							if(f){
 								tx.executeSql('DELETE FROM STATE WHERE f=?', [f]);
 							} else {
-								tx.executeSql('DROP TABLE STATE');
-								this.db = null;
+								tx.executeSql('DELETE FROM STATE');
 							}
 						}));
 					};
@@ -2328,8 +2320,7 @@
 					};
 				}
 				
-				var storage = new SQLStorage();
-				//var storage = new LocalStorage();
+				var storage;
 				
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
@@ -2408,6 +2399,7 @@
 				}
 
 				function setSearch(value) {
+					console.log("setSearch " + value);
 					searchBox.set("value", value);
 				}
 
@@ -2435,6 +2427,7 @@
 				};
 
 				function restoreState() {
+					storage = new SQLStorage();
 					try {
 						storage.load(function(state){
 							array.forEach(funcnames, function(f) {
@@ -3588,7 +3581,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.6.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.6.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
