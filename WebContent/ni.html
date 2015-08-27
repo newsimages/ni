@@ -210,6 +210,10 @@
 					if (settings.state) {
 						restoreState();
 					}
+					
+					setTimeout(function(){
+						dom.byId("splashScreen").style.display = "none";
+					}, 1000);
 				}
 
 				ready(init);
@@ -2434,7 +2438,6 @@
 
 				function restoreState() {
 					try {
-						progress(searchView);
 						storage.load(function(state){
 							array.forEach(funcnames, function(f) {
 								array.forEach(state[f], function(r){
@@ -2442,11 +2445,9 @@
 								})
 							});
 							replaying = null;
-							progress();
 						});
 					} catch (err) {
 						replaying = null;
-						progress();
 					}
 				}
 
@@ -2459,6 +2460,29 @@
 <style type="text/css">
 body,html {
 	height: 100%;
+}
+
+#splashScreen {
+	position: absolute;
+	z-index: 9999;
+	left:0;
+	top:0;
+	right:0;
+	bottom:0;
+	height: 100%;
+	background-image: url("splash.png");
+	background-color: #C8BFE7;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+#splashScreen>div {
+	position: absolute;
+	left:0;
+	right:0;
+	bottom: 20px;
+	color: white;
+	font-size: 14pt;
+	text-align: center;
 }
 
 .mblEdgeToEdgeList .mblListItem {
@@ -3566,7 +3590,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.6.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.6.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -3635,5 +3659,6 @@ body,html {
 	</div>
 	<div data-dojo-type="dojox/mobile/ToolBarButton"
 		data-dojo-id="invisibleButton" class="invisibleButton"></div>
+	<div id="splashScreen"><div>Loading...</div></div>
 </body>
 </html>
