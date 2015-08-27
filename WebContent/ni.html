@@ -209,8 +209,6 @@
 					// restore/clear state
 					if (settings.state) {
 						restoreState();
-					} else {
-						clearState();
 					}
 				}
 
@@ -2436,6 +2434,7 @@
 
 				function restoreState() {
 					try {
+						progress(searchView);
 						storage.load(function(state){
 							array.forEach(funcnames, function(f) {
 								array.forEach(state[f], function(r){
@@ -2443,9 +2442,11 @@
 								})
 							});
 							replaying = null;
+							progress();
 						});
 					} catch (err) {
 						replaying = null;
+						progress();
 					}
 				}
 
@@ -3565,7 +3566,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.6.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.6.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
