@@ -1087,8 +1087,8 @@ public class NewsService implements ProtocolCommandListener {
 			String s1 = header.subject;
 			ArticleHeader last = list.get(lastIndex);
 			String s2 = last.group != null ? last.group.get(last.group.size()-1).subject : last.subject;
-			s1 = s1.replaceAll("\\d", "n");
-			s2 = s2.replaceAll("\\d", "n");
+			s1 = s1.replaceAll("\\d+", "");
+			s2 = s2.replaceAll("\\d+", "");
 			if(s1.equals(s2)){
 				ArticleHeader group;
 				if (last.group == null) {
