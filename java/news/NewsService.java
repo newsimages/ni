@@ -4,19 +4,13 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +20,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
 
 import javax.imageio.ImageIO;
 import javax.ws.rs.FormParam;
@@ -41,7 +34,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import news.search.BinSearch;
 import news.search.SearchEngine;
 
 import org.apache.commons.net.ProtocolCommandEvent;
@@ -182,7 +174,7 @@ public class NewsService implements ProtocolCommandListener {
 					if (!computeMultipart(header, multipartMap)
 							&& header.parts != "incomplete"
 							&& !isHidden(subject, filter))
-						list.articles.add(start, header);
+						addArticle(list.articles, header, start);
 
 					offset++;
 					received++;
@@ -1037,6 +1029,19 @@ public class NewsService implements ProtocolCommandListener {
 
 		return false;
 	}
+	
+	private String trimMultipart(String s) {
+		Matcher m = multipartPattern.matcher(s);
+		if (m.matches() && m.groupCount() == 4) {
+			int partNumber = Integer.parseInt(m.group(2));
+			if (partNumber != 0) {
+				String prefix = m.group(1);
+				String suffix = m.group(4);
+				return prefix + suffix;
+			}
+		}
+		return s;
+	}
 
 	private void computeMultivolumes(List<ArticleHeader> list) {
 
@@ -1083,7 +1088,86 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 	}
-
+	
+	private void addArticle(List<ArticleHeader> list, ArticleHeader header, int start) {
+		int lastIndex = -1;
+		if(start >= 0 && list.size() > start){
+			lastIndex = start;
+		} else if(list.size() > 0){
+			lastIndex = list.size()-1;
+		}
+		if(lastIndex >= 0){
+			String s1 = trimMultipart(header.subject);
+			ArticleHeader last = list.get(lastIndex);
+			String s2 = trimMultipart(last.group != null ? last.group.get(last.group.size()-1).subject : last.subject);
+			int bi, ei1, ei2;
+			for(int i = 0; i < s1.length() && i < s2.length(); i++){
+				char c1 = s1.charAt(i);
+				char c2 = s2.charAt(i);
+				if(c1 != c2){ // first difference
+					if(Character.isDigit(c1) && Character.isDigit(c2)){
+						// digits: go back to the first digit
+						bi = i;
+						while(bi > 0 && Character.isDigit(s1.charAt(bi-1))) bi--;
+						// get numbers in s1 and s2
+						for(i = bi; i < s1.length(); i++){
+							c1 = s1.charAt(i);
+							if(!Character.isDigit(c1))
+								break;
+						}
+						ei1 = i;
+						for(i = bi; i < s2.length(); i++){
+							c2 = s2.charAt(i);
+							if(!Character.isDigit(c2))
+								break;
+						}
+						ei2 = i;
+						if(ei1 > bi && ei2 > bi){
+							// see if end of strings match
+							if(s1.substring(ei1).equals(s2.substring(ei2))){
+								// we have a match!
+								String begin = s1.substring(0, bi);
+								String n1 = s1.substring(bi, ei1);
+								String n2 = s2.substring(bi, ei2);
+								String end = s1.substring(ei1);
+								if(last.group == null){
+									// create group header
+									ArticleHeader group = new ArticleHeader();
+									group.group = new ArrayList<ArticleHeader>();
+									group.group.add(last);
+									group.group.add(header);
+									if(Integer.parseInt(n1) < Integer.parseInt(n2)){
+										group.groupMin = n1;
+										group.groupMax = n2;
+									} else {
+										group.groupMin = n2;
+										group.groupMax = n1;
+									}
+									group.subject = begin + "[[" + group.groupMin + "-" + group.groupMax + "]]" + end;
+									list.set(lastIndex, group);
+								} else {
+									// add to existing group header
+									last.group.add(header);
+									last.groupMin = Integer.parseInt(n2) < Integer.parseInt(last.groupMin) ? n2 : last.groupMin;
+									last.groupMax = Integer.parseInt(n2) > Integer.parseInt(last.groupMax) ? n2 : last.groupMax;
+									last.subject = begin + "[[" + last.groupMin + "-" + last.groupMax + "]]" + end;
+								}
+								return;
+							}
+						}
+					}
+					// no match
+					break;
+				}
+			}
+		}
+		if(start >= 0){
+			list.add(start, header);
+		} else {
+			list.add(header);
+		}
+	}
+	
 	// ---------------
 	// Search
 	// ---------------
@@ -1165,7 +1249,7 @@ public class NewsService implements ProtocolCommandListener {
 					article.parts = parts;
 				}
 			}
-			articles.add(article);
+			addArticle(articles, article, -1);
 		}
 		computeMultivolumes(articles);
 		
