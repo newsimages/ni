@@ -3,9 +3,7 @@ package news;
 import java.util.List;
 
 import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 @XmlRootElement
 public class ArticleHeader {
@@ -14,9 +12,6 @@ public class ArticleHeader {
 	@XmlAttribute public String parts;
 	@XmlAttribute public String vols;
 	@XmlAttribute public int bytes;
-	@XmlElement public List<ArticleHeader> group;
-	@XmlTransient public String groupMin;
-	@XmlTransient public String groupMax;
 	
 	public ArticleHeader(){}
 	

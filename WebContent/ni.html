@@ -405,7 +405,6 @@
 												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
 														: a.newsgroups),
 										bytes : a.bytes,
-										group: a.group,
 										view : list.view
 									});
 							list.addChild(item);
@@ -510,11 +509,6 @@
 						showMessage("No server defined");
 						return;
 					}
-					if(this.group){
-						record("expandGroup", this, []);
-						showIndex(this.group, this, true);
-						return;
-					}
 					var view = this.view;
 					view.performTransition("article", 1, replaying ? "none"
 							: "slide");
@@ -522,7 +516,7 @@
 					textHeading.set("moveTo", view.id);
 					showArticle(this);
 				}
-				
+
 				function showArticle(item) {
 
 					clearRecords("selectArticle");
@@ -930,17 +924,17 @@
 											}), item);
 				}
 
-				function showIndex(articles, item, dontShowFirst) {
+				function showIndex(articles, item) {
 					showMultipleItems(array.map(articles, function(a) {
 						return {
 							subject : a.subject,
 							articleId : a.vols || a.parts || a.articleId,
 							bytes : a.bytes
 						};
-					}), item, dontShowFirst);
+					}), item);
 				}
 
-				function showMultipleItems(items, item, dontShowFirst) {
+				function showMultipleItems(items, item) {
 					var list = item._list;
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
@@ -969,7 +963,7 @@
 						if (!firstItem)
 							firstItem = newItem;
 					});
-					if (firstItem && !dontShowFirst)
+					if (firstItem)
 						showArticle(firstItem);
 				}
 
@@ -1023,9 +1017,9 @@
 						x : 0,
 						y : 0
 					});
-					dom.byId("from").innerHTML = body.from || "";
-					dom.byId("date").innerHTML = body.date || "";
-					dom.byId("newsgroups").innerHTML = body.newsgroups || "";
+					dom.byId("from").innerHTML = body.from;
+					dom.byId("date").innerHTML = body.date;
+					dom.byId("newsgroups").innerHTML = body.newsgroups;
 					dom.byId("textRect").innerHTML = text;
 					progress();
 				}
@@ -2213,8 +2207,7 @@
 					"searchScroll",
 					"newsgroupScroll",
 					"getBody",
-					"selectArticle",
-					"expandGroup"
+					"selectArticle"
 				];
 				
 				function LocalStorage() {
@@ -2421,10 +2414,6 @@
 						y : y
 					});
 				}
-				
-				function expandGroup() {
-					showIndex(this.group, this, true);
-				}
 
 				var funcs = {
 					setSearch : setSearch,
@@ -2434,8 +2423,7 @@
 					searchScroll : searchScroll,
 					newsgroupScroll : newsgroupScroll,
 					getBody : getBody,
-					selectArticle : selectArticle,
-					expandGroup: expandGroup
+					selectArticle : selectArticle
 				};
 
 				function restoreState() {
