@@ -396,6 +396,8 @@
 							var subject = a.subject;
 							if(a.group){
 								subject += " <span class='showSimilar'>" + a.group.length + "</span>";
+								var a1 = a.group[0];
+								id = a1.vols || a1.parts || a1.articleId;
 							}
 							var item = new ListItem(
 									{
@@ -978,6 +980,7 @@
 							subject += "<div class=\"archiveEntry\"> In: " + item.get("label") + "</div>";
 						}
 						var newItem = new ListItem(lang.mixin({
+							id: uniqueId(item.id + "_" + i),
 							label : subject,
 							clickable : true,
 							noArrow : true,
@@ -2447,7 +2450,6 @@
 				}
 
 				function setSearch(value) {
-					console.log("setSearch " + value);
 					searchBox.set("value", value);
 				}
 
@@ -3652,7 +3654,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
