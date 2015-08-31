@@ -15,8 +15,6 @@ public class ArticleHeader {
 	@XmlAttribute public String vols;
 	@XmlAttribute public int bytes;
 	@XmlElement public List<ArticleHeader> group;
-	@XmlTransient public String groupMin;
-	@XmlTransient public String groupMax;
 	
 	public ArticleHeader(){}
 	

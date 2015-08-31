@@ -1030,19 +1030,6 @@ public class NewsService implements ProtocolCommandListener {
 		return false;
 	}
 	
-	private String trimMultipart(String s) {
-		Matcher m = multipartPattern.matcher(s);
-		if (m.matches() && m.groupCount() == 4) {
-			int partNumber = Integer.parseInt(m.group(2));
-			if (partNumber != 0) {
-				String prefix = m.group(1);
-				String suffix = m.group(4);
-				return prefix + suffix;
-			}
-		}
-		return s;
-	}
-
 	private void computeMultivolumes(List<ArticleHeader> list) {
 
 		Map<String, ArticleHeader[]> map = multivolumeMap;
@@ -1097,68 +1084,29 @@ public class NewsService implements ProtocolCommandListener {
 			lastIndex = list.size()-1;
 		}
 		if(lastIndex >= 0){
-			String s1 = trimMultipart(header.subject);
+			String s1 = header.subject;
 			ArticleHeader last = list.get(lastIndex);
-			String s2 = trimMultipart(last.group != null ? last.group.get(last.group.size()-1).subject : last.subject);
-			int bi, ei1, ei2;
-			for(int i = 0; i < s1.length() && i < s2.length(); i++){
-				char c1 = s1.charAt(i);
-				char c2 = s2.charAt(i);
-				if(c1 != c2){ // first difference
-					if(Character.isDigit(c1) && Character.isDigit(c2)){
-						// digits: go back to the first digit
-						bi = i;
-						while(bi > 0 && Character.isDigit(s1.charAt(bi-1))) bi--;
-						// get numbers in s1 and s2
-						for(i = bi; i < s1.length(); i++){
-							c1 = s1.charAt(i);
-							if(!Character.isDigit(c1))
-								break;
-						}
-						ei1 = i;
-						for(i = bi; i < s2.length(); i++){
-							c2 = s2.charAt(i);
-							if(!Character.isDigit(c2))
-								break;
-						}
-						ei2 = i;
-						if(ei1 > bi && ei2 > bi){
-							// see if end of strings match
-							if(s1.substring(ei1).equals(s2.substring(ei2))){
-								// we have a match!
-								String begin = s1.substring(0, bi);
-								String n1 = s1.substring(bi, ei1);
-								String n2 = s2.substring(bi, ei2);
-								String end = s1.substring(ei1);
-								if(last.group == null){
-									// create group header
-									ArticleHeader group = new ArticleHeader();
-									group.group = new ArrayList<ArticleHeader>();
-									group.group.add(last);
-									group.group.add(header);
-									if(Integer.parseInt(n1) < Integer.parseInt(n2)){
-										group.groupMin = n1;
-										group.groupMax = n2;
-									} else {
-										group.groupMin = n2;
-										group.groupMax = n1;
-									}
-									group.subject = begin + "[[" + group.groupMin + "-" + group.groupMax + "]]" + end;
-									list.set(lastIndex, group);
-								} else {
-									// add to existing group header
-									last.group.add(header);
-									last.groupMin = Integer.parseInt(n2) < Integer.parseInt(last.groupMin) ? n2 : last.groupMin;
-									last.groupMax = Integer.parseInt(n2) > Integer.parseInt(last.groupMax) ? n2 : last.groupMax;
-									last.subject = begin + "[[" + last.groupMin + "-" + last.groupMax + "]]" + end;
-								}
-								return;
-							}
-						}
-					}
-					// no match
-					break;
+			String s2 = last.group != null ? last.group.get(last.group.size()-1).subject : last.subject;
+			s1 = s1.replaceAll("\\d", "n");
+			s2 = s2.replaceAll("\\d", "n");
+			if(s1.equals(s2)){
+				ArticleHeader group;
+				if (last.group == null) {
+					// create group header
+					group = new ArticleHeader();
+					group.group = new ArrayList<ArticleHeader>();
+					group.group.add(last);
+					group.subject = s2;
+					list.set(lastIndex, group);
+				} else {
+					// add to existing group header
+					group = last;
 				}
+				group.group.add(header);
+				if(header.subject.compareTo(group.subject) < 0){
+					group.subject = header.subject;
+				}
+				return;
 			}
 		}
 		if(start >= 0){

@@ -393,10 +393,14 @@
 						for ( var i = 0; i < articles.length; i++) {
 							var a = articles[i];
 							var id = a.vols || a.parts || a.articleId;
+							var subject = a.subject;
+							if(a.group){
+								subject += " <span class='showSimilar'>" + a.group.length + "</span>";
+							}
 							var item = new ListItem(
 									{
 										id : uniqueId(id),
-										label : a.subject,
+										label : subject ,
 										clickable : true,
 										noArrow : true,
 										onClick : selectArticle,
@@ -505,15 +509,18 @@
 
 				var currentItem, imageRealSized, articleImage, currentAsyncId;
 
-				function selectArticle() {
+				function selectArticle(evt) {
 					if (!currentServer) {
 						showMessage("No server defined");
 						return;
 					}
 					if(this.group){
-						record("expandGroup", this, []);
-						showIndex(this.group, this, true);
+						expandGroup.call(this);
 						return;
+					}
+					if(evt && evt.target && domClass.contains(evt.target, "hideSimilar")){
+						collapseGroup.call(this);
+						return false;
 					}
 					var view = this.view;
 					view.performTransition("article", 1, replaying ? "none"
@@ -523,6 +530,16 @@
 					showArticle(this);
 				}
 				
+				function expandGroup() {
+					record("expandCollapseGroup", this, [ true ]);
+					showIndex(this.group, this, true);
+				}
+				
+				function collapseGroup() {
+					record("expandCollapseGroup", this, [ false ]);
+					hideMultipleItems(this);
+				}
+
 				function showArticle(item) {
 
 					clearRecords("selectArticle");
@@ -735,9 +752,13 @@
 
 				function fixList(list) {
 					list.resize();
-					if (currentItem && currentItem.getParent() == list) {
+					ensureItemVisible(list, currentItem);
+				}
+				
+				function ensureItemVisible(list, item) {
+					if (item && item.getParent() == list) {
 						var v = viewRegistry
-								.getEnclosingScrollable(list.domNode), node = currentItem.domNode, nodeRect = node
+								.getEnclosingScrollable(list.domNode), node = item.domNode, nodeRect = node
 								.getBoundingClientRect(), scrollableRect = v.domNode
 								.getBoundingClientRect();
 						if (nodeRect.height < v.getDim().d.h) {
@@ -930,33 +951,41 @@
 											}), item);
 				}
 
-				function showIndex(articles, item, dontShowFirst) {
+				function showIndex(articles, item, group) {
 					showMultipleItems(array.map(articles, function(a) {
 						return {
 							subject : a.subject,
 							articleId : a.vols || a.parts || a.articleId,
 							bytes : a.bytes
 						};
-					}), item, dontShowFirst);
+					}), item, group);
 				}
 
-				function showMultipleItems(items, item, dontShowFirst) {
+				function showMultipleItems(items, item, group) {
 					var list = item._list;
+					item._group = [];
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
 					var prevItem = item.prevItem;
 					var nextItem = item.nextItem;
 					var firstItem;
 					array.forEach(items, function(it, i) {
+						var subject = it.subject;
+						if(group){
+							if(i == 0)
+								subject += "<span class='hideSimilar'></span>";
+						} else {
+							subject += "<div class=\"archiveEntry\"> In: " + item.get("label") + "</div>";
+						}
 						var newItem = new ListItem(lang.mixin({
-							label : it.subject
-									+ "<div class=\"archiveEntry\"> In: "
-									+ item.get("label") + "</div>",
+							label : subject,
 							clickable : true,
 							noArrow : true,
 							onClick : selectArticle,
 							view : item.view
 						}, it));
+						newItem._parent = item;
+						item._group.push(newItem);
 						list.addChild(newItem, index++);
 						newItem._list = list;
 						newItem.prevItem = prevItem;
@@ -969,8 +998,20 @@
 						if (!firstItem)
 							firstItem = newItem;
 					});
-					if (firstItem && !dontShowFirst)
+					if (firstItem && !group)
 						showArticle(firstItem);
+				}
+				
+				function hideMultipleItems(item) {
+					var parent = item._parent;
+					if(parent && parent._group){
+						var list = item._list;
+						var index = list.getChildren().indexOf(parent._group[0]);
+						array.forEach(parent._group, function(it){
+							list.removeChild(it);
+						});
+						list.addChild(parent, index);
+					}
 				}
 
 				function showImage(att) {
@@ -2210,11 +2251,11 @@
 					"getNewsgroups",
 					"selectNewsgroup",
 					"getArticles",
+					"expandCollapseGroup",
 					"searchScroll",
 					"newsgroupScroll",
 					"getBody",
-					"selectArticle",
-					"expandGroup"
+					"selectArticle"
 				];
 				
 				function LocalStorage() {
@@ -2422,20 +2463,16 @@
 					});
 				}
 				
-				function expandGroup() {
-					showIndex(this.group, this, true);
-				}
-
 				var funcs = {
 					setSearch : setSearch,
 					getNewsgroups : getNewsgroups,
 					selectNewsgroup : selectNewsgroup,
 					getArticles : getArticles,
+					expandCollapseGroup: expandCollapseGroup,
 					searchScroll : searchScroll,
 					newsgroupScroll : newsgroupScroll,
 					getBody : getBody,
-					selectArticle : selectArticle,
-					expandGroup: expandGroup
+					selectArticle : selectArticle
 				};
 
 				function restoreState() {
@@ -2451,6 +2488,14 @@
 						});
 					} catch (err) {
 						replaying = null;
+					}
+				}
+				
+				function expandCollapseGroup(expand) {
+					if(expand){
+						expandGroup.call(this);
+					} else {
+						collapseGroup.call(this);
 					}
 				}
 
@@ -3348,6 +3393,20 @@ body,html {
 .mblEdgeToEdgeList .mblListItem.read .archiveEntry {
 	color: #a0a0a0;
 }
+
+.showSimilar, .hideSimilar {
+	font-style: italic;
+	color: blue;
+}
+.showSimilar::before {
+	content: " (";
+}
+.showSimilar::after {
+	content: " similar)";
+}
+.hideSimilar::before {
+	content: " (hide similar)";
+}
 </style>
 
 </head>
@@ -3593,7 +3652,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.6.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
