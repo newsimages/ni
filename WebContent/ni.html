@@ -2423,6 +2423,9 @@
 					}
 					if (r && r.articleBody) {
 						r.articleBody = {
+							from : r.articleBody.from,
+							date : r.articleBody.date,
+							newsgroups : r.articleBody.newsgroups,
 							text : r.articleBody.text,
 							attachments : array
 									.map(
@@ -3689,7 +3692,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.7 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.8 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
