@@ -1831,6 +1831,14 @@
 					while ((children = list.getChildren()).length > 0) {
 						var child = children[0];
 						list.removeChild(child);
+						if(child._parent){
+							child._parent.destroyRecursive();
+						}
+						if(child._group){
+							array.forEach(child._group, function(it) {
+								it.destroyRecursive();
+							});
+						}
 						child.destroyRecursive();
 					}
 					var v = viewRegistry.getEnclosingScrollable(list.domNode);
@@ -2479,18 +2487,18 @@
 
 				function restoreState() {
 					storage = new SQLStorage();
-					try {
-						storage.load(function(state){
-							array.forEach(funcnames, function(f) {
-								array.forEach(state[f], function(r){
+					storage.load(function(state){
+						array.forEach(funcnames, function(f) {
+							array.forEach(state[f], function(r){
+								try {
 									replay(r);
-								})
-							});
-							replaying = null;
+								} catch (err) {
+									console.log("error replaying " + f + " : " + err);
+								}
+							})
 						});
-					} catch (err) {
 						replaying = null;
-					}
+					});
 				}
 				
 				function expandCollapseGroup(expand) {
@@ -3654,7 +3662,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
