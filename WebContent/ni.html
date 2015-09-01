@@ -405,6 +405,7 @@
 								groupItem._groupItems = [];
 								for(var j = 0; j < a.group.length; j++){
 									item = addArticleItem(list, a.group[j], selectArticle, item, newsgroup);
+									domClass.add(item.domNode, "groupItem");
 									groupItem._groupItems.push(item);
 									item._parentGroup = groupItem;
 								}
@@ -3440,6 +3441,9 @@ body,html {
 .mblEdgeToEdgeList .mblListItem.group div.similar::after {
 	content: " similar)";
 }
+.mblEdgeToEdgeList .mblListItem.groupItem {
+	padding-left: 16px;
+}
 </style>
 
 </head>
@@ -3685,7 +3689,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.7 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
