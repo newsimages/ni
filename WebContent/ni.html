@@ -566,9 +566,9 @@
 
 					domClass.remove(item.domNode, "error");
 
-					dom.byId("leftArrow").style.visibility = previous(item) ? "inherit"
+					dom.byId("leftArrow").style.visibility = previous(item, true) ? "inherit"
 							: "hidden";
-					dom.byId("rightArrow").style.visibility = next(item) ? "inherit"
+					dom.byId("rightArrow").style.visibility = next(item, true) ? "inherit"
 							: "hidden";
 
 					setArticleTitle(item.get("label"));
@@ -1269,11 +1269,11 @@
 					}, delay);
 				}
 
-				next = function(test) {
-					var item = (test||currentItem).nextItem;
-					if (item && item.isMoreItem && !test) {
+				next = function(test, testOnly) {
+					var item = (curItem||currentItem).nextItem;
+					if (item && item.isMoreItem && !testOnly) {
 						item.itemsLoaded = function() {
-							item = (test||currentItem).nextItem;
+							item = (curItem||currentItem).nextItem;
 							if (item) {
 								showArticle(item);
 								prevTouchTime = 0;
@@ -1283,31 +1283,31 @@
 						return item;
 					}
 					if(item && item._groupItems){
-						if(!item.expanded && !test)
+						if(!item.expanded && !testOnly)
 							expandCollapseGroup.call(item);
 						item = item.nextItem;
 					}
-					if(item && item._parentGroup && !item._parentGroup.expanded && !test){
+					if(item && item._parentGroup && !item._parentGroup.expanded && !testOnly){
 						expandCollapseGroup.call(item._parentGroup);
 					}
-					if (item && !test) {
+					if (item && !testOnly) {
 						showArticle(item);
 						prevTouchTime = 0;
 					}
 					return item;
 				};
 
-				previous = function(test) {
-					var item = (test||currentItem).prevItem;
+				previous = function(curItem, testOnly) {
+					var item = (curItem||currentItem).prevItem;
 					if(item && item._groupItems){
-						if(!item.expanded && !test)
+						if(!item.expanded && !testOnly)
 							expandCollapseGroup.call(item);
 						item = item.prevItem;
 					}
-					if(item && item._parentGroup && !item._parentGroup.expanded && !test){
+					if(item && item._parentGroup && !item._parentGroup.expanded && !testOnly){
 						expandCollapseGroup.call(item._parentGroup);
 					}
-					if (item && !test) {
+					if (item && !testOnly) {
 						showArticle(item);
 						prevTouchTime = 0;
 					}
@@ -3695,7 +3695,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.10 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.11 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
