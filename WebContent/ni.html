@@ -1269,7 +1269,7 @@
 					}, delay);
 				}
 
-				next = function(test, testOnly) {
+				next = function(curItem, testOnly) {
 					var item = (curItem||currentItem).nextItem;
 					if (item && item.isMoreItem && !testOnly) {
 						item.itemsLoaded = function() {
