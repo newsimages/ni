@@ -1520,7 +1520,7 @@
 					while (item && (next || item.thumbnailBody)) {
 						next = false;
 						prev = item;
-						item = (down ? next(item) : previous(item));
+						item = (down ? window.next(item) : previous(item));
 					}
 
 					if (!item) {
@@ -3695,7 +3695,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.9 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.10 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
