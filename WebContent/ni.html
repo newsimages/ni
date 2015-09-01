@@ -396,7 +396,6 @@
 							if(a.group){
 								var a0 = a.group[0];
 								var ga = {
-									group: a.group,
 									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
 									subject: a.subject + "<div class='similar'>" + a.group.length + "</div>"
 								};
@@ -437,7 +436,8 @@
 											|| (a.newsgroups instanceof Array ? a.newsgroups[0]
 													: a.newsgroups),
 									bytes : a.bytes,
-									view : list.view
+									view : list.view,
+									_duration: a.groupId ? 200 : 800
 								});
 					item._list = list;
 					if (prevItem) {
@@ -3685,7 +3685,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
