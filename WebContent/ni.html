@@ -388,39 +388,31 @@
 						list.addChild(noArticlesItem);
 					} else {
 						var children = list.getChildren();
-						var prevItem = children.length > 0 ? children[children.length - 1]
+						var item = children.length > 0 ? children[children.length - 1]
 								: null;
-						for ( var i = 0; i < articles.length; i++) {
+						for (var i = 0; i < articles.length; i++) {
 							var a = articles[i];
 							var id = a.vols || a.parts || a.articleId;
-							var subject = a.subject;
 							if(a.group){
-								subject += " <span class='showSimilar'>" + a.group.length + "</span>";
-								var a1 = a.group[0];
-								id = a1.vols || a1.parts || a1.articleId;
+								var a0 = a.group[0];
+								var ga = {
+									group: a.group,
+									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
+									subject: a.subject + "<div class='similar'>" + a.group.length + "</div>"
+								};
+								var groupItem = item = addArticleItem(list, ga, expandCollapseGroup, item);
+								domClass.add(groupItem.domNode, "group");
+								list.addChild(groupItem);
+								groupItem._groupItems = [];
+								for(var j = 0; j < a.group.length; j++){
+									item = addArticleItem(list, a.group[j], selectArticle, item, newsgroup);
+									groupItem._groupItems.push(item);
+									item._parentGroup = groupItem;
+								}
+							} else {
+								item = addArticleItem(list, a, selectArticle, item, newsgroup);
+								list.addChild(item);
 							}
-							var item = new ListItem(
-									{
-										id : uniqueId(id),
-										label : subject ,
-										clickable : true,
-										noArrow : true,
-										onClick : selectArticle,
-										articleId : id,
-										newsgroup : newsgroup
-												|| (a.newsgroups instanceof Array ? a.newsgroups[0]
-														: a.newsgroups),
-										bytes : a.bytes,
-										group: a.group,
-										view : list.view
-									});
-							list.addChild(item);
-							item._list = list;
-							if (prevItem) {
-								prevItem.nextItem = item;
-								item.prevItem = prevItem;
-							}
-							prevItem = item;
 						}
 					}
 					if (!noscroll) {
@@ -430,7 +422,47 @@
 								});
 					}
 				}
-
+				
+				function addArticleItem(list, a, callback, prevItem, newsgroup) {
+					var id = a.vols || a.parts || a.articleId || a.groupId;
+					var item = new ListItem(
+								{
+									id : uniqueId(id),
+									label : a.subject ,
+									clickable : true,
+									noArrow : true,
+									onClick : callback,
+									articleId : id,
+									newsgroup : newsgroup
+											|| (a.newsgroups instanceof Array ? a.newsgroups[0]
+													: a.newsgroups),
+									bytes : a.bytes,
+									view : list.view
+								});
+					item._list = list;
+					if (prevItem) {
+						prevItem.nextItem = item;
+						item.prevItem = prevItem;
+					}
+					return item;
+				}
+			
+				function expandCollapseGroup() {
+					record("expandCollapseGroup", this, []);
+					var list = this._list;
+					var index = list.getChildren().indexOf(this);
+					for(var i = 0; i < this._groupItems.length; i++){
+						var child = this._groupItems[i];
+						if(!this.expanded){
+							list.addChild(child, ++index);
+						} else {
+							list.removeChild(child);
+						}
+					}
+					this.expanded = !this.expanded;
+					domClass[this.expanded ? "add" : "remove"](this.domNode, "expanded");
+				}
+				
 				//---------- Newsgroup browsing ----------
 
 				var currentNewsgroup;
@@ -516,14 +548,6 @@
 						showMessage("No server defined");
 						return;
 					}
-					if(this.group){
-						expandGroup.call(this);
-						return;
-					}
-					if(evt && evt.target && domClass.contains(evt.target, "hideSimilar")){
-						collapseGroup.call(this);
-						return false;
-					}
 					var view = this.view;
 					view.performTransition("article", 1, replaying ? "none"
 							: "slide");
@@ -532,18 +556,8 @@
 					showArticle(this);
 				}
 				
-				function expandGroup() {
-					record("expandCollapseGroup", this, [ true ]);
-					showIndex(this.group, this, true);
-				}
-				
-				function collapseGroup() {
-					record("expandCollapseGroup", this, [ false ]);
-					hideMultipleItems(this);
-				}
-
 				function showArticle(item) {
-
+					
 					clearRecords("selectArticle");
 					record("selectArticle", item, []);
 
@@ -551,9 +565,9 @@
 
 					domClass.remove(item.domNode, "error");
 
-					dom.byId("leftArrow").style.visibility = item.prevItem ? "inherit"
+					dom.byId("leftArrow").style.visibility = previous(item) ? "inherit"
 							: "hidden";
-					dom.byId("rightArrow").style.visibility = item.nextItem ? "inherit"
+					dom.byId("rightArrow").style.visibility = next(item) ? "inherit"
 							: "hidden";
 
 					setArticleTitle(item.get("label"));
@@ -1254,11 +1268,11 @@
 					}, delay);
 				}
 
-				next = function() {
-					var item = currentItem.nextItem;
-					if (item && item.isMoreItem) {
+				next = function(test) {
+					var item = (test||currentItem).nextItem;
+					if (item && item.isMoreItem && !test) {
 						item.itemsLoaded = function() {
-							item = currentItem.nextItem;
+							item = (test||currentItem).nextItem;
 							if (item) {
 								showArticle(item);
 								prevTouchTime = 0;
@@ -1267,16 +1281,32 @@
 						item.onClick();
 						return item;
 					}
-					if (item) {
+					if(item && item._groupItems){
+						if(!item.expanded && !test)
+							expandCollapseGroup.call(item);
+						item = item.nextItem;
+					}
+					if(item && item._parentGroup && !item._parentGroup.expanded && !test){
+						expandCollapseGroup.call(item._parentGroup);
+					}
+					if (item && !test) {
 						showArticle(item);
 						prevTouchTime = 0;
 					}
 					return item;
 				};
 
-				previous = function() {
-					var item = currentItem.prevItem;
-					if (item) {
+				previous = function(test) {
+					var item = (test||currentItem).prevItem;
+					if(item && item._groupItems){
+						if(!item.expanded && !test)
+							expandCollapseGroup.call(item);
+						item = item.prevItem;
+					}
+					if(item && item._parentGroup && !item._parentGroup.expanded && !test){
+						expandCollapseGroup.call(item._parentGroup);
+					}
+					if (item && !test) {
 						showArticle(item);
 						prevTouchTime = 0;
 					}
@@ -1489,7 +1519,7 @@
 					while (item && (next || item.thumbnailBody)) {
 						next = false;
 						prev = item;
-						item = (down ? item.nextItem : item.prevItem);
+						item = (down ? next(item) : previous(item));
 					}
 
 					if (!item) {
@@ -1831,11 +1861,8 @@
 					while ((children = list.getChildren()).length > 0) {
 						var child = children[0];
 						list.removeChild(child);
-						if(child._parent){
-							child._parent.destroyRecursive();
-						}
-						if(child._group){
-							array.forEach(child._group, function(it) {
+						if(child._groupItems){
+							array.forEach(child._groupitems, function(it) {
 								it.destroyRecursive();
 							});
 						}
@@ -2501,14 +2528,6 @@
 					});
 				}
 				
-				function expandCollapseGroup(expand) {
-					if(expand){
-						expandGroup.call(this);
-					} else {
-						collapseGroup.call(this);
-					}
-				}
-
 				function clearState() {
 					storage.clear();
 				}
@@ -3404,18 +3423,22 @@ body,html {
 	color: #a0a0a0;
 }
 
-.showSimilar, .hideSimilar {
+.mblEdgeToEdgeList .mblListItem.group {
+	font-weight: bold;
+}
+.mblEdgeToEdgeList .mblListItem.group div.similar {
+	font-weight: normal;
 	font-style: italic;
 	color: blue;
 }
-.showSimilar::before {
-	content: " (";
+.mblEdgeToEdgeList .mblListItem.group div.similar::before {
+	content: "(Show ";
 }
-.showSimilar::after {
+.mblEdgeToEdgeList .mblListItem.group.expanded div.similar::before {
+	content: "(Hide ";
+}
+.mblEdgeToEdgeList .mblListItem.group div.similar::after {
 	content: " similar)";
-}
-.hideSimilar::before {
-	content: " (hide similar)";
 }
 </style>
 
@@ -3662,7 +3685,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
