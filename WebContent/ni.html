@@ -2536,6 +2536,8 @@
 				}
 				
 				function clearState() {
+					if (replaying || !settings.state)
+						return;
 					storage.clear();
 				}
 			});
@@ -3695,7 +3697,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.11 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.7.12 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
