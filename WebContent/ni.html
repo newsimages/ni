@@ -2491,9 +2491,9 @@
 											return {
 												filename : att.filename,
 												typedArray : att.typedArray,
-												data : btoa(att.typedArray ?
-														(record ? Uint8ArrayToBinary(att.data) : binaryToUint8Array(atob(att.data)))
-														: att.data)
+												data : record ?
+														btoa(att.typedArray ? Uint8ArrayToBinary(att.data) : att.data) :
+														(att.typedArray ? binaryToUint8Array(atob(att.data)) : att.data)
 											};
 										})
 					};
