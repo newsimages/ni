@@ -2428,9 +2428,6 @@
 					var na = [];
 					for (i = 0; i < a.length; i++) {
 						var v = a[i];
-						if(v.attachments){
-							v = convertBody(v, true);
-						}
 						na[i] = (v.domNode && v.id) ? ("_widget_" + v.id) : v;
 					}
 					if (t) {
@@ -2460,9 +2457,6 @@
 					var a = r.a;
 					for (i = 0; i < a.length; i++) {
 						var v = a[i];
-						if(v.attachments){
-							v = convertBody(v, false);
-						}
 						if (typeof v == "string" && v.match(/^_widget_(.*)/)) {
 							a[i] = registry.byId(RegExp.$1);
 						}
