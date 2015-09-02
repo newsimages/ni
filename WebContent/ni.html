@@ -215,7 +215,7 @@
 				}
 
 				function removeSplashScreen(){
-					dom.byId("splashScreen").style.display = "none";
+					//dom.byId("splashScreen").style.display = "none";
 				}
 				
 				ready(init);
@@ -2564,18 +2564,15 @@ body,html {
 	right:0;
 	bottom:0;
 	height: 100%;
-	background-image: url("splash.png");
-	background-color: #C8BFE7;
-	background-repeat: no-repeat;
-	background-position: center;
+	background: white;
 }
 #splashScreen>div {
 	position: absolute;
 	left:0;
 	right:0;
-	bottom: 20px;
-	color: white;
-	font-size: 14pt;
+	top: 50%;
+	font-size: 20px;
+	margin-top: -10px;
 	text-align: center;
 }
 
@@ -3705,7 +3702,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
