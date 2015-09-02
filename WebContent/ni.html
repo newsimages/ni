@@ -1459,8 +1459,11 @@
 				var currentThumbnailItem, currentThumbnailParent;
 
 				showThumbnails = function() {
-					articleView.performTransition("index", 1, "slide");
-					if (!pauseClicked) {
+					record("showThumbnails", null, []);
+					articleView.performTransition("index", 1, replaying ? "none" : "slide");
+					if(replaying){
+						stopThumbnails();
+					} else if (!pauseClicked) {
 						getThumbnail(currentItem);
 					}
 					resize(); // ???
@@ -1477,11 +1480,13 @@
 				};
 
 				toggleThumbnailsDir = function() {
+					record("toggleThumbnailsDir", null, []);
 					down = !down;
 					upDownButton.set("label", down ? "▲" : "▼");
 				};
 
 				clearThumbnails = function() {
+					clearRecords("addThumbnails");
 					var thp;
 					while ((thp = indexParent.firstChild) && thp.item) {
 						thp.item.thumbnailBody = null;
@@ -1491,6 +1496,7 @@
 				};
 
 				leaveIndexView = function() {
+					clearRecords("showThumbnails");
 					stopThumbnails();
 					if (!thumbnailClicked && currentItem) {
 						showArticle(currentItem);
@@ -1614,6 +1620,7 @@
 				}
 
 				function addThumbnails(body, item, thp, th) {
+					record("addThumbnails", null, [ body, item ]);
 					array.forEach(ensureArray(body.attachments), function(att) {
 
 						if (!thp) {
@@ -2294,7 +2301,10 @@
 					"searchScroll",
 					"newsgroupScroll",
 					"getBody",
-					"selectArticle"
+					"selectArticle",
+					"addThumbnails",
+					"toggleThumbnailsDir",
+					"showThumbnails"
 				];
 				
 				function LocalStorage() {
@@ -2417,29 +2427,16 @@
 					var na = [];
 					for (i = 0; i < a.length; i++) {
 						var v = a[i];
+						if(v.attachments){
+							v = convertBody(v, true);
+						}
 						na[i] = (v.domNode && v.id) ? ("_widget_" + v.id) : v;
 					}
 					if (t) {
 						t = t.id;
 					}
-					if (r && r.articleBody) {
-						r.articleBody = {
-							from : r.articleBody.from,
-							date : r.articleBody.date,
-							newsgroups : r.articleBody.newsgroups,
-							text : r.articleBody.text,
-							attachments : array
-									.map(
-											r.articleBody.attachments,
-											function(att) {
-												return {
-													filename : att.filename,
-													typedArray : att.typedArray,
-													data : btoa(att.typedArray ? Uint8ArrayToBinary(att.data)
-															: att.data)
-												};
-											})
-						};
+					if (r && r.articleBody){
+						r.articleBody = convertBody(r.articleBody, true);
 					}
 					try {
 						storage.record(f, {f:f, t:t, a:na, r:r});
@@ -2462,6 +2459,9 @@
 					var a = r.a;
 					for (i = 0; i < a.length; i++) {
 						var v = a[i];
+						if(v.attachments){
+							v = convertBody(v, false);
+						}
 						if (typeof v == "string" && v.match(/^_widget_(.*)/)) {
 							a[i] = registry.byId(RegExp.$1);
 						}
@@ -2469,30 +2469,36 @@
 					if (r.t) {
 						r.t = registry.byId(r.t);
 					}
-					if (r.r && r.r.articleBody) {
-						r.r.articleBody = {
-							from : r.r.articleBody.from,
-							date : r.r.articleBody.date,
-							newsgroups : r.r.articleBody.newsgroups,
-							text : r.r.articleBody.text,
-							attachments : array
-									.map(
-											r.r.articleBody.attachments,
-											function(att) {
-												return {
-													filename : att.filename,
-													typedArray : att.typedArray,
-													data : att.typedArray ? binaryToUint8Array(atob(att.data))
-															: att.data
-												};
-											})
-						};
+					if (r.r && r.r.articleBody){
+						r.r.articleBody = convertBody(r.r.articleBody, false);
 					}
 					var f = funcs[r.f];
 					replayResult = r.r;
 					f.apply(r.t, a);
 				}
-
+				
+				function convertBody(body, record){
+					if(!body) return null;
+					return {
+						from : body.from,
+						date : body.date,
+						newsgroups : body.newsgroups,
+						text : body.text,
+						attachments : array
+								.map(
+										body.attachments,
+										function(att) {
+											return {
+												filename : att.filename,
+												typedArray : att.typedArray,
+												data : btoa(att.typedArray ?
+														(record ? Uint8ArrayToBinary(att.data) : binaryToUint8Array(atob(att.data)))
+														: att.data)
+											};
+										})
+					};
+				}
+				
 				function setSearch(value) {
 					searchBox.set("value", value);
 				}
@@ -2518,7 +2524,10 @@
 					searchScroll : searchScroll,
 					newsgroupScroll : newsgroupScroll,
 					getBody : getBody,
-					selectArticle : selectArticle
+					selectArticle : selectArticle,
+					addThumbnails: addThumbnails,
+					toggleThumbnailsDir: toggleThumbnailsDir,
+					showThumbnails: showThumbnails
 				};
 
 				function restoreState() {
@@ -3689,7 +3698,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
