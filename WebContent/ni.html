@@ -1644,8 +1644,9 @@
 					});
 
 					domClass.remove(clearButton.domNode, "disabled");
-
-					getThumbnail(item, true);
+					
+					if(!replaying)
+						getThumbnail(item, true);
 				}
 
 				function createThumbnailParent() {
@@ -2486,7 +2487,7 @@
 						text : body.text,
 						attachments : array
 								.map(
-										body.attachments,
+										ensureArray(body.attachments),
 										function(att) {
 											return {
 												filename : att.filename,
