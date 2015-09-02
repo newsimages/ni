@@ -1457,9 +1457,11 @@
 				}
 
 				var currentThumbnailItem, currentThumbnailParent;
+				var currentItemBeforeThumbails;
 
 				showThumbnails = function() {
 					record("showThumbnails", null, []);
+					currentItemBeforeThumbails = currentItem;
 					articleView.performTransition("index", 1, replaying ? "none" : "slide");
 					if(replaying){
 						stopThumbnails();
@@ -1498,8 +1500,10 @@
 				leaveIndexView = function() {
 					clearRecords("showThumbnails");
 					stopThumbnails();
-					if (!thumbnailClicked && currentItem) {
-						showArticle(currentItem);
+					var item = currentItemBeforeThumbails||currentItem;
+					currentItemBeforeThumbails = null;
+					if (!thumbnailClicked && item) {
+						showArticle(item);
 					}
 					thumbnailClicked = false;
 				};
@@ -3693,7 +3697,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
