@@ -210,14 +210,10 @@
 					if (settings.state) {
 						restoreState();
 					} else {
-						removeSplashScreen();
+						dom.byId("loadingScreen").style.display = "none";
 					}
 				}
 
-				function removeSplashScreen(){
-					dom.byId("splashScreen").style.display = "none";
-				}
-				
 				ready(init);
 
 				//---------- Search ----------
@@ -2538,7 +2534,7 @@
 							})
 						});
 						replaying = null;
-						removeSplashScreen();
+						dom.byId("loadingScreen").style.display = "none";
 					});
 				}
 				
@@ -2556,7 +2552,7 @@ body,html {
 	height: 100%;
 }
 
-#splashScreen {
+#loadingScreen {
 	position: absolute;
 	z-index: 9999;
 	left:0;
@@ -2565,15 +2561,6 @@ body,html {
 	bottom:0;
 	height: 100%;
 	background: white;
-}
-#splashScreen>div {
-	position: absolute;
-	left:0;
-	right:0;
-	top: 50%;
-	font-size: 20px;
-	margin-top: -10px;
-	text-align: center;
 }
 
 .mblEdgeToEdgeList .mblListItem {
@@ -3702,7 +3689,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -3771,6 +3758,6 @@ body,html {
 	</div>
 	<div data-dojo-type="dojox/mobile/ToolBarButton"
 		data-dojo-id="invisibleButton" class="invisibleButton"></div>
-	<div id="splashScreen"><div>Loading...</div></div>
+	<div id="loadingScreen"></div>
 </body>
 </html>
