@@ -209,11 +209,15 @@
 					// restore/clear state
 					if (settings.state) {
 						restoreState();
+					} else {
+						removeSplashScreen();
 					}
-					
-					dom.byId("splashScreen").style.display = "none";
 				}
 
+				function removeSplashScreen(){
+					dom.byId("splashScreen").style.display = "none";
+				}
+				
 				ready(init);
 
 				//---------- Search ----------
@@ -2412,6 +2416,7 @@
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
 						return;
+					if(!storage) storage = new SQLStorage();
 					var i;
 					var na = [];
 					for (i = 0; i < a.length; i++) {
@@ -2449,6 +2454,7 @@
 				function clearRecords(f) {
 					if (replaying || !settings.state)
 						return;
+					if(!storage) storage = new SQLStorage();
 					storage.clear(f);
 				}
 
@@ -2520,7 +2526,7 @@
 				};
 
 				function restoreState() {
-					storage = new SQLStorage();
+					if(!storage) storage = new SQLStorage();
 					storage.load(function(state){
 						array.forEach(funcnames, function(f) {
 							array.forEach(state[f], function(r){
@@ -2532,12 +2538,14 @@
 							})
 						});
 						replaying = null;
+						removeSplashScreen();
 					});
 				}
 				
 				function clearState() {
 					if (replaying || !settings.state)
 						return;
+					if(!storage) storage = new SQLStorage();
 					storage.clear();
 				}
 			});
@@ -3697,7 +3705,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.7.12 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
