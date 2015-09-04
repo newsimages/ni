@@ -181,6 +181,7 @@ public class NewsService implements ProtocolCommandListener {
 					received++;
 				}
 			}
+			finishArticles(list.articles, start);
 
 			computeMultivolumes(list.articles);
 
@@ -1106,14 +1107,35 @@ public class NewsService implements ProtocolCommandListener {
 				}
 				group.group.add(header);
 				Collections.sort(group.group);
-				group.subject = group.group.get(0).subject;
+				if(header.subject.compareTo(group.subject) < 0){
+					group.subject = header.subject;
+				}
 				return;
+			} else {
+				if(last.group != null){
+					Collections.sort(last.group);
+				}
 			}
 		}
 		if(start >= 0){
 			list.add(start, header);
 		} else {
 			list.add(header);
+		}
+	}
+	
+	private void finishArticles(List<ArticleHeader> list, int start) {
+		int lastIndex = -1;
+		if(start >= 0 && list.size() > start){
+			lastIndex = start;
+		} else if(list.size() > 0){
+			lastIndex = list.size()-1;
+		}
+		if(lastIndex >= 0){
+			ArticleHeader last = list.get(lastIndex);
+			if(last.group != null){
+				Collections.sort(last.group);
+			}
 		}
 	}
 	
@@ -1200,6 +1222,8 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			addArticle(articles, article, -1);
 		}
+		finishArticles(articles, -1);
+		
 		computeMultivolumes(articles);
 		
 		in.close();
