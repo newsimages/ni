@@ -401,6 +401,7 @@
 								};
 								var groupItem = item = addArticleItem(list, ga, expandCollapseGroup, item);
 								domClass.add(groupItem.domNode, "group");
+								item.domNode.addEventListener("webkitTransitionEnd", lang.hitch(item, expandCollapseTransitionEnd));
 								list.addChild(groupItem);
 								groupItem._groupItems = [];
 								for(var j = 0; j < a.group.length; j++){
@@ -448,20 +449,52 @@
 					return item;
 				}
 			
+				var transitionRunning;
+				
 				function expandCollapseGroup() {
+					
+					if(transitionRunning) return;
+					
 					record("expandCollapseGroup", this, []);
-					var list = this._list;
-					var index = list.getChildren().indexOf(this);
-					for(var i = 0; i < this._groupItems.length; i++){
-						var child = this._groupItems[i];
-						if(!this.expanded){
-							list.addChild(child, ++index);
-						} else {
-							list.removeChild(child);
-						}
-					}
+					
 					this.expanded = !this.expanded;
+					
+					var list = this._list;
+					var items = this._groupItems;
+					if(this.expanded){
+						var index = list.getChildren().indexOf(this);
+						array.forEach(items, function(child){
+							list.addChild(child, ++index);
+						});
+						if(list._qs_timer){
+							list._qs_timer.remove();
+							list._qs_timer = null;
+						}
+						list._reloadItems();
+						array.forEach(items, function(child){
+							domClass.add(child.domNode, "visible");
+						});
+					} else {
+						array.forEach(items, function(child){
+							if(replaying){
+								list.removeChild(child);
+							}
+							domClass.remove(child.domNode, "visible");
+						});
+					}
+					
+					if(!replaying) transitionRunning = true;
 					domClass[this.expanded ? "add" : "remove"](this.domNode, "expanded");
+				}
+				
+				function expandCollapseTransitionEnd(evt){
+					var items = this._groupItems;
+					array.forEach(items, function(child){
+						if(!domClass.contains(child.domNode, "visible")){
+							child._list.removeChild(child);
+						}
+					});
+					transitionRunning = false;
 				}
 				
 				//---------- Newsgroup browsing ----------
@@ -2457,6 +2490,7 @@
 
 				function replay(r) {
 					replaying = r.f;
+					domClass.add(document.documentElement, "replaying");
 					var i;
 					var a = r.a;
 					for (i = 0; i < a.length; i++) {
@@ -2542,6 +2576,7 @@
 							})
 						});
 						replaying = null;
+						domClass.remove(document.documentElement, "replaying");
 						dom.byId("loadingScreen").style.display = "none";
 					});
 				}
@@ -3439,21 +3474,39 @@ body,html {
 	font-weight: normal;
 	font-style: italic;
 	color: blue;
-}
-.mblEdgeToEdgeList .mblListItem.group.expanded div.similar {
-	color: magenta;
+	line-height: 11pt;
+	margin-top: 5px;
 }
 .mblEdgeToEdgeList .mblListItem.group div.similar::before {
-	content: "(Show ";
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-right: 3px solid blue;
+	border-bottom: 3px solid blue;
+	margin: 0px 10px 0px 3px;
+	content: " ";
+	-webkit-transform: rotate(-45deg) translate(2px,1px);
+	-webkit-transition: -webkit-transform 500ms;
+}
+.replaying .mblEdgeToEdgeList .mblListItem.group div.similar::before {
+	-webkit-transition: none;
 }
 .mblEdgeToEdgeList .mblListItem.group.expanded div.similar::before {
-	content: "(Hide ";
+	-webkit-transform: rotate(45deg) translate(0px,-4px);
 }
 .mblEdgeToEdgeList .mblListItem.group div.similar::after {
-	content: " similar articles)";
+	content: " similar articles";
 }
 .mblEdgeToEdgeList .mblListItem.groupItem {
 	padding-left: 16px;
+	-webkit-transition: opacity 500ms;
+	opacity: 0;
+}
+.mblEdgeToEdgeList .mblListItem.groupItem.visible {
+	opacity: 1;
+}
+.replaying .mblEdgeToEdgeList .mblListItem.groupItem {
+	-webkit-transition: none;
 }
 </style>
 
@@ -3700,7 +3753,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
