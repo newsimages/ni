@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1104,9 +1105,8 @@ public class NewsService implements ProtocolCommandListener {
 					group = last;
 				}
 				group.group.add(header);
-				if(header.subject.compareTo(group.subject) < 0){
-					group.subject = header.subject;
-				}
+				Collections.sort(group.group);
+				group.subject = group.group.get(0).subject;
 				return;
 			}
 		}
