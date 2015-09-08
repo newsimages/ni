@@ -397,18 +397,17 @@
 								var a0 = a.group[0];
 								var ga = {
 									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
-									subject: a.subject + "<div class='similar'>" + a.group.length + "</div>"
+									subject: a.subject + "<div class='similar'>" + a.group.length + " similar articles</div>"
 								};
-								var groupItem = item = addArticleItem(list, ga, expandCollapseGroup, item);
-								domClass.add(groupItem.domNode, "group");
-								item.domNode.addEventListener("webkitTransitionEnd", lang.hitch(item, expandCollapseTransitionEnd));
+								var groupItem = item = addArticleItem(list, ga, gotoSeries, item);
+								domClass.add(groupItem.domNode, "series");
 								list.addChild(groupItem);
 								groupItem._groupItems = [];
+								var subItem = null;
 								for(var j = 0; j < a.group.length; j++){
-									item = addArticleItem(list, a.group[j], selectArticle, item, newsgroup);
-									domClass.add(item.domNode, "groupItem");
-									groupItem._groupItems.push(item);
-									item._parentGroup = groupItem;
+									subItem = addArticleItem(list, a.group[j], selectArticle, subItem, newsgroup);
+									groupItem._groupItems.push(subItem);
+									subItem._parentGroup = groupItem;
 								}
 							} else {
 								item = addArticleItem(list, a, selectArticle, item, newsgroup);
@@ -431,7 +430,7 @@
 									id : uniqueId(id),
 									label : a.subject ,
 									clickable : true,
-									noArrow : true,
+									noArrow : a.groupId ? false : true,
 									onClick : callback,
 									articleId : id,
 									newsgroup : newsgroup
@@ -449,54 +448,36 @@
 					return item;
 				}
 			
-				var transitionRunning;
-				
-				function expandCollapseGroup() {
+				function gotoSeries() {
 					
-					if(transitionRunning) return;
+					record("gotoSeries", this, []);
 					
-					record("expandCollapseGroup", this, []);
-
-					var animate = !replaying && this.view.domNode.style.display !== "none";
-					
-					this.expanded = !this.expanded;
-					
-					var list = this._list;
-					var items = this._groupItems;
-					if(this.expanded){
-						var index = list.getChildren().indexOf(this);
-						array.forEach(items, function(child){
-							list.addChild(child, ++index);
-						});
-						if(list._qs_timer){
-							list._qs_timer.remove();
-							list._qs_timer = null;
-						}
-						list._reloadItems();
-						array.forEach(items, function(child){
-							domClass.add(child.domNode, "visible");
-						});
-					} else {
-						array.forEach(items, function(child){
-							if(!animate){
-								list.removeChild(child);
-							}
-							domClass.remove(child.domNode, "visible");
-						});
-					}
-					
-					if(animate) transitionRunning = true;
-					domClass[this.expanded ? "add" : "remove"](this.domNode, "expanded");
+					seriesHeading.set("label", this.label);
+					seriesHeading.set("moveTo", this.view.id);
+					searchView.performTransition("series", 1,
+							replaying ? "none" : "slide");
+					seriesView.scrollTo({
+						x : 0,
+						y : 0
+					});
+					var list = seriesResultsList;
+					list.view = seriesView;
+					array.forEach(this._groupItems, function(child){
+						list.addChild(child);
+						child._list = list;
+						child.view = seriesView;
+					});
 				}
 				
-				function expandCollapseTransitionEnd(evt){
-					var items = this._groupItems;
-					array.forEach(items, function(child){
-						if(!domClass.contains(child.domNode, "visible")){
-							child._list.removeChild(child);
+				leaveSeriesView = function() {
+					if (arguments[1] == -1) {
+						clearRecords("gotoSeries");
+						clearRecords("seriesScroll");
+						var list = seriesResultsList;
+						while ((children = list.getChildren()).length > 0) {
+							list.removeChild(children[0]);
 						}
-					});
-					transitionRunning = false;
+					}				
 				}
 				
 				//---------- Newsgroup browsing ----------
@@ -789,6 +770,7 @@
 					showProgressBar(false);
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
+					fixList(seriesResultsList);
 					clearRecords("selectArticle");
 				}
 
@@ -1317,14 +1299,6 @@
 						item.onClick();
 						return item;
 					}
-					if(item && item._groupItems){
-						if(!item.expanded && !testOnly)
-							expandCollapseGroup.call(item);
-						item = item.nextItem;
-					}
-					if(item && item._parentGroup && !item._parentGroup.expanded && !testOnly){
-						expandCollapseGroup.call(item._parentGroup);
-					}
 					if (item && !testOnly) {
 						showArticle(item);
 						prevTouchTime = 0;
@@ -1333,15 +1307,7 @@
 				};
 
 				previous = function(curItem, testOnly) {
-					var item = (curItem||currentItem).prevItem;
-					if(item && item._groupItems){
-						if(!item.expanded && !testOnly)
-							expandCollapseGroup.call(item);
-						item = item.prevItem;
-					}
-					if(item && item._parentGroup && !item._parentGroup.expanded && !testOnly){
-						expandCollapseGroup.call(item._parentGroup);
-					}
+					var item = (curItem || currentItem).prevItem;
 					if (item && !testOnly) {
 						showArticle(item);
 						prevTouchTime = 0;
@@ -1497,8 +1463,9 @@
 				showThumbnails = function() {
 					record("showThumbnails", null, []);
 					currentItemBeforeThumbails = currentItem;
-					articleView.performTransition("index", 1, replaying ? "none" : "slide");
-					if(replaying){
+					articleView.performTransition("index", 1,
+							replaying ? "none" : "slide");
+					if (replaying) {
 						stopThumbnails();
 					} else if (!pauseClicked) {
 						getThumbnail(currentItem);
@@ -1535,7 +1502,7 @@
 				leaveIndexView = function() {
 					clearRecords("showThumbnails");
 					stopThumbnails();
-					var item = currentItemBeforeThumbails||currentItem;
+					var item = currentItemBeforeThumbails || currentItem;
 					currentItemBeforeThumbails = null;
 					if (!thumbnailClicked && item) {
 						showArticle(item);
@@ -1683,8 +1650,8 @@
 					});
 
 					domClass.remove(clearButton.domNode, "disabled");
-					
-					if(!replaying)
+
+					if (!replaying)
 						getThumbnail(item, true);
 				}
 
@@ -1909,7 +1876,7 @@
 					while ((children = list.getChildren()).length > 0) {
 						var child = children[0];
 						list.removeChild(child);
-						if(child._groupItems){
+						if (child._groupItems) {
 							array.forEach(child._groupitems, function(it) {
 								it.destroyRecursive();
 							});
@@ -2002,7 +1969,7 @@
 											}
 										}
 									}
-									if (v == searchView || v == newsgroupView) {
+									if (v == searchView || v == newsgroupView || v == seriesView) {
 										var f = v.id + "Scroll";
 										clearRecords(f);
 										record(f, null, [ to.y ]);
@@ -2099,12 +2066,12 @@
 
 					updateSearchControls();
 				};
-				
+
 				function updateDisplayedEngine() {
 					var select = dom.byId("searchEngineSelect");
-					for(var i = 0; i < select.options.length; i++){
+					for ( var i = 0; i < select.options.length; i++) {
 						var o = select.options[i];
-						if(o.selected){
+						if (o.selected) {
 							dom.byId("searchEngineDiv").innerText = o.text;
 						}
 					}
@@ -2333,20 +2300,21 @@
 				//---------- Current state ----------
 
 				var funcnames = [
-					"setSearch",
-					"getNewsgroups",
-					"selectNewsgroup",
-					"getArticles",
-					"expandCollapseGroup",
-					"searchScroll",
-					"newsgroupScroll",
-					"getBody",
-					"selectArticle",
-					"addThumbnails",
-					"toggleThumbnailsDir",
-					"showThumbnails"
+				       	"setSearch",
+						"getNewsgroups",
+						"selectNewsgroup",
+						"getArticles",
+						"gotoSeries",
+						"searchScroll",
+						"newsgroupScroll",
+						"seriesScroll",
+						"getBody",
+						"selectArticle",
+						"addThumbnails",
+						"toggleThumbnailsDir",
+						"showThumbnails"
 				];
-				
+
 				function LocalStorage() {
 					this.record = function(f, r) {
 						var n = this._load(f + "_count", 0);
@@ -2372,11 +2340,11 @@
 								}
 							}
 						}
-						
+
 					};
 					this.load = function(cb) {
 						var state = {};
-						array.forEach(funcnames, lang.hitch(this, function(f) { 
+						array.forEach(funcnames, lang.hitch(this, function(f) {
 							var a = state[f] = [];
 							var n = this._load(f + "_count", 0);
 							for ( var i = 0; i < n; i++) {
@@ -2389,56 +2357,92 @@
 						cb(state);
 					};
 					this.clear = function(f) {
-						for (var p in localStorage) {
-							if (new RegExp("^s_" + (f||"")).test(p))
+						for ( var p in localStorage) {
+							if (new RegExp("^s_" + (f || "")).test(p))
 								delete localStorage[p];
 						}
 					};
 					// private
 					this._save = function(p, v) {
-						localStorage["s_" + p] = typeof v == "string" ? v : json
-								.stringify(v);
+						localStorage["s_" + p] = typeof v == "string" ? v
+								: json.stringify(v);
 					};
 					this._load = function(p, d) {
 						var s = localStorage["s_" + p];
 						return s ? json.parse(s) : d;
 					};
 				}
-				
+
 				function SQLStorage() {
-					this.db = openDatabase('NI', '1.0', 'App state storage DB', 50 * 1024 * 1024);
-					this.db.transaction(lang.hitch(this, function (tx) {
-						tx.executeSql('CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
-								null, null, lang.hitch(this, "_error"));
-					}));
+					this.db = openDatabase('NI', '1.0', 'App state storage DB',
+							50 * 1024 * 1024);
+					this.db
+							.transaction(lang
+									.hitch(
+											this,
+											function(tx) {
+												tx
+														.executeSql(
+																'CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
+																null,
+																null,
+																lang
+																		.hitch(
+																				this,
+																				"_error"));
+											}));
 					this.record = function(f, r) {
-						this.db.transaction(lang.hitch(this, function (tx) {  
-							tx.executeSql('INSERT INTO STATE (f, r) VALUES (?, ?)', [f, json.stringify(r)], lang.hitch(this, "_dump"), lang.hitch(this, "_error"));
+						this.db.transaction(lang.hitch(this, function(tx) {
+							tx.executeSql(
+									'INSERT INTO STATE (f, r) VALUES (?, ?)', [
+											f, json.stringify(r) ], lang.hitch(
+											this, "_dump"), lang.hitch(this,
+											"_error"));
 						}));
 					};
 					this.load = function(cb) {
 						var state = {};
-						array.forEach(funcnames, function(f) { state[f] = []; });
-						this.db.transaction(lang.hitch(this, function (tx) {  
-							tx.executeSql('SELECT * FROM STATE ORDER BY i', null, function(tx, results){
-								for(var i = 0; i < results.rows.length; i++){
-									var row = results.rows.item(i);
-									state[row.f].push(json.parse(row.r));
-								}
-								cb(state);
-							}, lang.hitch(this, "_error"));
-						}));
-					};					
+						array.forEach(funcnames, function(f) {
+							state[f] = [];
+						});
+						this.db
+								.transaction(lang
+										.hitch(
+												this,
+												function(tx) {
+													tx
+															.executeSql(
+																	'SELECT * FROM STATE ORDER BY i',
+																	null,
+																	function(
+																			tx,
+																			results) {
+																		for ( var i = 0; i < results.rows.length; i++) {
+																			var row = results.rows
+																					.item(i);
+																			state[row.f]
+																					.push(json
+																							.parse(row.r));
+																		}
+																		cb(state);
+																	},
+																	lang
+																			.hitch(
+																					this,
+																					"_error"));
+												}));
+					};
 					this.clear = function(f) {
-						this.db.transaction(lang.hitch(this, function (tx) {
-							if(f){
-								tx.executeSql('DELETE FROM STATE WHERE f=?', [f]);
+						this.db.transaction(lang.hitch(this, function(tx) {
+							if (f) {
+								tx.executeSql('DELETE FROM STATE WHERE f=?',
+										[ f ]);
 							} else {
 								tx.executeSql('DELETE FROM STATE');
 							}
 						}));
 					};
-					this._dump = function(){
+					this._dump = function() {
 						/*
 						this.db.transaction(function (tx) {
 							tx.executeSql('SELECT * FROM STATE', null, function(tx, results){
@@ -2450,19 +2454,21 @@
 								console.log("--------------------")
 							});
 						});
-						*/
+						 */
 					};
-					this._error = function(tx, err){
-						console.log("SQL error " + err.code + ": " + err.message);
+					this._error = function(tx, err) {
+						console.log("SQL error " + err.code + ": "
+								+ err.message);
 					};
 				}
-				
+
 				var storage;
-				
+
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
 						return;
-					if(!storage) storage = new SQLStorage();
+					if (!storage)
+						storage = new SQLStorage();
 					var i;
 					var na = [];
 					for (i = 0; i < a.length; i++) {
@@ -2472,11 +2478,16 @@
 					if (t) {
 						t = t.id;
 					}
-					if (r && r.articleBody){
+					if (r && r.articleBody) {
 						r.articleBody = convertBody(r.articleBody, true);
 					}
 					try {
-						storage.record(f, {f:f, t:t, a:na, r:r});
+						storage.record(f, {
+							f : f,
+							t : t,
+							a : na,
+							r : r
+						});
 					} catch (err) {
 					}
 				}
@@ -2484,7 +2495,8 @@
 				function clearRecords(f) {
 					if (replaying || !settings.state)
 						return;
-					if(!storage) storage = new SQLStorage();
+					if (!storage)
+						storage = new SQLStorage();
 					storage.clear(f);
 				}
 
@@ -2504,16 +2516,17 @@
 					if (r.t) {
 						r.t = registry.byId(r.t);
 					}
-					if (r.r && r.r.articleBody){
+					if (r.r && r.r.articleBody) {
 						r.r.articleBody = convertBody(r.r.articleBody, false);
 					}
 					var f = funcs[r.f];
 					replayResult = r.r;
 					f.apply(r.t, a);
 				}
-				
-				function convertBody(body, record){
-					if(!body) return null;
+
+				function convertBody(body, record) {
+					if (!body)
+						return null;
 					return {
 						from : body.from,
 						date : body.date,
@@ -2526,14 +2539,15 @@
 											return {
 												filename : att.filename,
 												typedArray : att.typedArray,
-												data : record ?
-														btoa(att.typedArray ? Uint8ArrayToBinary(att.data) : att.data) :
-														(att.typedArray ? binaryToUint8Array(atob(att.data)) : att.data)
+												data : record ? btoa(att.typedArray ? Uint8ArrayToBinary(att.data)
+														: att.data)
+														: (att.typedArray ? binaryToUint8Array(atob(att.data))
+																: att.data)
 											};
 										})
 					};
 				}
-				
+
 				function setSearch(value) {
 					searchBox.set("value", value);
 				}
@@ -2549,31 +2563,40 @@
 						y : y
 					});
 				}
-				
+
+				function seriesScroll(y) {
+					seriesView.scrollTo({
+						y : y
+					});
+				}
+
 				var funcs = {
 					setSearch : setSearch,
 					getNewsgroups : getNewsgroups,
 					selectNewsgroup : selectNewsgroup,
 					getArticles : getArticles,
-					expandCollapseGroup: expandCollapseGroup,
+					gotoSeries : gotoSeries,
 					searchScroll : searchScroll,
 					newsgroupScroll : newsgroupScroll,
+					seriesScroll: seriesScroll,
 					getBody : getBody,
 					selectArticle : selectArticle,
-					addThumbnails: addThumbnails,
-					toggleThumbnailsDir: toggleThumbnailsDir,
-					showThumbnails: showThumbnails
+					addThumbnails : addThumbnails,
+					toggleThumbnailsDir : toggleThumbnailsDir,
+					showThumbnails : showThumbnails
 				};
 
 				function restoreState() {
-					if(!storage) storage = new SQLStorage();
-					storage.load(function(state){
+					if (!storage)
+						storage = new SQLStorage();
+					storage.load(function(state) {
 						array.forEach(funcnames, function(f) {
-							array.forEach(state[f], function(r){
+							array.forEach(state[f], function(r) {
 								try {
 									replay(r);
 								} catch (err) {
-									console.log("error replaying " + f + " : " + err);
+									console.log("error replaying " + f + " : "
+											+ err);
 								}
 							})
 						});
@@ -2582,11 +2605,12 @@
 						dom.byId("loadingScreen").style.display = "none";
 					});
 				}
-				
+
 				function clearState() {
 					if (replaying || !settings.state)
 						return;
-					if(!storage) storage = new SQLStorage();
+					if (!storage)
+						storage = new SQLStorage();
 					storage.clear();
 				}
 			});
@@ -3469,45 +3493,12 @@ body,html {
 	color: #a0a0a0;
 }
 
-.mblEdgeToEdgeList .mblListItem.group {
-}
-.mblEdgeToEdgeList .mblListItem.group div.similar {
+.mblEdgeToEdgeList .mblListItem.series div.similar {
 	font-weight: normal;
 	font-style: italic;
 	color: blue;
 	line-height: 11pt;
 	margin-top: 5px;
-}
-.mblEdgeToEdgeList .mblListItem.group div.similar::before {
-	display: inline-block;
-	width: 6px;
-	height: 6px;
-	border-right: 3px solid blue;
-	border-bottom: 3px solid blue;
-	margin: 0px 10px 0px 3px;
-	content: " ";
-	-webkit-transform: rotate(-45deg) translate(2px,1px);
-	-webkit-transition: -webkit-transform 300ms;
-}
-.replaying .mblEdgeToEdgeList .mblListItem.group div.similar::before {
-	-webkit-transition: none;
-}
-.mblEdgeToEdgeList .mblListItem.group.expanded div.similar::before {
-	-webkit-transform: rotate(45deg) translate(0px,-4px);
-}
-.mblEdgeToEdgeList .mblListItem.group div.similar::after {
-	content: " similar articles";
-}
-.mblEdgeToEdgeList .mblListItem.groupItem {
-	padding-left: 16px;
-	-webkit-transition: opacity 300ms;
-	opacity: 0;
-}
-.mblEdgeToEdgeList .mblListItem.groupItem.visible {
-	opacity: 1;
-}
-.replaying .mblEdgeToEdgeList .mblListItem.groupItem {
-	-webkit-transition: none;
 }
 </style>
 
@@ -3603,6 +3594,19 @@ body,html {
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-props="variableHeight:true"
 			data-dojo-id="newsgroupResultsList" id="newsgroupResultsList"
+			data-dojo-mixins="dojox/mobile/LongListMixin">
+		</ul>
+	</div>
+	<div data-dojo-type="dojox/mobile/ScrollableView" id="series"
+		data-dojo-id="seriesView"
+		data-dojo-props="onBeforeTransitionOut:leaveSeriesView">
+		<div data-dojo-type="dojox/mobile/Heading"
+			class="seriesHeading smallHeading" data-dojo-id="seriesHeading"
+			data-dojo-props="fixed:'top',back:'Back',moveTo:'search'">
+		</div>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
+			data-dojo-props="variableHeight:true"
+			data-dojo-id="seriesResultsList" id="seriesResultsList"
 			data-dojo-mixins="dojox/mobile/LongListMixin">
 		</ul>
 	</div>
@@ -3754,7 +3758,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.9 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
