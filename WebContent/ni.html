@@ -2418,11 +2418,10 @@
 																			tx,
 																			results) {
 																		for ( var i = 0; i < results.rows.length; i++) {
-																			var row = results.rows
-																					.item(i);
-																			state[row.f]
-																					.push(json
-																							.parse(row.r));
+																			var row = results.rows.item(i);
+																			if(state[row.f]){
+																				state[row.f].push(json.parse(row.r));
+																			}
 																		}
 																		cb(state);
 																	},
@@ -3758,7 +3757,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.9.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
