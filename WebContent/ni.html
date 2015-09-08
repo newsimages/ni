@@ -1882,9 +1882,15 @@
 						if (child._groupItems) {
 							array.forEach(child._groupitems, function(it) {
 								it.destroyRecursive();
+								if(it == currentItem){
+									currentItem = null;
+								}
 							});
 						}
 						child.destroyRecursive();
+						if(child == currentItem){
+							currentItem = null;
+						}
 					}
 					var v = viewRegistry.getEnclosingScrollable(list.domNode);
 					if (v) {
@@ -3760,7 +3766,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.9.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
