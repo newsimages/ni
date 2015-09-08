@@ -478,6 +478,8 @@
 							list.removeChild(children[0]);
 						}
 					}				
+					fixList(searchResultsList);
+					fixList(newsgroupResultsList);
 				}
 				
 				//---------- Newsgroup browsing ----------
@@ -782,6 +784,7 @@
 						clearRecords("selectArticle");
 						clearRecords("newsgroupScroll");
 					}
+					fixList(searchResultsList);
 				}
 
 				function fixList(list) {
@@ -3757,7 +3760,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.9.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
