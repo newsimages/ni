@@ -456,6 +456,8 @@
 					if(transitionRunning) return;
 					
 					record("expandCollapseGroup", this, []);
+
+					var animate = !replaying && this.view.domNode.style.display !== "none";
 					
 					this.expanded = !this.expanded;
 					
@@ -476,14 +478,14 @@
 						});
 					} else {
 						array.forEach(items, function(child){
-							if(replaying){
+							if(!animate){
 								list.removeChild(child);
 							}
 							domClass.remove(child.domNode, "visible");
 						});
 					}
 					
-					if(!replaying) transitionRunning = true;
+					if(animate) transitionRunning = true;
 					domClass[this.expanded ? "add" : "remove"](this.domNode, "expanded");
 				}
 				
@@ -3468,7 +3470,6 @@ body,html {
 }
 
 .mblEdgeToEdgeList .mblListItem.group {
-	font-weight: bold;
 }
 .mblEdgeToEdgeList .mblListItem.group div.similar {
 	font-weight: normal;
@@ -3753,7 +3754,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.8.8 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.8.9 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
