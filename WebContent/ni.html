@@ -454,7 +454,7 @@
 					
 					seriesHeading.set("label", this.label);
 					seriesHeading.set("moveTo", this.view.id);
-					searchView.performTransition("series", 1,
+					this.view.performTransition("series", 1,
 							replaying ? "none" : "slide");
 					seriesView.scrollTo({
 						x : 0,
@@ -3757,7 +3757,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.9.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
