@@ -395,14 +395,15 @@
 							var id = a.vols || a.parts || a.articleId;
 							if(a.group){
 								var a0 = a.group[0];
-								var ga = {
+								var ga = lang.mixin({}, a0, {
 									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
 									subject: a.subject + "<div class='similar'>" + a.group.length + " similar articles</div>"
-								};
+								});
 								var groupItem = item = addArticleItem(list, ga, gotoSeries, item);
 								domClass.add(groupItem.domNode, "series");
 								list.addChild(groupItem);
 								groupItem._groupItems = [];
+								groupItem._subject = a.subject;
 								var subItem = null;
 								for(var j = 0; j < a.group.length; j++){
 									subItem = addArticleItem(list, a.group[j], selectArticle, subItem, newsgroup);
@@ -424,10 +425,10 @@
 				}
 				
 				function addArticleItem(list, a, callback, prevItem, newsgroup) {
-					var id = a.vols || a.parts || a.articleId || a.groupId;
+					var id = a.vols || a.parts || a.articleId;
 					var item = new ListItem(
 								{
-									id : uniqueId(id),
+									id : uniqueId(a.groupId || id),
 									label : a.subject ,
 									clickable : true,
 									noArrow : a.groupId ? false : true,
@@ -452,7 +453,7 @@
 					
 					record("gotoSeries", this, []);
 					
-					seriesHeading.set("label", this.label);
+					seriesHeading.set("label", this._subject||this.label);
 					seriesHeading.set("moveTo", this.view.id);
 					this.view.performTransition("series", 1,
 							replaying ? "none" : "slide");
@@ -1300,6 +1301,7 @@
 							}
 						};
 						item.onClick();
+					
 						return item;
 					}
 					if (item && !testOnly) {
@@ -3766,7 +3768,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 4.9.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 4.9.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
