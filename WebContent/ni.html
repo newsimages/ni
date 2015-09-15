@@ -698,7 +698,6 @@
 											showProgressBar(false);
 											if (p.exception) {
 												showError(p.exception);
-												doSlideshow();					
 											} else {
 												if (p.body) {
 													if (multi && data) {
@@ -860,8 +859,6 @@
 					});
 
 					showBody(item, body);
-					
-					doSlideshow();					
 				}
 
 				function showBody(item, body) {
@@ -927,6 +924,8 @@
 							showText(body);
 						}
 					}
+					
+					doSlideshow();
 				}
 
 				function showZip(att, item) {
@@ -1363,13 +1362,17 @@
 				}
 				
 				function doSlideshow() {
+					if(articleView.domNode.style.display === "none"){
+						startStopSlideshow(0);
+						return;
+					}
 					if(slideshow > 0){
 						if(next(0, true)){
 							setTimeout(function(){
 								next(null, false, true);
 							}, settings.slideshowDelay||1000);
 						} else {
-							startStopSlideshow(0)
+							startStopSlideshow(0);
 						}
 					} else if(slideshow < 0){
 						if(previous(0, true)){
@@ -1377,7 +1380,7 @@
 								previous(null, false, true);
 							}, settings.slideshowDelay||1000);
 						} else {
-							startStopSlideshow(0)
+							startStopSlideshow(0);
 						}
 					}
 				}
@@ -1911,6 +1914,8 @@
 					if (currentItem && currentItem.domNode) {
 						domClass.add(currentItem.domNode, "error");
 					}
+					
+					doSlideshow();
 				}
 
 				function makeErrorMessage(error, defaultMessage) {
@@ -3856,7 +3861,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.1.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.1.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
