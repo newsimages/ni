@@ -61,7 +61,8 @@
 					progress : true,
 					partial : true,
 					state : false,
-					thumbnailSize : 150
+					thumbnailSize : 150,
+					slideshowDelay: 1000
 				};
 
 				//---------- Initialization ----------
@@ -170,9 +171,16 @@
 						}
 						var v = searchView.domNode.style.display != "none" ? searchView
 								: (newsgroupView.domNode.style.display != "none" ? newsgroupView
-										: null);
+										: (seriesView.domNode.style.display != "none" ? seriesView
+											: null));
 						if (v) {
 							switch (k) {
+							case keys.BACKSPACE:
+							case keys.ESCAPE:
+								if(v === newsgroupView || v === seriesView){
+									v.performTransition("search", -1, "slide");
+								}
+								break;
 							case keys.UP_ARROW:
 								scroll(v, 0.5);
 								break;
@@ -690,6 +698,7 @@
 											showProgressBar(false);
 											if (p.exception) {
 												showError(p.exception);
+												doSlideshow();					
 											} else {
 												if (p.body) {
 													if (multi && data) {
@@ -766,6 +775,7 @@
 
 				leaveArticleView = function(to) {
 					cancelRequest();
+					startStopSlideshow(0);
 					if (to == "index") {
 						return;
 					}
@@ -850,6 +860,8 @@
 					});
 
 					showBody(item, body);
+					
+					doSlideshow();					
 				}
 
 				function showBody(item, body) {
@@ -1290,7 +1302,12 @@
 					}, delay);
 				}
 
-				next = function(curItem, testOnly) {
+				var prevNextTime = 0, slideshow = 0;
+				
+				next = function(curItem, testOnly, bySlideshow) {
+					if(!testOnly && !bySlideshow && startStopSlideshow(1)){
+						return;
+					}
 					var item = (curItem||currentItem).nextItem;
 					if (item && item.isMoreItem && !testOnly) {
 						item.itemsLoaded = function() {
@@ -1311,7 +1328,10 @@
 					return item;
 				};
 
-				previous = function(curItem, testOnly) {
+				previous = function(curItem, testOnly, bySlideshow) {
+					if(!testOnly && !bySlideshow && startStopSlideshow(-1)){
+						return;
+					}
 					var item = (curItem || currentItem).prevItem;
 					if (item && !testOnly) {
 						showArticle(item);
@@ -1320,6 +1340,48 @@
 					return item;
 				};
 
+				function startStopSlideshow(dir) {
+					// double-click/tap
+					var now = new Date().getTime();
+					var dt = now - prevNextTime;
+					var arrowDir = dom.byId((dir>=0?"right":"left")+"ArrowDiv");
+					var arrowOpp = dom.byId((dir<0?"right":"left")+"ArrowDiv");
+					if (dir !== 0 && slideshow === 0 && dt <= 300) {
+						// start slide show
+						slideshow = dir;
+						domClass.add(arrowDir, "slideshow");
+						domClass.remove(arrowOpp, "slideshow");
+						prevNextTime = 0;
+						return true;
+					} else {
+						// stop slide show
+						slideshow = 0;
+						domClass.remove(arrowDir, "slideshow");
+						domClass.remove(arrowOpp, "slideshow");
+						prevNextTime = now;
+					}
+				}
+				
+				function doSlideshow() {
+					if(slideshow > 0){
+						if(next(0, true)){
+							setTimeout(function(){
+								next(null, false, true);
+							}, settings.slideshowDelay||1000);
+						} else {
+							startStopSlideshow(0)
+						}
+					} else if(slideshow < 0){
+						if(previous(0, true)){
+							setTimeout(function(){
+								previous(null, false, true);
+							}, settings.slideshowDelay||1000);
+						} else {
+							startStopSlideshow(0)
+						}
+					}
+				}
+				
 				var prevTouchTime, cx, cy, dx0, dy0, imageScale, initialScale, initialScroll;
 
 				function onImageTouchStart(e) {
@@ -2057,6 +2119,8 @@
 					stateSwitch.set("value", settings.state ? "on" : "off");
 
 					thumbnailSizeBox.set("value", settings.thumbnailSize);
+					
+					slideshowDelayBox.set("value", settings.slideshowDelay);
 
 					settingsInited = true;
 				}
@@ -2122,6 +2186,18 @@
 						return;
 
 					settings.thumbnailSize = parseInt(thumbnailSizeBox
+							.get("value"));
+
+					localStorage.settings = json.stringify(settings);
+
+					resizeThumbnails();
+				};
+
+				updateSlideshowSettings = function() {
+					if (!settingsInited)
+						return;
+
+					settings.slideshowDelay = parseInt(slideshowDelayBox
 							.get("value"));
 
 					localStorage.settings = json.stringify(settings);
@@ -3194,6 +3270,11 @@ body,html {
 	margin-top: -30px;
 }
 
+.articleArrow.slideshow {
+	border-left-color: #900000;
+	border-top-color: #900000;
+}
+
 .leftArrow {
 	left: 0px;
 	-webkit-transform: scale(0.5, 1) rotate(-45deg);
@@ -3670,13 +3751,13 @@ body,html {
 		<div id="articleControls" class="articleControls hidden">
 			<div id="leftArrow" class="arrowContainer leftArrowContainer"
 				onclick="previous()">
-				<div class="articleArrow leftArrow"></div>
+				<div class="articleArrow leftArrow" id="leftArrowDiv"></div>
 			</div>
 			<div id="articleTitleBg" class="articleTitleBg"></div>
 			<div id="articleTitleLabel" class="articleTitleLabel"></div>
 			<div id="rightArrow" class="arrowContainer rightArrowContainer"
 				onclick="next()">
-				<div class="articleArrow rightArrow"></div>
+				<div class="articleArrow rightArrow" id="rightArrowDiv"></div>
 			</div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton"
 				data-dojo-id="articleBackButton" class="articleBackButton"
@@ -3768,8 +3849,14 @@ body,html {
 				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Slideshow delay'"><input
+				data-dojo-id="slideshowDelayBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
+			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.0.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.1.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
