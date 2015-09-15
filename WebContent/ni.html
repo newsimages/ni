@@ -1351,6 +1351,9 @@
 						domClass.add(arrowDir, "slideshow");
 						domClass.remove(arrowOpp, "slideshow");
 						prevNextTime = 0;
+						if(!currentRequest){
+							doSlideshow();
+						}
 						return true;
 					} else {
 						if(slideshow !== 0) {
