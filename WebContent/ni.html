@@ -1353,10 +1353,13 @@
 						prevNextTime = 0;
 						return true;
 					} else {
-						// stop slide show
-						slideshow = 0;
-						domClass.remove(arrowDir, "slideshow");
-						domClass.remove(arrowOpp, "slideshow");
+						if(slideshow !== 0) {
+							// stop slide show
+							slideshow = 0;
+							domClass.remove(arrowDir, "slideshow");
+							domClass.remove(arrowOpp, "slideshow");
+							return true;
+						}
 						prevNextTime = now;
 					}
 				}
@@ -3861,7 +3864,7 @@ body,html {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.1.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.1.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
