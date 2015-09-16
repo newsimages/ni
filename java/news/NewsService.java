@@ -227,23 +227,26 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public synchronized byte[] toByteArray() {
-			return getImageBytes();
+			return super.toByteArray();
 		}
 
 		public synchronized int size() {
-			return getImageBytes().length;
+			return super.size();
 		}
 		
 		public synchronized void write(byte[] b, int off, int len) {
 			super.write(b, off, len);
 			lastBytesValid = false;
+			getImageBytes();
 		}
 
 		public synchronized void reset() {
+			/*
 			super.reset();
 			smaller = false;
 			lastBytes = null;
 			lastBytesValid = false;
+			*/
 		}
 
 		private byte[] getImageBytes() {
@@ -294,8 +297,8 @@ public class NewsService implements ProtocolCommandListener {
 			} catch (Exception e) {
 				newBytes = new byte[0];
 			}
-			lastBytes = bytes;
-			lastBytesValid = true;
+			//lastBytes = bytes;
+			//lastBytesValid = true;
 			return newBytes;
 		}
 	}
