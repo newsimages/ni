@@ -257,7 +257,6 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		private byte[] getImageBytes() {
-			System.err.println("ImageByteArrayOutputStream: getImageBytes");
 			/*
 			if(lastBytesValid){
 				return lastBytes;
@@ -310,7 +309,6 @@ public class NewsService implements ProtocolCommandListener {
 				System.err.println();
 				newBytes = allImageBytes;
 			} catch (Exception e) {
-				System.err.println("ImageByteArrayOutputStream: exception " + e.toString());
 				newBytes = new byte[0];
 			}
 			//lastBytes = bytes;
