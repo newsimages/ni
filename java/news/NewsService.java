@@ -87,6 +87,7 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_YENC = 3;
 
 	public NewsService() {
+		System.err.println("Hello from NewsService!");
 	}
 
 	@POST
@@ -250,13 +251,18 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		private byte[] getImageBytes() {
+			System.err.println("ImageByteArrayOutputStream: getImageBytes");
+			/*
 			if(lastBytesValid){
 				return lastBytes;
 			}
+			*/
 			byte[] bytes = super.toByteArray();
+			/*
 			if(smaller || maxImageSize <= 0){
 				return bytes;
 			}
+			*/
 			byte[] newBytes;
 			BufferedImage image;
 			try {
@@ -288,13 +294,14 @@ public class NewsService implements ProtocolCommandListener {
 				ImageIO.write(thumbnail, "jpg", out);
 				byte[] allImageBytes = out.toByteArray();
 				// now the tricky part, detect what part of the (potentially partial) image are valid
-				System.out.print("ImageByteArrayOutputStream: last bytes =");
+				System.err.print("ImageByteArrayOutputStream: last bytes =");
 				for(int i = allImageBytes.length-1; i >= 0; i--){
-					System.out.print(" " + allImageBytes[i]);
+					System.err.print(" " + allImageBytes[i]);
 				}
-				System.out.println();
+				System.err.println();
 				newBytes = allImageBytes;
 			} catch (Exception e) {
+				System.err.println("ImageByteArrayOutputStream: exception " + e.toString());
 				newBytes = new byte[0];
 			}
 			//lastBytes = bytes;
