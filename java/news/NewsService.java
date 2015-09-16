@@ -266,7 +266,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 	
 	private static class ProgressByteArrayOutputStream extends
-			ByteArrayOutputStream {
+			ImageByteArrayOutputStream {
 
 		boolean cancelled;
 		boolean noChunks;
@@ -452,6 +452,13 @@ public class NewsService implements ProtocolCommandListener {
 				System.arraycopy(att.data, 0, data, pos, att.data.length);
 			}
 			return data;
+		}
+
+		public void setFilename(String filename) {
+			this.filename = filename;
+			if(buffer != null && isImage(filename)){
+				buffer.isImage = true;
+			}
 		}
 	}
 
@@ -878,7 +885,7 @@ public class NewsService implements ProtocolCommandListener {
 			bytes = ((ProgressReader) reader).getBuffer();
 			Progress p = ((ProgressReader) reader).progress;
 			if (fileInfo.filename != null)
-				p.filename = fileInfo.filename;
+				p.setFilename(fileInfo.filename);
 			if (body.attachments.size() > 0) {
 				// multiple attachments
 				p.attSizes = new ArrayList<Integer>();
