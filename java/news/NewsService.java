@@ -207,9 +207,10 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("b")
 	@Produces(MediaType.APPLICATION_JSON)
 	public ArticleBody getBody(@FormParam("host") String host,
-			@FormParam("articleId") String articleId) throws SocketException,
+			@FormParam("articleId") String articleId,
+			@FormParam("screenSize") int screenSize) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
-		return getBody(host, articleId, null);
+		return getBody(host, articleId, null, screenSize);
 	}
 	
 	private static class ProgressByteArrayOutputStream extends
@@ -412,7 +413,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	public ArticleBody getBody(final String host, String articleId,
-			Progress progress) throws SocketException, IOException,
+			Progress progress, int screenSize) throws SocketException, IOException,
 			ParserConfigurationException, SAXException {
 
 		String[] aids = articleId.split(",");
@@ -498,6 +499,15 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
+		if(screenSize > 0){
+			for (int i = 0; i < body.attachments.size(); i++) {
+				Attachment a = body.attachments.get(i);
+				if (isImage(a.filename)) {
+					a.data = createThumbnail(a.data, screenSize);
+				}
+			}
+		}
+		
 		if (progress != null && progress.cancelled) {
 			return body;
 		}
@@ -537,7 +547,7 @@ public class NewsService implements ProtocolCommandListener {
 			public void run() {
 				ArticleBody body;
 				try {
-					body = getBody(host, articleId, progress);
+					body = getBody(host, articleId, progress, 0);
 					progress.body = progress.chunk != null ? body
 							.cloneWithoutData() : body;
 				} catch (Throwable ex) {
@@ -1280,7 +1290,7 @@ public class NewsService implements ProtocolCommandListener {
 			Progress progress) throws SocketException, IOException,
 			ParserConfigurationException, SAXException {
 
-		ArticleBody body = getBody(host, articleId, progress);
+		ArticleBody body = getBody(host, articleId, progress, 0);
 
 		ArticleBody thumbnailBody = new ArticleBody();
 		thumbnailBody.text = "-- Thumbnail --\n\n" + body.text;
