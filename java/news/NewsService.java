@@ -220,7 +220,6 @@ public class NewsService implements ProtocolCommandListener {
 		private boolean lastBytesValid = false;
 		
 		public ImageByteArrayOutputStream(int maxImageSize) {
-			System.err.println("ImageByteArrayOutputStream created " + maxImageSize);
 			this.maxImageSize = maxImageSize;
 		}
 
@@ -236,8 +235,13 @@ public class NewsService implements ProtocolCommandListener {
 			return super.size();
 		}
 		
+		public synchronized void write(int b) {
+			super.write(b);
+			lastBytesValid = false;
+			getImageBytes();
+		}
+		
 		public synchronized void write(byte[] b, int off, int len) {
-			System.err.println("ImageByteArrayOutputStream write");
 			super.write(b, off, len);
 			lastBytesValid = false;
 			getImageBytes();
@@ -322,7 +326,6 @@ public class NewsService implements ProtocolCommandListener {
 		private int maxChunkSize = 10000;
 
 		public synchronized void write(int c) {
-			System.err.println("ProgressByteArrayOutputStream write " + cancelled + " " + noChunks);
 			if (!cancelled) {
 				super.write(c);
 				if (!noChunks) {
@@ -333,7 +336,6 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public synchronized void write(byte[] bytes) throws IOException {
-			System.err.println("ProgressByteArrayOutputStream write[] " + cancelled + " " + noChunks);
 			if (!cancelled) {
 				super.write(bytes);
 				if (!noChunks) {
