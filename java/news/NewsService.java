@@ -322,6 +322,7 @@ public class NewsService implements ProtocolCommandListener {
 		private int maxChunkSize = 10000;
 
 		public synchronized void write(int c) {
+			System.err.println("ProgressByteArrayOutputStream write " + cancelled + " " + noChunks);
 			if (!cancelled) {
 				super.write(c);
 				if (!noChunks) {
@@ -332,6 +333,7 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		public synchronized void write(byte[] bytes) throws IOException {
+			System.err.println("ProgressByteArrayOutputStream write[] " + cancelled + " " + noChunks);
 			if (!cancelled) {
 				super.write(bytes);
 				if (!noChunks) {
