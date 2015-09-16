@@ -212,9 +212,97 @@ public class NewsService implements ProtocolCommandListener {
 		return getBody(host, articleId, null);
 	}
 
+	private static class ImageByteArrayOutputStream extends ByteArrayOutputStream {
+		private int maxImageSize;
+		private boolean smaller = false;
+		private byte[] lastBytes = null;
+		private boolean lastBytesValid = false;
+		
+		public ImageByteArrayOutputStream(int maxImageSize) {
+			this.maxImageSize = maxImageSize;
+		}
+
+		public ImageByteArrayOutputStream() {
+			this(0);
+		}
+
+		public synchronized byte[] toByteArray() {
+			return getImageBytes();
+		}
+
+		public synchronized int size() {
+			return getImageBytes().length;
+		}
+		
+		public synchronized void write(byte[] b, int off, int len) {
+			super.write(b, off, len);
+			lastBytesValid = false;
+		}
+
+		public synchronized void reset() {
+			super.reset();
+			smaller = false;
+			lastBytes = null;
+			lastBytesValid = false;
+		}
+
+		private byte[] getImageBytes() {
+			if(lastBytesValid){
+				return lastBytes;
+			}
+			byte[] bytes = super.toByteArray();
+			if(smaller || maxImageSize <= 0){
+				return bytes;
+			}
+			byte[] newBytes;
+			BufferedImage image;
+			try {
+				image = ImageIO.read(new ByteArrayInputStream(bytes));
+				int iw = image.getWidth();
+				int ih = image.getHeight();
+				if(iw <= maxImageSize && ih <= maxImageSize){
+					smaller = true;
+					return bytes;
+				}
+				int tw = maxImageSize, th = maxImageSize;
+				if (ih > iw) {
+					tw = th * iw / ih;
+				} else {
+					th = tw * ih / iw;
+				}
+				BufferedImage thumbnail = new BufferedImage(tw, th,
+						image.getType() == 0 ? BufferedImage.TYPE_INT_RGB
+								: image.getType());
+				Graphics2D g = thumbnail.createGraphics();
+				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+						RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g.setRenderingHint(RenderingHints.KEY_RENDERING,
+						RenderingHints.VALUE_RENDER_QUALITY);
+				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+						RenderingHints.VALUE_ANTIALIAS_ON);
+				g.drawImage(image, 0, 0, tw, th, null);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				ImageIO.write(thumbnail, "jpg", out);
+				byte[] allImageBytes = out.toByteArray();
+				// now the tricky part, detect what part of the (potentially partial) image are valid
+				System.out.print("ImageByteArrayOutputStream: last bytes =");
+				for(int i = allImageBytes.length-1; i >= 0; i--){
+					System.out.print(" " + allImageBytes[i]);
+				}
+				System.out.println();
+				newBytes = allImageBytes;
+			} catch (Exception e) {
+				newBytes = new byte[0];
+			}
+			lastBytes = bytes;
+			lastBytesValid = true;
+			return newBytes;
+		}
+	}
+	
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
-		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
+		private ByteArrayOutputStream chunk = new ImageByteArrayOutputStream();
 
 		boolean cancelled;
 		boolean noChunks;
