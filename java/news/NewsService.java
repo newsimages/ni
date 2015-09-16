@@ -273,6 +273,7 @@ public class NewsService implements ProtocolCommandListener {
 		private long lastTime = System.currentTimeMillis();
 		private int maxChunkSize = 10000;
 		private int lastChunkStart = 0;
+		private byte[] resetBytes = new byte[0];
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
@@ -303,20 +304,28 @@ public class NewsService implements ProtocolCommandListener {
 
 		public synchronized byte[] getChunkBytes() {
 
-			int chunkSize = size() - lastChunkStart;
-			
 			long t = System.currentTimeMillis();
 			if (t - lastTime < 500) {
 				maxChunkSize = Math.min(1000000, maxChunkSize * 2);
 			}
-			if (chunkSize > 0) {
+			if (_getChunkSize() > 0) {
 				lastTime = t;
 			}
-
+			return _getChunkBytes();
+		}
+		
+		private int _getChunkSize() {
+			return size() - lastChunkStart + (resetBytes != null ? resetBytes.length : 0);
+		}
+		
+		private byte[] _getChunkBytes() {
+			int chunkSize = _getChunkSize();
 			byte[] chunkBytes = new byte[chunkSize];
 			byte[] allBytes = toByteArray();
-			System.arraycopy(allBytes,  lastChunkStart,  chunkBytes,  0,  chunkSize);
+			System.arraycopy(resetBytes,  0,  chunkBytes,  0,  resetBytes.length);
+			System.arraycopy(allBytes,  lastChunkStart,  chunkBytes,  resetBytes.length,  chunkSize);
 			lastChunkStart += chunkSize;
+			resetBytes = new byte[0];
 			notify();
 			return chunkBytes;
 		}
@@ -325,6 +334,12 @@ public class NewsService implements ProtocolCommandListener {
 			cancelled = true;
 			reset();
 			lastChunkStart = 0;
+		}
+		
+		public void reset() {
+			resetBytes = _getChunkBytes();
+			lastChunkStart = 0;
+			super.reset();
 		}
 	}
 
