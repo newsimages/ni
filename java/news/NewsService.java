@@ -217,6 +217,7 @@ public class NewsService implements ProtocolCommandListener {
 		private boolean smaller = false;
 		private byte[] lastBytes = null;
 		private boolean lastBytesValid = false;
+		private ByteArrayOutputStream all = new ByteArrayOutputStream();
 		
 		public ImageByteArrayOutputStream(int maxImageSize) {
 			this.maxImageSize = maxImageSize;
@@ -236,12 +237,14 @@ public class NewsService implements ProtocolCommandListener {
 		
 		public synchronized void write(int b) {
 			super.write(b);
+			all.write(b);
 			lastBytesValid = false;
 			getImageBytes();
 		}
 		
 		public synchronized void write(byte[] b, int off, int len) {
 			super.write(b, off, len);
+			all.write(b, off, len);
 			lastBytesValid = false;
 			getImageBytes();
 		}
@@ -261,7 +264,7 @@ public class NewsService implements ProtocolCommandListener {
 				return lastBytes;
 			}
 			*/
-			byte[] bytes = super.toByteArray();
+			byte[] bytes = all.toByteArray();
 			/*
 			if(smaller || maxImageSize <= 0){
 				return bytes;
