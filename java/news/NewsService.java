@@ -220,6 +220,7 @@ public class NewsService implements ProtocolCommandListener {
 		private boolean lastBytesValid = false;
 		
 		public ImageByteArrayOutputStream(int maxImageSize) {
+			System.err.println("ImageByteArrayOutputStream created " + maxImageSize);
 			this.maxImageSize = maxImageSize;
 		}
 
