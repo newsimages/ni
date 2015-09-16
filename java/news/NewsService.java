@@ -303,9 +303,8 @@ public class NewsService implements ProtocolCommandListener {
 				ByteArrayOutputStream out = new ByteArrayOutputStream();
 				ImageIO.write(thumbnail, "jpg", out);
 				byte[] allImageBytes = out.toByteArray();
-				// now the tricky part, detect what part of the (potentially partial) image are valid
-				System.err.print("ImageByteArrayOutputStream: last bytes =");
-				for(int i = allImageBytes.length-1; i >= 0; i--){
+				System.err.print("ImageByteArrayOutputStream: " + allImageBytes.length + " bytes in image, las image bytes = ");
+				for(int i = allImageBytes.length-1, k = 0; i >= 0 && k < 10; i--, k++){
 					System.err.print(" " + allImageBytes[i]);
 				}
 				System.err.println();
