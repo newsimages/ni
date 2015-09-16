@@ -237,14 +237,15 @@ public class NewsService implements ProtocolCommandListener {
 		}
 		
 		public synchronized void write(byte[] b, int off, int len) {
+			System.err.println("ImageByteArrayOutputStream write");
 			super.write(b, off, len);
 			lastBytesValid = false;
 			getImageBytes();
 		}
 
 		public synchronized void reset() {
-			/*
 			super.reset();
+			/*
 			smaller = false;
 			lastBytes = null;
 			lastBytesValid = false;
