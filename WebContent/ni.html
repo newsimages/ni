@@ -624,7 +624,7 @@
 						var data = "";
 						var filename;
 						var multi;
-						if (true||settings.partial) {
+						if (settings.partial) {
 							loadImage("", false, true);
 						}
 						var f = function(id) {
@@ -724,6 +724,7 @@
 						showProgressBar(true);
 						doRequest("ba", args, null, f);
 					} else {
+						loadImage("", false, false);
 						getBody(args, item);
 					}
 				}
@@ -3887,7 +3888,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
