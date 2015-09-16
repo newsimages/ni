@@ -273,11 +273,11 @@ public class NewsService implements ProtocolCommandListener {
 			BufferedImage image;
 			try {
 				image = ImageIO.read(new ByteArrayInputStream(bytes));
-				System.err.println("ImageByteArrayOutputStream: " + bytes.length + " bytes -> image = " + image);
 				if(image == null)
 					return null;
 				int iw = image.getWidth();
 				int ih = image.getHeight();
+				System.err.println("ImageByteArrayOutputStream: " + bytes.length + " bytes -> image = " + iw + "x" + ih);
 				if(iw <= maxImageSize && ih <= maxImageSize){
 					smaller = true;
 					return bytes;
