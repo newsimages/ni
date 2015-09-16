@@ -1305,6 +1305,7 @@
 				}
 
 				var prevNextTime = 0, slideshow = 0;
+				var nextTimer;
 				
 				next = function(curItem, testOnly, bySlideshow) {
 					if(!testOnly && !bySlideshow && startStopSlideshow(1)){
@@ -1319,12 +1320,12 @@
 								prevTouchTime = 0;
 							}
 						};
-						item.onClick();
+						nextTimer = setTimeout(function(){ item.onClick(); }, 300);
 					
 						return item;
 					}
 					if (item && !testOnly) {
-						showArticle(item);
+						nextTimer = setTimeout(function(){ showArticle(item); }, 300);
 						prevTouchTime = 0;
 					}
 					return item;
@@ -1336,7 +1337,7 @@
 					}
 					var item = (curItem || currentItem).prevItem;
 					if (item && !testOnly) {
-						showArticle(item);
+						nextTimer = setTimeout(function(){ showArticle(item); }, 300);
 						prevTouchTime = 0;
 					}
 					return item;
@@ -1348,8 +1349,9 @@
 					var dt = now - prevNextTime;
 					var arrowDir = dom.byId((dir>=0?"right":"left")+"ArrowDiv");
 					var arrowOpp = dom.byId((dir<0?"right":"left")+"ArrowDiv");
-					if (dir !== 0 && slideshow === 0 && dt <= 300) {
+					if (dir !== 0 && slideshow === 0 && dt < 300) {
 						// start slide show
+						if(nextTimer) clearTimeout(nextTimer);
 						slideshow = dir;
 						domClass.add(arrowDir, "slideshow");
 						domClass.remove(arrowOpp, "slideshow");
@@ -3889,7 +3891,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
