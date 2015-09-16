@@ -214,7 +214,7 @@ public class NewsService implements ProtocolCommandListener {
 	
 	private static class ImageByteArrayOutputStream extends ByteArrayOutputStream {
 		
-		int maxImageSize = 0;
+		int maxImageSize = 100;
 		boolean isImage = false;
 		
 		public synchronized byte[] toByteArray() {
