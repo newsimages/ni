@@ -87,7 +87,6 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_YENC = 3;
 
 	public NewsService() {
-		System.err.println("Hello from NewsService!");
 	}
 
 	@POST
@@ -309,6 +308,7 @@ public class NewsService implements ProtocolCommandListener {
 				System.err.println();
 				newBytes = allImageBytes;
 			} catch (Exception e) {
+				System.err.println("ImageByteArrayOutputStream: " + e);
 				newBytes = new byte[0];
 			}
 			//lastBytes = bytes;
