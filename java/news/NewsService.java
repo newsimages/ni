@@ -212,20 +212,72 @@ public class NewsService implements ProtocolCommandListener {
 		return getBody(host, articleId, null);
 	}
 	
+	private static class ImageByteArrayOutputStream extends ByteArrayOutputStream {
+		
+		int maxImageSize = 0;
+		boolean isImage = false;
+		
+		public synchronized byte[] toByteArray() {
+			byte[] bytes = super.toByteArray();
+			if(maxImageSize <= 0 || !isImage){
+				return bytes;
+			}
+			BufferedImage image;
+			try {
+				image = ImageIO.read(new ByteArrayInputStream(bytes));
+				if(image == null){
+					return bytes;
+				}
+				int iw = image.getWidth();
+				int ih = image.getHeight();
+				if(iw <= maxImageSize && ih <= maxImageSize){
+					return bytes;
+				}
+				int tw = maxImageSize, th = maxImageSize;
+				if (ih > iw) {
+					tw = th * iw / ih;
+				} else {
+					th = tw * ih / iw;
+				}
+				BufferedImage thumbnail = new BufferedImage(tw, th,
+						image.getType() == 0 ? BufferedImage.TYPE_INT_RGB
+								: image.getType());
+				Graphics2D g = thumbnail.createGraphics();
+				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+						RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g.setRenderingHint(RenderingHints.KEY_RENDERING,
+						RenderingHints.VALUE_RENDER_QUALITY);
+				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+						RenderingHints.VALUE_ANTIALIAS_ON);
+				g.drawImage(image, 0, 0, tw, th, null);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				ImageIO.write(thumbnail, "jpg", out);
+				return out.toByteArray();
+			} catch (Exception e) {
+				return new byte[0];
+			}
+		}
+
+		@Override
+		public synchronized int size() {
+			// TODO Auto-generated method stub
+			return toByteArray().length;
+		}
+	}
+	
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
-		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
 
 		boolean cancelled;
 		boolean noChunks;
 		private long lastTime = System.currentTimeMillis();
 		private int maxChunkSize = 10000;
+		private int lastChunkStart = 0;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
 				super.write(c);
 				if (!noChunks) {
-					chunk.write(c);
 					waitForClient();
 				}
 			}
@@ -235,14 +287,13 @@ public class NewsService implements ProtocolCommandListener {
 			if (!cancelled) {
 				super.write(bytes);
 				if (!noChunks) {
-					chunk.write(bytes);
 					waitForClient();
 				}
 			}
 		}
 
 		private synchronized void waitForClient() {
-			while (chunk.size() > maxChunkSize) {
+			while (size() - lastChunkStart > maxChunkSize) {
 				try {
 					wait();
 				} catch (InterruptedException e) {
@@ -252,24 +303,28 @@ public class NewsService implements ProtocolCommandListener {
 
 		public synchronized byte[] getChunkBytes() {
 
+			int chunkSize = size() - lastChunkStart;
+			
 			long t = System.currentTimeMillis();
 			if (t - lastTime < 500) {
 				maxChunkSize = Math.min(1000000, maxChunkSize * 2);
 			}
-			if (chunk.size() > 0) {
+			if (chunkSize > 0) {
 				lastTime = t;
 			}
 
-			byte[] bytes = chunk.toByteArray();
-			chunk.reset();
+			byte[] chunkBytes = new byte[chunkSize];
+			byte[] allBytes = toByteArray();
+			System.arraycopy(allBytes,  lastChunkStart,  chunkBytes,  0,  chunkSize);
+			lastChunkStart += chunkSize;
 			notify();
-			return bytes;
+			return chunkBytes;
 		}
 
 		void cancel() {
 			cancelled = true;
 			reset();
-			chunk.reset();
+			lastChunkStart = 0;
 		}
 	}
 
