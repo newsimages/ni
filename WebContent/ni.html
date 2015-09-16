@@ -1320,12 +1320,12 @@
 								prevTouchTime = 0;
 							}
 						};
-						nextTimer = setTimeout(function(){ item.onClick(); }, 300);
+						nextTimer = setTimeout(function(){ item.onClick(); }, 200);
 					
 						return item;
 					}
 					if (item && !testOnly) {
-						nextTimer = setTimeout(function(){ showArticle(item); }, 300);
+						nextTimer = setTimeout(function(){ showArticle(item); }, 200);
 						prevTouchTime = 0;
 					}
 					return item;
@@ -1337,7 +1337,7 @@
 					}
 					var item = (curItem || currentItem).prevItem;
 					if (item && !testOnly) {
-						nextTimer = setTimeout(function(){ showArticle(item); }, 300);
+						nextTimer = setTimeout(function(){ showArticle(item); }, 200);
 						prevTouchTime = 0;
 					}
 					return item;
@@ -1364,6 +1364,13 @@
 						if(slideshow !== 0) {
 							// stop slide show
 							if(slideshowTimer) clearTimeout(slideshowTimer);
+							if(currentRequest){
+								cancelRequest();
+								if(slideshow > 0)
+									previous(null, false, true);
+								else
+									next(null, false, true);
+							}
 							slideshow = 0;
 							domClass.remove(arrowDir, "slideshow");
 							domClass.remove(arrowOpp, "slideshow");
@@ -3891,7 +3898,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
