@@ -724,7 +724,8 @@
 						showProgressBar(true);
 						doRequest("ba", args, null, f);
 					} else {
-						loadImage("", false, false);
+						if(slideshow !== 0)
+							loadImage("", false, false);
 						getBody(args, item);
 					}
 				}
@@ -1691,7 +1692,7 @@
 							progress(thp);
 							doRequest("tha", args, null, f);
 						} else {
-							doRequest("th", arg, thp, function(result) {
+							doRequest("th", args, thp, function(result) {
 								addThumbnails(result.body, item, thp);
 							});
 						}
@@ -1850,7 +1851,7 @@
 						return;
 					}
 
-					if (progressParent)
+					if (progressParent && !(slideshow !== 0 && !settings.async))
 						progress(progressParent);
 
 					cancelRequest();
@@ -3888,7 +3889,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
