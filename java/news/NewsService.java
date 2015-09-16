@@ -302,7 +302,7 @@ public class NewsService implements ProtocolCommandListener {
 	
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
-		private ByteArrayOutputStream chunk = new ImageByteArrayOutputStream();
+		private ByteArrayOutputStream chunk = new ImageByteArrayOutputStream(100);
 
 		boolean cancelled;
 		boolean noChunks;
