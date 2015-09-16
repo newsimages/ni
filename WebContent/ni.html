@@ -1228,7 +1228,8 @@
 							x : 0,
 							y : 0
 						});
-						showArticleControls();
+						if(!slideshow)
+							showArticleControls();
 					}
 
 					imageScroller.containerNode.style.width = Math.max(vw, iw)
