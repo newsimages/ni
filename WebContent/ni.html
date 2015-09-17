@@ -618,7 +618,9 @@
 
 					var args = {
 						articleId : item.articleId,
-						screenSize: Math.max(mobile.getScreenSize().w, mobile.getScreenSize().h)
+						screenSize: settings.optimizeImageDownload ?
+										Math.max(mobile.getScreenSize().w, mobile.getScreenSize().h) :
+											0
 					};
 
 					if (settings.async) { // async + progress
@@ -3909,7 +3911,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.7 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
