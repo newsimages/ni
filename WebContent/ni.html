@@ -62,7 +62,8 @@
 					partial : true,
 					state : false,
 					thumbnailSize : 150,
-					slideshowDelay: 1000
+					slideshowDelay: 1000,
+					optimizeImageDownload: true
 				};
 
 				//---------- Initialization ----------
@@ -2142,7 +2143,8 @@
 					progressSwitch.set("value", settings.progress ? "on"
 							: "off");
 					partialSwitch.set("value", settings.partial ? "on" : "off");
-
+					optimizeImageDownloadSwitch.set("value", settings.optimizeImageDownload ? "on" : "off");
+					
 					updateLoadingSettingsItems();
 
 					stateSwitch.set("value", settings.state ? "on" : "off");
@@ -2195,7 +2197,8 @@
 					settings.async = asyncSwitch.get("value") == "on";
 					settings.progress = progressSwitch.get("value") == "on";
 					settings.partial = partialSwitch.get("value") == "on";
-
+					settings.optimizeImageDownload = optimizeImageDownloadSwitch.get("value") == "on";
+					
 					updateLoadingSettingsItems();
 
 					localStorage.settings = json.stringify(settings);
@@ -2242,6 +2245,7 @@
 				function updateLoadingSettingsItems() {
 					disable(progressSwitch, !settings.async);
 					disable(partialSwitch, !settings.async);
+					disable(optimizeImageDownloadSwitch, settings.async);
 				}
 
 				function addServerItem(server) {
@@ -3886,6 +3890,12 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Optimize image download
+				<span
+				data-dojo-id="optimizeImageDownloadSwitch" data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Thumbnail size'"><input
 				data-dojo-id="thumbnailSizeBox"
@@ -3899,7 +3909,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
