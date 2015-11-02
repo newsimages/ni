@@ -169,6 +169,7 @@
 								next();
 								break;
 							}
+							return;
 						}
 						var v = searchView.domNode.style.display != "none" ? searchView
 								: (newsgroupView.domNode.style.display != "none" ? newsgroupView
@@ -744,7 +745,7 @@
 					progressBar.set("value", percent + "%");
 					if (percent >= 20 && !progress.exception && currentItem
 							&& currentItem.domNode) {
-						domClass.add(currentItem.domNode, "read");
+						markRead(currentItem);
 					}
 					var b = progress.bytesRead, t = total;
 					var k = 1024;
@@ -869,7 +870,7 @@
 
 				function showBody(item, body) {
 
-					domClass.add(item.domNode, "read");
+					markRead(item);
 					domClass.remove(textButton.domNode, "disabled");
 
 					if (body.articles != null) {
@@ -932,6 +933,13 @@
 					}
 					
 					doSlideshow();
+				}
+				
+				function markRead(item) {
+					domClass.add(item.domNode, "read");
+					if(item._parentGroup){
+						domClass.add(item._parentGroup.domNode, "read");
+					}
 				}
 
 				function showZip(att, item) {
@@ -3911,7 +3919,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.7 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.8 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
