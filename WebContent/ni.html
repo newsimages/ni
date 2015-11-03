@@ -180,7 +180,7 @@
 							case keys.BACKSPACE:
 							case keys.ESCAPE:
 								if(v === newsgroupView || v === seriesView){
-									v.performTransition("search", -1, "slide");
+									v.performTransition(v === seriesView ? seriesHeading.moveTo : "search", -1, "slide");
 								}
 								break;
 							case keys.UP_ARROW:
@@ -3919,7 +3919,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.8 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.9 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
