@@ -104,31 +104,30 @@
 
 					fitVideo();
 
-					var ignoreScroll = false;
-					aspect.around(imageScroller, "onTouchMove", function(
-							onTouchMove) {
+					var ignoreScroll = false, nextImageLoaded = false;
+					aspect.around(imageScroller, "onTouchMove", function(onTouchMove) {
 						return function(e) {
 							if (ignoreScroll) {
 								return;
 							}
 							if (!imageRealSized) {
-								if (this.getPos().x > 70) {
-									if (previous()) {
+								var x = this.getPos().x,
+									w = this.getDim().d.w,
+									th = 100; 
+								if (x >= th || x <= -th) {
+									var f = x > 0 ? previous : next;
+									var item = f(null, true);
+									if(item){
 										event.stop(e);
 										ignoreScroll = true;
-										imageScroller.scrollTo({
-											x : 0
-										});
-										return;
-									}
-								}
-								if (this.getPos().x + this.getDim().o.w < -70) {
-									if (next()) {
-										event.stop(e);
-										ignoreScroll = true;
-										imageScroller.scrollTo({
-											x : 0
-										});
+										nextImageLoaded = false;
+										imageScroller.scrollTo({ x : x });
+										imageScroller.slideTo({ x : x > 0 ? w : -w }, 0.3, "ease-out");
+										setTimeout(function(){
+											articleImage.style.visibility = "hidden";
+											nextImageLoaded = true;
+											showArticle(item);
+										}, 290);
 										return;
 									}
 								}
@@ -136,10 +135,13 @@
 							onTouchMove.call(this, e);
 						};
 					});
-					aspect.around(imageScroller, "onTouchEnd", function(
-							onTouchEnd) {
+					aspect.around(imageScroller, "onTouchEnd", function(onTouchEnd) {
 						return function(e) {
 							if (ignoreScroll) {
+								imageScroller.abort();
+								if(!nextImageLoaded){
+									articleImage.style.visibility = "hidden";
+								}
 								ignoreScroll = false;
 								this._time = [];
 							}
@@ -586,7 +588,7 @@
 					showArticle(this);
 				}
 				
-				function showArticle(item) {
+				function showArticle(item, noClear) {
 					
 					clearRecords("selectArticle");
 					record("selectArticle", item, []);
@@ -3919,7 +3921,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.9 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.10 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
