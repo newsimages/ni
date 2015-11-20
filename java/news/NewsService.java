@@ -70,6 +70,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
+	private Map<String, ArticleHeader> groupMap = new HashMap<String, ArticleHeader>();
 	private String multipartMapNewsgroup = "";
 
 	class FileInfo {
@@ -142,9 +143,10 @@ public class NewsService implements ProtocolCommandListener {
 
 		client.selectNewsgroup(newsgroup, info);
 
-		if (!newsgroup.equals(multipartMapNewsgroup)) {
+		if (!newsgroup.equals(multipartMapNewsgroup) || offset == 0) {
 			multipartMap.clear();
 			multivolumeMap.clear();
+			groupMap.clear();
 		}
 
 		long first = info.getFirstArticleLong();
@@ -159,6 +161,8 @@ public class NewsService implements ProtocolCommandListener {
 		int start = 0;
 		int received = 0;
 
+		long startTime = System.currentTimeMillis();
+		
 		while (true) {
 			BufferedReader reader = client.retrieveArticleInfo(low, high);
 
@@ -181,12 +185,14 @@ public class NewsService implements ProtocolCommandListener {
 					received++;
 				}
 			}
-			finishArticles(list.articles, start);
 
 			computeMultivolumes(list.articles);
 
-			if (list.articles.size() >= count || low <= first ||
-					(filter.length() > 0 && list.articles.size() > 0 && received >= count*100))
+			if (list.articles.size() >= count || low <= first)
+				break;
+			
+			// don't let user wait too much (10s)
+			if(System.currentTimeMillis() > startTime + 10 * 1000)
 				break;
 
 			high = Math.max(high - blockSize, first);
@@ -1089,63 +1095,44 @@ public class NewsService implements ProtocolCommandListener {
 	}
 	
 	private void addArticle(List<ArticleHeader> list, ArticleHeader header, int start) {
-		int lastIndex = -1;
-		if(start >= 0 && list.size() > start){
-			lastIndex = start;
-		} else if(list.size() > 0){
-			lastIndex = list.size()-1;
-		}
-		if(lastIndex >= 0){
-			String s1 = header.subject;
-			ArticleHeader last = list.get(lastIndex);
-			String s2 = last.group != null ? last.group.get(last.group.size()-1).subject : last.subject;
-			String h = s2;
-			s1 = s1.replaceAll("\\d+", "");
-			s2 = s2.replaceAll("\\d+", "");
-			if(s1.equals(s2)){
-				ArticleHeader group;
-				if (last.group == null) {
-					// create group header
-					group = new ArticleHeader();
-					group.group = new ArrayList<ArticleHeader>();
-					group.group.add(last);
-					group.subject = h;
-					list.set(lastIndex, group);
+		String key = header.subject.replaceAll("\\d+", "");
+		ArticleHeader last = groupMap.get(key);
+		if (last != null) {
+			ArticleHeader group;
+			if (last.group == null) {
+				// create group header
+				group = new ArticleHeader();
+				group.group = new ArrayList<ArticleHeader>();
+				group.group.add(last);
+				group.subject = last.subject;
+				groupMap.put(key, group);
+				int index = list.indexOf(last);
+				if(index >= 0){
+					list.set(index, group);
 				} else {
-					// add to existing group header
-					group = last;
+					if(start >= 0){
+						list.add(start, group);
+					} else {
+						list.add(group);
+					}
 				}
-				group.group.add(header);
-				Collections.sort(group.group);
-				if(header.subject.compareTo(group.subject) < 0){
-					group.subject = header.subject;
-				}
-				return;
 			} else {
-				if(last.group != null){
-					Collections.sort(last.group);
-				}
+				// add to existing group header
+				group = last;
 			}
+			group.group.add(header);
+			Collections.sort(group.group);
+			if (header.subject.compareTo(group.subject) < 0) {
+				group.subject = header.subject;
+			}
+			return;
+		} else {
+			groupMap.put(key, header);
 		}
 		if(start >= 0){
 			list.add(start, header);
 		} else {
 			list.add(header);
-		}
-	}
-	
-	private void finishArticles(List<ArticleHeader> list, int start) {
-		int lastIndex = -1;
-		if(start >= 0 && list.size() > start){
-			lastIndex = start;
-		} else if(list.size() > 0){
-			lastIndex = list.size()-1;
-		}
-		if(lastIndex >= 0){
-			ArticleHeader last = list.get(lastIndex);
-			if(last.group != null){
-				Collections.sort(last.group);
-			}
 		}
 	}
 	
@@ -1170,6 +1157,12 @@ public class NewsService implements ProtocolCommandListener {
 		SearchEngine searchEngine = SearchEngine.get(engine);
 		SearchEngine.Result result = searchEngine.search(pattern, filter, max, age, offset);
 		
+		if (offset == 0) {
+			multipartMap.clear();
+			multivolumeMap.clear();
+			groupMap.clear();
+		}
+
 		if(result != null) {
 			parseNzb(result.getNzb(), filter, list.articles);
 			list.available = result.isMoreAvailable() ? max : 0;
@@ -1232,7 +1225,6 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			addArticle(articles, article, -1);
 		}
-		finishArticles(articles, -1);
 		
 		computeMultivolumes(articles);
 		
