@@ -1639,7 +1639,7 @@
 					while (item && (next || item.thumbnailBody)) {
 						next = false;
 						prev = item;
-						item = (down ? window.next(item) : previous(item));
+						item = window[down ? "next" : " previous"](item, true);
 					}
 
 					if (!item) {
@@ -3921,7 +3921,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.10 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.11 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
