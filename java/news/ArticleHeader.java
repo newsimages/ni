@@ -14,6 +14,7 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	@XmlAttribute public String vols;
 	@XmlAttribute public int bytes;
 	@XmlElement public List<ArticleHeader> group;
+	@XmlAttribute public String key;
 	
 	public ArticleHeader(){}
 	

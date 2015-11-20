@@ -56,6 +56,7 @@
 					browse : false,
 					searchFilter : "jpg",
 					searchResultsCount : 100,
+					getHeadersTimeout : 10,
 					searchEngine : "BinSearch2",
 					async : true,
 					progress : true,
@@ -320,16 +321,21 @@
 				function getArticles(command, args, offset, reverse, list,
 						view, item) {
 					args.offset = offset;
-					var a = arguments;
 					var onSuccess = function(result) {
 
 						if (offset == 0) {
 							clearRecords("getArticles");
 						}
 						clearRecords("selectArticle");
-						record("getArticles", null, a, result);
+						record("getArticles", null, [command, args, offset, reverse, list, view, true], result);
 
 						if (item) {
+							if(item === true){
+								var children = list.getChildren();
+								if(children.length > 0){
+									item = children[children.length-1];
+								}
+							}
 							list.removeChild(item);
 							if (item.prevItem) {
 								item.prevItem.nextItem = null;
@@ -409,10 +415,16 @@
 								var a0 = a.group[0];
 								var ga = lang.mixin({}, a0, {
 									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
-									subject: a.subject + "<div class='similar'>" + a.group.length + " similar articles</div>"
+									subject: a.subject + "<div class='similar'>" + a.group.length + " similar articles</div>",
+									key: a.key
 								});
 								var groupItem = item = addArticleItem(list, ga, gotoSeries, item);
 								domClass.add(groupItem.domNode, "series");
+								array.forEach(children, function(pitem) {
+									if(pitem._key === a.key){
+										domClass.add(pitem.domNode, "obsolete");
+									}
+								});
 								list.addChild(groupItem);
 								groupItem._groupItems = [];
 								groupItem._subject = a.subject;
@@ -454,6 +466,7 @@
 									_duration: a.groupId ? 200 : 800
 								});
 					item._list = list;
+					item._key = a.key;
 					if (prevItem) {
 						prevItem.nextItem = item;
 						item.prevItem = prevItem;
@@ -561,7 +574,8 @@
 					getArticles("h", {
 						newsgroup : newsgroup,
 						filter : filter || " ",
-						count : settings.searchResultsCount
+						count : settings.searchResultsCount,
+						timeout: settings.getHeadersTimeout,
 					}, offset, false, newsgroupResultsList, newsgroupView);
 				}
 
@@ -2146,6 +2160,7 @@
 					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
+					getHeadersTimeoutBox.set("value", settings.getHeadersTimeout);
 					dom.byId("searchEngineSelect").value = settings.searchEngine;
 					updateDisplayedEngine();
 
@@ -2175,8 +2190,8 @@
 
 					settings.browse = browseSwitch.get("value") == "on";
 					settings.searchFilter = filterBox.get("value");
-					settings.searchResultsCount = parseInt(resultsCountBox
-							.get("value"));
+					settings.searchResultsCount = parseInt(resultsCountBox.get("value"));
+					settings.getHeadersTimeout = parseInt(getHeadersTimeoutBox.get("value"));
 					settings.searchEngine = dom.byId("searchEngineSelect").value;
 					updateDisplayedEngine();
 
@@ -3049,6 +3064,10 @@ body,html {
 	padding-right: 9px;
 }
 
+.inlineNumberBox {
+	width: 50px;
+}
+
 .replyItem {
 	color: #324f85;
 	font-size: small;
@@ -3651,6 +3670,10 @@ to {
 	line-height: 11pt;
 	margin-top: 5px;
 }
+
+.mblEdgeToEdgeList .mblListItem.series.obsolete div.similar {
+	text-decoration: line-through;
+}
 </style>
 
 </head>
@@ -3877,8 +3900,14 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Search results'"><input
 				data-dojo-id="resultsCountBox" data-dojo-type="dojox/mobile/TextBox"
-				class="inlineTextBox"
+				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'number of search results',onChange:updateSearchSettings">
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
+				data-dojo-props="label:'Timeout getting header (s)'"><input
+				data-dojo-id="getHeadersTimeoutBox" data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox inlineNumberBox"
+				data-dojo-props="placeHolder:'search timeout (seconds)',onChange:updateSearchSettings">
 			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
 				state<span data-dojo-id="stateSwitch"
@@ -3911,17 +3940,17 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Thumbnail size'"><input
 				data-dojo-id="thumbnailSizeBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Slideshow delay'"><input
 				data-dojo-id="slideshowDelayBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.13 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.2.15 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -3954,7 +3983,7 @@ to {
 				data-dojo-props="placeHolder:'e.g. news.acme.org',onChange:hostnameBoxChanged"></input></li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Port'"><input data-dojo-id="portBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox"
+				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default=119'"></input></li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'User name'"><input
@@ -3968,7 +3997,7 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Retention'"><input
 				data-dojo-id="retentionBox" data-dojo-type="dojox/mobile/TextBox"
-				class="inlineTextBox"
+				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default=1000 days'"></input></li>
 		</ul>
 		<p class="settingsLabel">Server reply:</p>

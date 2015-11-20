@@ -68,10 +68,9 @@ public class NewsService implements ProtocolCommandListener {
 	private static Pattern multivolumePattern = Pattern
 			.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
 
-	private Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
-	private Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
-	private Map<String, ArticleHeader> groupMap = new HashMap<String, ArticleHeader>();
-	private String multipartMapNewsgroup = "";
+	private static Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
+	private static Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
+	private static Map<String, ArticleHeader> groupMap = new HashMap<String, ArticleHeader>();
 
 	class FileInfo {
 		public String filename;
@@ -132,7 +131,8 @@ public class NewsService implements ProtocolCommandListener {
 	public ArticleList getHeaders(@FormParam("host") String host,
 			@FormParam("newsgroup") String newsgroup,
 			@FormParam("filter") String filter, @FormParam("count") int count,
-			@FormParam("offset") int offset) throws SocketException,
+			@FormParam("offset") int offset,
+			@FormParam("timeout") int timeout) throws SocketException,
 			IOException {
 
 		filter = filter.trim().toLowerCase();
@@ -143,7 +143,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		client.selectNewsgroup(newsgroup, info);
 
-		if (!newsgroup.equals(multipartMapNewsgroup) || offset == 0) {
+		if (offset == 0) {
 			multipartMap.clear();
 			multivolumeMap.clear();
 			groupMap.clear();
@@ -159,7 +159,6 @@ public class NewsService implements ProtocolCommandListener {
 
 		ArticleList list = new ArticleList();
 		int start = 0;
-		int received = 0;
 
 		long startTime = System.currentTimeMillis();
 		
@@ -182,7 +181,6 @@ public class NewsService implements ProtocolCommandListener {
 						addArticle(list.articles, header, start);
 
 					offset++;
-					received++;
 				}
 			}
 
@@ -191,8 +189,8 @@ public class NewsService implements ProtocolCommandListener {
 			if (list.articles.size() >= count || low <= first)
 				break;
 			
-			// don't let user wait too much (10s)
-			if(System.currentTimeMillis() > startTime + 10 * 1000)
+			// timeout?
+			if(System.currentTimeMillis() > startTime + timeout*1000)
 				break;
 
 			high = Math.max(high - blockSize, first);
@@ -1103,18 +1101,13 @@ public class NewsService implements ProtocolCommandListener {
 				// create group header
 				group = new ArticleHeader();
 				group.group = new ArrayList<ArticleHeader>();
+				group.key = key;
 				group.group.add(last);
 				group.subject = last.subject;
 				groupMap.put(key, group);
 				int index = list.indexOf(last);
 				if(index >= 0){
 					list.set(index, group);
-				} else {
-					if(start >= 0){
-						list.add(start, group);
-					} else {
-						list.add(group);
-					}
 				}
 			} else {
 				// add to existing group header
@@ -1125,7 +1118,9 @@ public class NewsService implements ProtocolCommandListener {
 			if (header.subject.compareTo(group.subject) < 0) {
 				group.subject = header.subject;
 			}
-			return;
+			if(list.indexOf(group) >= 0)
+				return;
+			header = group;
 		} else {
 			groupMap.put(key, header);
 		}
