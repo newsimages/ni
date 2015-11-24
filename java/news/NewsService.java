@@ -31,6 +31,7 @@ import javax.ws.rs.core.MediaType;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -41,6 +42,9 @@ import org.apache.commons.net.ProtocolCommandEvent;
 import org.apache.commons.net.ProtocolCommandListener;
 import org.apache.commons.net.nntp.NNTPClient;
 import org.apache.commons.net.nntp.NewsgroupInfo;
+import org.apache.wink.common.model.multipart.BufferedOutMultiPart;
+import org.apache.wink.common.model.multipart.OutMultiPart;
+import org.apache.wink.common.model.multipart.OutPart;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -131,9 +135,8 @@ public class NewsService implements ProtocolCommandListener {
 	public ArticleList getHeaders(@FormParam("host") String host,
 			@FormParam("newsgroup") String newsgroup,
 			@FormParam("filter") String filter, @FormParam("count") int count,
-			@FormParam("offset") int offset,
-			@FormParam("timeout") int timeout) throws SocketException,
-			IOException {
+			@FormParam("offset") int offset, @FormParam("timeout") int timeout)
+			throws SocketException, IOException {
 
 		filter = filter.trim().toLowerCase();
 
@@ -161,7 +164,7 @@ public class NewsService implements ProtocolCommandListener {
 		int start = 0;
 
 		long startTime = System.currentTimeMillis();
-		
+
 		while (true) {
 			BufferedReader reader = client.retrieveArticleInfo(low, high);
 
@@ -188,9 +191,9 @@ public class NewsService implements ProtocolCommandListener {
 
 			if (list.articles.size() >= count || low <= first)
 				break;
-			
+
 			// timeout?
-			if(System.currentTimeMillis() > startTime + timeout*1000)
+			if (System.currentTimeMillis() > startTime + timeout * 1000)
 				break;
 
 			high = Math.max(high - blockSize, first);
@@ -209,14 +212,14 @@ public class NewsService implements ProtocolCommandListener {
 
 	@POST
 	@Path("b")
-	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleBody getBody(@FormParam("host") String host,
+	@Produces("multipart/mixed")
+	public OutMultiPart getBody(@FormParam("host") String host,
 			@FormParam("articleId") String articleId,
 			@FormParam("screenSize") int screenSize) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
-		return getBody(host, articleId, null, screenSize);
+		return createMultiPart(getBody(host, articleId, null, screenSize));
 	}
-	
+
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
@@ -290,8 +293,10 @@ public class NewsService implements ProtocolCommandListener {
 		public int partCount;
 		@XmlAttribute
 		public String exception;
-		@XmlAttribute
+		@XmlTransient
 		public byte[] chunk;
+		@XmlAttribute
+		public boolean hasChunk;
 		@XmlAttribute
 		public String filename;
 		@XmlAttribute
@@ -417,8 +422,8 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	public ArticleBody getBody(final String host, String articleId,
-			Progress progress, int screenSize) throws SocketException, IOException,
-			ParserConfigurationException, SAXException {
+			Progress progress, int screenSize) throws SocketException,
+			IOException, ParserConfigurationException, SAXException {
 
 		String[] aids = articleId.split(",");
 
@@ -503,7 +508,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
-		if(screenSize > 0){
+		if (screenSize > 0) {
 			for (int i = 0; i < body.attachments.size(); i++) {
 				Attachment a = body.attachments.get(i);
 				if (isImage(a.filename)) {
@@ -511,7 +516,7 @@ public class NewsService implements ProtocolCommandListener {
 				}
 			}
 		}
-		
+
 		if (progress != null && progress.cancelled) {
 			return body;
 		}
@@ -570,8 +575,8 @@ public class NewsService implements ProtocolCommandListener {
 
 	@POST
 	@Path("p")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Progress getProgress(@FormParam("id") final String id)
+	@Produces("multipart/mixed")
+	public OutMultiPart getProgress(@FormParam("id") final String id)
 			throws SocketException, IOException, InterruptedException {
 		Progress progress = progressById.get(id);
 		if (progress != null) {
@@ -584,10 +589,46 @@ public class NewsService implements ProtocolCommandListener {
 					progressById.remove(id);
 				}
 				progress.updated = false;
-				return progress;
+				return createMultiPart(progress);
 			}
 		}
 		return null;
+	}
+
+	private OutMultiPart createMultiPart(Object obj) {
+		BufferedOutMultiPart multi = new BufferedOutMultiPart();
+		OutPart part;
+		part = new OutPart();
+		part.setContentType(MediaType.APPLICATION_JSON);
+		part.setBody(obj);
+		multi.addPart(part);
+		ArticleBody body = null;
+		if (obj instanceof Progress) {
+			Progress progress = (Progress) obj;
+			progress.hasChunk = progress.chunk != null;
+			if (progress.hasChunk) {
+				part = new OutPart();
+				part.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+				part.setBody(new ByteArrayInputStream(progress.chunk));
+				multi.addPart(part);
+			}
+			body = progress.body;
+		} else if (obj instanceof ArticleBody) {
+			body = (ArticleBody) obj;
+		}
+		if (body != null && body.attachments != null) {
+			for (int i = 0; i < body.attachments.size(); i++) {
+				Attachment att = body.attachments.get(i);
+				if (att.data != null) {
+					part = new OutPart();
+					part.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+					part.setBody(new ByteArrayInputStream(att.data));
+					multi.addPart(part);
+				}
+			}
+		}
+
+		return multi;
 	}
 
 	@POST
@@ -851,7 +892,8 @@ public class NewsService implements ProtocolCommandListener {
 			Attachment att = new Attachment(fileInfo.filename, data);
 			body.attachments.add(att);
 			body.size += data.length;
-			text.append("[attachment: " + att.filename + " (" + (part+1) + "/" + bodies.length + ")]\n"); 
+			text.append("[attachment: " + att.filename + " (" + (part + 1)
+					+ "/" + bodies.length + ")]\n");
 			if (reader instanceof ProgressReader) {
 				// notify Progress, e.g. to send a thumbnail
 				Progress progress = ((ProgressReader) reader).progress;
@@ -1045,7 +1087,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		return false;
 	}
-	
+
 	private void computeMultivolumes(List<ArticleHeader> list) {
 
 		Map<String, ArticleHeader[]> map = multivolumeMap;
@@ -1091,8 +1133,9 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 	}
-	
-	private void addArticle(List<ArticleHeader> list, ArticleHeader header, int start) {
+
+	private void addArticle(List<ArticleHeader> list, ArticleHeader header,
+			int start) {
 		String key = header.subject.replaceAll("\\d+", "");
 		ArticleHeader last = groupMap.get(key);
 		if (last != null) {
@@ -1106,7 +1149,7 @@ public class NewsService implements ProtocolCommandListener {
 				group.subject = last.subject;
 				groupMap.put(key, group);
 				int index = list.indexOf(last);
-				if(index >= 0){
+				if (index >= 0) {
 					list.set(index, group);
 				}
 			} else {
@@ -1118,19 +1161,19 @@ public class NewsService implements ProtocolCommandListener {
 			if (header.subject.compareTo(group.subject) < 0) {
 				group.subject = header.subject;
 			}
-			if(list.indexOf(group) >= 0)
+			if (list.indexOf(group) >= 0)
 				return;
 			header = group;
 		} else {
 			groupMap.put(key, header);
 		}
-		if(start >= 0){
+		if (start >= 0) {
 			list.add(start, header);
 		} else {
 			list.add(header);
 		}
 	}
-	
+
 	// ---------------
 	// Search
 	// ---------------
@@ -1141,24 +1184,25 @@ public class NewsService implements ProtocolCommandListener {
 	public ArticleList getNzb(@FormParam("engine") String engine,
 			@FormParam("pattern") String pattern,
 			@FormParam("filter") String filter, @FormParam("max") int max,
-			@FormParam("age") int age,
-			@FormParam("offset") int offset) throws MalformedURLException,
-			IOException, ParserConfigurationException, SAXException {
+			@FormParam("age") int age, @FormParam("offset") int offset)
+			throws MalformedURLException, IOException,
+			ParserConfigurationException, SAXException {
 
 		filter = filter.trim().toLowerCase();
 
 		ArticleList list = new ArticleList();
 
 		SearchEngine searchEngine = SearchEngine.get(engine);
-		SearchEngine.Result result = searchEngine.search(pattern, filter, max, age, offset);
-		
+		SearchEngine.Result result = searchEngine.search(pattern, filter, max,
+				age, offset);
+
 		if (offset == 0) {
 			multipartMap.clear();
 			multivolumeMap.clear();
 			groupMap.clear();
 		}
 
-		if(result != null) {
+		if (result != null) {
 			parseNzb(result.getNzb(), filter, list.articles);
 			list.available = result.isMoreAvailable() ? max : 0;
 		}
@@ -1220,9 +1264,9 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			addArticle(articles, article, -1);
 		}
-		
+
 		computeMultivolumes(articles);
-		
+
 		in.close();
 	}
 
@@ -1232,12 +1276,12 @@ public class NewsService implements ProtocolCommandListener {
 
 	@POST
 	@Path("th")
-	@Produces(MediaType.APPLICATION_JSON)
-	public ArticleBody getThumbnail(@FormParam("host") String host,
+	@Produces("multipart/mixed")
+	public OutMultiPart getThumbnail(@FormParam("host") String host,
 			@FormParam("articleId") String articleId,
 			@FormParam("size") int size) throws SocketException, IOException,
 			ParserConfigurationException, SAXException {
-		return getThumbnail(host, articleId, size, null);
+		return createMultiPart(getThumbnail(host, articleId, size, null));
 	}
 
 	@POST

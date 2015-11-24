@@ -30,13 +30,13 @@
 					"dojo/keys", "dojo/_base/event", "dojo/aspect",
 					"dojo/json", "dojo/_base/array", "dojo/_base/lang",
 					"dojo/dom", "dojo/dom-construct", "dojo/dom-class",
-					"dojo/request", "dijit/registry", "dojox/mobile/ListItem",
+					"dojo/request", "dojo/request/handlers", "dijit/registry", "dojox/mobile/ListItem",
 					"dojox/mobile/ProgressIndicator",
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
 					"dojox/mobile/ToolBarButton", "dojox/mobile",
 					"js-unzip.js", "js-inflate.js", "unrar.js" ],
 			function(ready, parser, has, on, touch, keys, event, aspect, json,
-					array, lang, dom, domConstruct, domClass, request,
+					array, lang, dom, domConstruct, domClass, request, handlers,
 					registry, ListItem, Progressindicator, viewRegistry,
 					ScrollableView, ToolBarButton, mobile, JSUnzip, JSInflate,
 					unrar) {
@@ -1878,6 +1878,49 @@
 					}
 				}
 
+				function decodeBinaryResponse(response){
+					response = Uint8ArrayToBinary(new Uint8Array(response));
+					var parts = response.split("\n--simple boundary");
+					var result;
+					for(var i = 0; i < parts.length; i++){
+						var p = parts[i].replace(/^[-\n]*/g, "");
+						var m = p.match(/Content-Type: application\/([\w-_]*)\n*/);
+						if(m){
+							var t = p.substring(m[0].length);
+							switch(m[1]){
+							case "json":
+								result = json.parse(t);
+								break;
+							case "octet-stream":
+								if (result) {
+									var body;
+									if (result.progress) {
+										if(result.progress.hasChunk === "true" && !result.progress.chunk){
+											result.progress.chunk = btoa(t);
+										} else {
+											body = result.progress.body;
+										}
+									} else{
+										body = result.articleBody;
+									}
+									if (body && body.attachments) {
+										var atts = ensureArray(body.attachments);
+										for (var j = 0; j < atts.length; j++) {
+											var att = atts[j];
+											if (att && !att.data) {
+												att.data = btoa(t);
+												break;
+											}
+										}
+									}
+								}
+								break;
+							}
+						}
+					}
+					return result;
+				}
+
 				function doRequest(command, args, progressParent, success,
 						error, server) {
 
@@ -1898,6 +1941,23 @@
 					var data = args || {};
 					data.host = buildServerString(server);
 
+					var handleAs;
+					switch (command) {
+					case "t":
+					case "ba":
+					case "tha":
+						handleAs = "text";
+						break;
+					case "p":
+					case "b":
+					case "th":
+						handleAs = "arraybuffer"
+						break;
+					default:
+						handleAs = "json";
+						break;
+					}
+
 					currentRequest = request.post(
 							url,
 							{
@@ -1905,9 +1965,11 @@
 								preventCache : command == "t"
 										|| command == "ba" || command == "tha"
 										|| command == "p",
-								handleAs : command == "t" || command == "ba"
-										|| command == "tha" ? "text" : "json"
+								handleAs : handleAs
 							}).then(function(response) {
+						if (handleAs === "arraybuffer") {
+							response = decodeBinaryResponse(response);
+						}
 						currentRequest = null;
 						if (progressParent)
 							progress();
@@ -1965,7 +2027,7 @@
 					if (currentItem && currentItem.domNode) {
 						domClass.add(currentItem.domNode, "error");
 					}
-					
+
 					doSlideshow();
 				}
 
@@ -2002,13 +2064,13 @@
 						if (child._groupItems) {
 							array.forEach(child._groupitems, function(it) {
 								it.destroyRecursive();
-								if(it == currentItem){
+								if (it == currentItem) {
 									currentItem = null;
 								}
 							});
 						}
 						child.destroyRecursive();
-						if(child == currentItem){
+						if (child == currentItem) {
 							currentItem = null;
 						}
 					}
@@ -2098,7 +2160,8 @@
 											}
 										}
 									}
-									if (v == searchView || v == newsgroupView || v == seriesView) {
+									if (v == searchView || v == newsgroupView
+											|| v == seriesView) {
 										var f = v.id + "Scroll";
 										clearRecords(f);
 										record(f, null, [ to.y ]);
@@ -2160,7 +2223,8 @@
 					browseSwitch.set("value", settings.browse ? "on" : "off");
 					filterBox.set("value", settings.searchFilter);
 					resultsCountBox.set("value", settings.searchResultsCount);
-					getHeadersTimeoutBox.set("value", settings.getHeadersTimeout);
+					getHeadersTimeoutBox.set("value",
+							settings.getHeadersTimeout);
 					dom.byId("searchEngineSelect").value = settings.searchEngine;
 					updateDisplayedEngine();
 
@@ -2170,14 +2234,15 @@
 					progressSwitch.set("value", settings.progress ? "on"
 							: "off");
 					partialSwitch.set("value", settings.partial ? "on" : "off");
-					optimizeImageDownloadSwitch.set("value", settings.optimizeImageDownload ? "on" : "off");
-					
+					optimizeImageDownloadSwitch.set("value",
+							settings.optimizeImageDownload ? "on" : "off");
+
 					updateLoadingSettingsItems();
 
 					stateSwitch.set("value", settings.state ? "on" : "off");
 
 					thumbnailSizeBox.set("value", settings.thumbnailSize);
-					
+
 					slideshowDelayBox.set("value", settings.slideshowDelay);
 
 					settingsInited = true;
@@ -2190,8 +2255,10 @@
 
 					settings.browse = browseSwitch.get("value") == "on";
 					settings.searchFilter = filterBox.get("value");
-					settings.searchResultsCount = parseInt(resultsCountBox.get("value"));
-					settings.getHeadersTimeout = parseInt(getHeadersTimeoutBox.get("value"));
+					settings.searchResultsCount = parseInt(resultsCountBox
+							.get("value"));
+					settings.getHeadersTimeout = parseInt(getHeadersTimeoutBox
+							.get("value"));
 					settings.searchEngine = dom.byId("searchEngineSelect").value;
 					updateDisplayedEngine();
 
@@ -2224,8 +2291,9 @@
 					settings.async = asyncSwitch.get("value") == "on";
 					settings.progress = progressSwitch.get("value") == "on";
 					settings.partial = partialSwitch.get("value") == "on";
-					settings.optimizeImageDownload = optimizeImageDownloadSwitch.get("value") == "on";
-					
+					settings.optimizeImageDownload = optimizeImageDownloadSwitch
+							.get("value") == "on";
+
 					updateLoadingSettingsItems();
 
 					localStorage.settings = json.stringify(settings);
@@ -2446,21 +2514,11 @@
 
 				//---------- Current state ----------
 
-				var funcnames = [
-				       	"setSearch",
-						"getNewsgroups",
-						"selectNewsgroup",
-						"getArticles",
-						"gotoSeries",
-						"searchScroll",
-						"newsgroupScroll",
-						"seriesScroll",
-						"getBody",
-						"selectArticle",
-						"addThumbnails",
-						"toggleThumbnailsDir",
-						"showThumbnails"
-				];
+				var funcnames = [ "setSearch", "getNewsgroups",
+						"selectNewsgroup", "getArticles", "gotoSeries",
+						"searchScroll", "newsgroupScroll", "seriesScroll",
+						"getBody", "selectArticle", "addThumbnails",
+						"toggleThumbnailsDir", "showThumbnails" ];
 
 				function LocalStorage() {
 					this.record = function(f, r) {
@@ -2565,9 +2623,12 @@
 																			tx,
 																			results) {
 																		for ( var i = 0; i < results.rows.length; i++) {
-																			var row = results.rows.item(i);
-																			if(state[row.f]){
-																				state[row.f].push(json.parse(row.r));
+																			var row = results.rows
+																					.item(i);
+																			if (state[row.f]) {
+																				state[row.f]
+																						.push(json
+																								.parse(row.r));
 																			}
 																		}
 																		cb(state);
@@ -2724,7 +2785,7 @@
 					gotoSeries : gotoSeries,
 					searchScroll : searchScroll,
 					newsgroupScroll : newsgroupScroll,
-					seriesScroll: seriesScroll,
+					seriesScroll : seriesScroll,
 					getBody : getBody,
 					selectArticle : selectArticle,
 					addThumbnails : addThumbnails,
@@ -3950,7 +4011,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.2.15 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

@@ -2,12 +2,13 @@ package news;
 
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 @XmlRootElement
 public class Attachment {
 	
 	@XmlAttribute public String filename;
-	@XmlAttribute public byte[] data;
+	@XmlTransient public byte[] data;
 	
 	public Attachment() {}
 	
