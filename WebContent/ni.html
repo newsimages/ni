@@ -1883,8 +1883,8 @@
 					var parts = response.split("\n--simple boundary");
 					var result;
 					for(var i = 0; i < parts.length; i++){
-						var p = parts[i].replace(/^[-\n]*/g, "");
-						var m = p.match(/Content-Type: application\/([\w-_]*)\n*/);
+						var p = parts[i];
+						var m = p.match(/^\nContent-Type: application\/([\w-_]*)\n\n/);
 						if(m){
 							var t = p.substring(m[0].length);
 							switch(m[1]){
@@ -4011,7 +4011,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
