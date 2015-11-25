@@ -474,14 +474,14 @@
 					return item;
 				}
 			
-				function gotoSeries() {
+				function gotoSeries(noTransition) {
 					
 					record("gotoSeries", this, []);
 					
 					seriesHeading.set("label", this._subject||this.label);
 					seriesHeading.set("moveTo", this.view.id);
 					this.view.performTransition("series", 1,
-							replaying ? "none" : "slide");
+							(replaying||noTransition) ? "none" : "slide");
 					seriesView.scrollTo({
 						x : 0,
 						y : 0
@@ -494,6 +494,14 @@
 						child.view = seriesView;
 					});
 				}
+				
+				viewSeries = function() {
+					gotoSeries.call(currentItem, true);
+					var items = seriesResultsList.getChildren();
+					items[0].body = currentItem.body;
+					selectArticle.call(items[0], true);
+					selectArticle.call(items[1], true);
+				};
 				
 				leaveSeriesView = function() {
 					if (arguments[1] == -1) {
@@ -589,14 +597,13 @@
 
 				var currentItem, imageRealSized, articleImage, currentAsyncId;
 
-				function selectArticle(evt) {
+				function selectArticle(noTransition) {
 					if (!currentServer) {
 						showMessage("No server defined");
 						return;
 					}
 					var view = this.view;
-					view.performTransition("article", 1, replaying ? "none"
-							: "slide");
+					view.performTransition("article", 1, (replaying || noTransition) ? "none" : "slide");
 					articleBackButton.set("moveTo", view.id);
 					textHeading.set("moveTo", view.id);
 					showArticle(this);
@@ -615,6 +622,14 @@
 							: "hidden";
 					dom.byId("rightArrow").style.visibility = next(item, true) ? "inherit"
 							: "hidden";
+					
+					var seriesMessage = dom.byId("seriesMessage");
+					if(item._groupItems){
+						seriesMessage.innerHTML = item._groupItems.length;
+						domClass.remove(seriesMessage, "hidden");
+					} else {
+						domClass.add(seriesMessage, "hidden");
+					}
 
 					setArticleTitle(item.get("label"));
 
@@ -2054,7 +2069,7 @@
 						var child = children[0];
 						list.removeChild(child);
 						if (child._groupItems) {
-							array.forEach(child._groupitems, function(it) {
+							array.forEach(child._groupItems, function(it) {
 								it.destroyRecursive();
 								if (it == currentItem) {
 									currentItem = null;
@@ -3386,6 +3401,44 @@ to {
 	right: 0;
 }
 
+.seriesMessage {
+	position: absolute;
+	right: 10px;
+	bottom: 30px;
+	padding: 5px 20px 5px 5px;
+	color: #007AFF;
+	border-radius: 3px;
+	background: #404040;
+	font-size: 13px;
+	font-style: italic;
+	font-weight: bold;
+	visibility: visible;
+	cursor: pointer;
+}
+.seriesMessage::before {
+	content: "View all ";
+}
+.seriesMessage::after {
+	content: "";
+	position: absolute;
+	border-left-color: #007AFF;
+	border-left-style: solid;
+	border-left-width: 3px;
+	border-top-color: #007AFF;
+	border-top-style: solid;
+	border-top-width: 3px;
+	width: 10px;
+	height: 10px;
+	right: 4px;
+	bottom: 6px;
+	-webkit-transform: scale(0.7, 0.8) rotate(135deg);
+	transform: scale(0.7, 0.8) rotate(135deg);
+}
+
+.seriesMessage.hidden {
+	visibility: hidden;
+}
+
 .imageScroller {
 	width: auto;
 	height: auto;
@@ -3851,6 +3904,8 @@ to {
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
 		</div>
+		<div id="seriesMessage" class="seriesMessage hidden" onclick="viewSeries()">
+		</div>
 		<div id="progressBarParent" class="progressBarParent">
 			<div data-dojo-type="dojox/mobile/ProgressBar"
 				data-dojo-id="progressBar" class="progressBar"></div>
@@ -3942,7 +3997,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
