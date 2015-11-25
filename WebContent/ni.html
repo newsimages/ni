@@ -3403,17 +3403,18 @@ to {
 
 .seriesMessage {
 	position: absolute;
-	right: 10px;
-	bottom: 30px;
+	right: 5px;
+	top: 50px;
 	padding: 5px 20px 5px 5px;
 	color: #007AFF;
-	border-radius: 3px;
-	background: #404040;
+	border: 1px solid rgba(0, 122, 255, 0.5);
+	//background: #202020;
 	font-size: 13px;
 	font-style: italic;
 	font-weight: bold;
 	visibility: visible;
 	cursor: pointer;
+	pointer-events: all !important;
 }
 .seriesMessage::before {
 	content: "View all ";
@@ -3900,11 +3901,11 @@ to {
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
+			<div id="seriesMessage" class="seriesMessage hidden" onclick="viewSeries()">
+			</div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
-		</div>
-		<div id="seriesMessage" class="seriesMessage hidden" onclick="viewSeries()">
 		</div>
 		<div id="progressBarParent" class="progressBarParent">
 			<div data-dojo-type="dojox/mobile/ProgressBar"
@@ -3997,7 +3998,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
