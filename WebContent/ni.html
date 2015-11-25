@@ -645,7 +645,7 @@
 						var filename;
 						var multi;
 						if (settings.partial) {
-							loadImage("", false, true);
+							loadImage("", true);
 						}
 						var f = function(id) {
 							currentAsyncId = null;
@@ -660,7 +660,7 @@
 										p.complete = p.complete == "true";
 										showProgress(p, item.bytes);
 										if (p.chunk) {
-											data += atob(p.chunk);
+											data += p.chunk;
 											if (p.attSizes) {
 												// multiple attachments
 												var attSizes = ensureArray(p.attSizes);
@@ -691,7 +691,7 @@
 											case "png":
 												setImageTitle(p.filename);
 												if (settings.partial && p.chunk) {
-													loadImage(data, false, true);
+													loadImage(data, true);
 												}
 												break;
 											case "mpg":
@@ -745,7 +745,7 @@
 						doRequest("ba", args, null, f);
 					} else {
 						if(!slideshow)
-							loadImage("", false, false);
+							loadImage("");
 						getBody(args, item);
 					}
 				}
@@ -869,8 +869,6 @@
 					array.forEach(body.attachments, function(att, i) {
 						if (data && data[i]) {
 							att.data = data[i];
-						} else {
-							att.data = atob(att.data);
 						}
 					});
 
@@ -991,8 +989,7 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
-					currentUnrar = unrar((att.typedArray ? att.data
-							: binaryToUint8Array(att.data)).buffer, replaying);
+					currentUnrar = unrar(binaryToUint8Array(att.data).buffer, replaying);
 					currentUnrar.then(function(attachments) {
 						currentUnrar = null;
 						showMultipleAttachments(attachments, item);
@@ -1103,7 +1100,7 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 					if (att) {
 						setImageTitle(att.filename);
-						loadImage(att.data, att.typedArray, false);
+						loadImage(att.data);
 					}
 				}
 
@@ -1115,7 +1112,7 @@
 					domClass.add(articleView.domNode, "video");
 					if (att) {
 						setVideoTitle(att.filename);
-						loadVideo(att.data, att.typedArray, att.filename);
+						loadVideo(att.data, att.filename);
 					}
 				}
 
@@ -1134,9 +1131,7 @@
 					if (att) {
 						setArticleTitle(att.filename);
 						type = type || "application/octet-stream";
-						var url = "open.html#"
-								+ makeDataUrl(att.data, has("ios") ? false
-										: true, type);
+						var url = "open.html#" + makeDataUrl(att.data, type);
 						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">"
 								+ att.filename + "</a> ";
 					}
@@ -1177,9 +1172,9 @@
 					videoHeading.set("label", s);
 				}
 
-				function loadImage(data, typedArray, partial) {
+				function loadImage(data, partial) {
 					articleImage.partial = partial;
-					var src = makeDataUrl(data, typedArray, "image/jpeg");
+					var src = makeDataUrl(data, "image/jpeg");
 					if (src != articleImage.getAttribute("src")) {
 						articleImage.setAttribute("src", src);
 					} else if (data) {
@@ -1188,11 +1183,11 @@
 						articleImage.style.visibility = "hidden";
 					}
 				}
-
-				function loadVideo(data, typedArray, name) {
+				
+				function loadVideo(data, name) {
 					var p = name.split(".");
 					var t = p.length >= 1 ? p[p.length - 1] : "mp4";
-					var src = makeDataUrl(data, typedArray, "video/" + t);
+					var src = makeDataUrl(data, "video/" + t);
 					dom.byId("video").setAttribute("src", src);
 					fitVideo();
 				}
@@ -1653,7 +1648,7 @@
 					while (item && (next || item.thumbnailBody)) {
 						next = false;
 						prev = item;
-						item = window[down ? "next" : " previous"](item, true);
+						item = window[down ? "next" : "previous"](item, true);
 					}
 
 					if (!item) {
@@ -1694,9 +1689,7 @@
 											th = createThumbnail(p.chunk, item,
 													thp);
 										} else {
-											th.setAttribute("src",
-													"data:image/jpeg;base64,"
-															+ p.chunk);
+											th.setAttribute("src", makeImageUrl(p.chunk));
 										}
 									}
 
@@ -1759,8 +1752,7 @@
 						if (!th) {
 							th = createThumbnail(att.data, item, thp);
 						} else {
-							th.setAttribute("src", "data:image/jpeg;base64,"
-									+ att.data);
+							th.setAttribute("src", makeImageUrl(att.data));
 						}
 
 						item.thumbnailBody = body;
@@ -1810,7 +1802,7 @@
 					var sz = thumbnailColWidth + "px";
 					th.style.maxWidth = sz;
 					th.style.maxHeight = sz;
-					th.setAttribute("src", "data:image/jpeg;base64," + data);
+					th.setAttribute("src", makeImageUrl(data));
 					on(th, "click", function() {
 						thumbnailClicked = true;
 						indexView.performTransition("article", -1, "slide");
@@ -1896,7 +1888,7 @@
 									var body;
 									if (result.progress) {
 										if(result.progress.hasChunk === "true" && !result.progress.chunk){
-											result.progress.chunk = btoa(t);
+											result.progress.chunk = t;
 										} else {
 											body = result.progress.body;
 										}
@@ -1908,7 +1900,7 @@
 										for (var j = 0; j < atts.length; j++) {
 											var att = atts[j];
 											if (att && !att.data) {
-												att.data = btoa(t);
+												att.data = t;
 												break;
 											}
 										}
@@ -2089,6 +2081,9 @@
 				//---------- Binary data conversion ----------
 
 				function binaryToUint8Array(binary) {
+					if (binary instanceof Uint8Array) {
+						return binary;
+					}
 					var len = binary.length;
 					var bytes = new Uint8Array(len);
 					for ( var i = 0; i < len; i++) {
@@ -2098,28 +2093,28 @@
 					return bytes;
 				}
 
-				function makeDataUrl(data, typedArray, type) {
+				function makeDataUrl(data, type) {
 					var url;
-					if (typedArray) {
-						if (!(data instanceof Uint8Array)) {
-							data = binaryToUint8Array(data);
-						}
-						var blob = new Blob([ data ], {
-							type : type
-						});
-						url = URL.createObjectURL(blob);
-					} else {
-						if (data instanceof Uint8Array) {
-							data = Uint8ArrayToBinary(data);
-						}
-						url = "data:" + type + ";base64," + btoa(data || "");
+					if (!(data instanceof Uint8Array)) {
+						data = binaryToUint8Array(data);
 					}
+					var blob = new Blob([ data ], {
+						type : type
+					});
+					url = URL.createObjectURL(blob);
 					return url;
 				}
 
+				function makeImageUrl(data) {
+					return makeDataUrl(data, "image/jpeg");
+				}
+				
 				var blockSize = 10000;
 
 				function Uint8ArrayToBinary(bytes) {
+					if (!(bytes instanceof Uint8Array)) {
+						return bytes;
+					}
 					var binary = '';
 					var len = bytes.byteLength;
 					for ( var start = 0; start < len; start += blockSize) {
@@ -2520,64 +2515,6 @@
 						"getBody", "selectArticle", "addThumbnails",
 						"toggleThumbnailsDir", "showThumbnails" ];
 
-				function LocalStorage() {
-					this.record = function(f, r) {
-						var n = this._load(f + "_count", 0);
-						while (true) {
-							try {
-								this._save(f + "_" + n, r);
-								n++;
-								this._save(f + "_count", n);
-								break;
-							} catch (e1) {
-								var deleted = null;
-								for (i = 0; i < n; i++) {
-									deleted = "s_" + f + "_" + i;
-									if (deleted in localStorage) {
-										delete localStorage[deleted];
-										break;
-									} else {
-										deleted = null;
-									}
-								}
-								if (!deleted) {
-									break;
-								}
-							}
-						}
-
-					};
-					this.load = function(cb) {
-						var state = {};
-						array.forEach(funcnames, lang.hitch(this, function(f) {
-							var a = state[f] = [];
-							var n = this._load(f + "_count", 0);
-							for ( var i = 0; i < n; i++) {
-								var r = this._load(f + "_" + i);
-								if (r) {
-									a.push(r);
-								}
-							}
-						}));
-						cb(state);
-					};
-					this.clear = function(f) {
-						for ( var p in localStorage) {
-							if (new RegExp("^s_" + (f || "")).test(p))
-								delete localStorage[p];
-						}
-					};
-					// private
-					this._save = function(p, v) {
-						localStorage["s_" + p] = typeof v == "string" ? v
-								: json.stringify(v);
-					};
-					this._load = function(p, d) {
-						var s = localStorage["s_" + p];
-						return s ? json.parse(s) : d;
-					};
-				}
-
 				function SQLStorage() {
 					this.db = openDatabase('NI', '1.0', 'App state storage DB',
 							50 * 1024 * 1024);
@@ -2597,12 +2534,13 @@
 																				"_error"));
 											}));
 					this.record = function(f, r) {
+						this._convertBody(r, true);
+						var jr = json.stringify(r);
 						this.db.transaction(lang.hitch(this, function(tx) {
 							tx.executeSql(
-									'INSERT INTO STATE (f, r) VALUES (?, ?)', [
-											f, json.stringify(r) ], lang.hitch(
-											this, "_dump"), lang.hitch(this,
-											"_error"));
+									'INSERT INTO STATE (f, r) VALUES (?, ?)', [f, jr],
+									lang.hitch(this, "_dump"),
+									lang.hitch(this, "_error"));
 						}));
 					};
 					this.load = function(cb) {
@@ -2619,20 +2557,19 @@
 															.executeSql(
 																	'SELECT * FROM STATE ORDER BY i',
 																	null,
-																	function(
+																	lang.hitch(this, function(
 																			tx,
 																			results) {
 																		for ( var i = 0; i < results.rows.length; i++) {
-																			var row = results.rows
-																					.item(i);
+																			var row = results.rows.item(i);
 																			if (state[row.f]) {
-																				state[row.f]
-																						.push(json
-																								.parse(row.r));
+																				var pr = json.parse(row.r);
+																				this._convertBody(pr, false);
+																				state[row.f].push(pr);
 																			}
 																		}
 																		cb(state);
-																	},
+																	}),
 																	lang
 																			.hitch(
 																					this,
@@ -2667,6 +2604,30 @@
 						console.log("SQL error " + err.code + ": "
 								+ err.message);
 					};
+					
+					this._convertBody = function(r, record) {
+						if(!r || !r.r)
+							return;
+						var body = r.r.articleBody;
+						if(!body)
+							return;
+						r.r.articleBody = {
+							from : body.from,
+							date : body.date,
+							newsgroups : body.newsgroups,
+							text : body.text,
+							attachments : array
+									.map(
+											ensureArray(body.attachments),
+											function(att) {
+												return {
+													filename : att.filename,
+													data : record ? btoa(Uint8ArrayToBinary(att.data))
+															: binaryToUint8Array(atob(att.data))
+												};
+											})
+						};
+					};
 				}
 
 				var storage;
@@ -2684,9 +2645,6 @@
 					}
 					if (t) {
 						t = t.id;
-					}
-					if (r && r.articleBody) {
-						r.articleBody = convertBody(r.articleBody, true);
 					}
 					try {
 						storage.record(f, {
@@ -2723,36 +2681,9 @@
 					if (r.t) {
 						r.t = registry.byId(r.t);
 					}
-					if (r.r && r.r.articleBody) {
-						r.r.articleBody = convertBody(r.r.articleBody, false);
-					}
 					var f = funcs[r.f];
 					replayResult = r.r;
 					f.apply(r.t, a);
-				}
-
-				function convertBody(body, record) {
-					if (!body)
-						return null;
-					return {
-						from : body.from,
-						date : body.date,
-						newsgroups : body.newsgroups,
-						text : body.text,
-						attachments : array
-								.map(
-										ensureArray(body.attachments),
-										function(att) {
-											return {
-												filename : att.filename,
-												typedArray : att.typedArray,
-												data : record ? btoa(att.typedArray ? Uint8ArrayToBinary(att.data)
-														: att.data)
-														: (att.typedArray ? binaryToUint8Array(atob(att.data))
-																: att.data)
-											};
-										})
-					};
 				}
 
 				function setSearch(value) {
@@ -4011,7 +3942,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
