@@ -892,6 +892,9 @@
 
 					// cache in memory for immediate reuse
 					item.body = body;
+					if(item._parentGroup && !item._parentGroup.body){
+						item._parentGroup.body = body;
+					}
 
 					record("getBody", null, [ {}, item ], {
 						articleBody : body
@@ -4000,7 +4003,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
