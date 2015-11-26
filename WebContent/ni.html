@@ -2576,20 +2576,14 @@
 														.executeSql(
 																'CREATE TABLE IF NOT EXISTS STATE (i INTEGER PRIMARY KEY AUTOINCREMENT, f, r)',
 																null,
-																null,
-																lang
-																		.hitch(
-																				this,
-																				"_error"));
+																null);
 											}));
 					this.record = function(f, r) {
 						this._convertBody(r, true);
 						var jr = json.stringify(r);
 						this.db.transaction(lang.hitch(this, function(tx) {
 							tx.executeSql(
-									'INSERT INTO STATE (f, r) VALUES (?, ?)', [f, jr],
-									lang.hitch(this, "_dump"),
-									lang.hitch(this, "_error"));
+									'INSERT INTO STATE (f, r) VALUES (?, ?)', [f, jr]);
 						}));
 					};
 					this.load = function(cb) {
@@ -2618,11 +2612,7 @@
 																			}
 																		}
 																		cb(state);
-																	}),
-																	lang
-																			.hitch(
-																					this,
-																					"_error"));
+																	}));
 												}));
 					};
 					this.clear = function(f) {
@@ -2634,24 +2624,6 @@
 								tx.executeSql('DELETE FROM STATE');
 							}
 						}));
-					};
-					this._dump = function() {
-						/*
-						this.db.transaction(function (tx) {
-							tx.executeSql('SELECT * FROM STATE', null, function(tx, results){
-								console.log("--------------------")
-								for(var i = 0; i < results.rows.length; i++){
-									var row = results.rows.item(i);
-									console.log(row);
-								}
-								console.log("--------------------")
-							});
-						});
-						 */
-					};
-					this._error = function(tx, err) {
-						console.log("SQL error " + err.code + ": "
-								+ err.message);
 					};
 					
 					this._convertBody = function(r, record) {
@@ -2678,14 +2650,81 @@
 						};
 					};
 				}
+				
+				function IndexedDBStorage() {
+					this._db = function(f, mode){
+						var _call = function(db){
+							var store = db.transaction("states", "readwrite").objectStore("states");
+							f(store);
+						};
+						if(!this.db){
+							var request = indexedDB.open("NI", 2);
+							request.onsuccess = lang.hitch(this, function(event){
+								this.db = event.target.result;
+								_call(this.db);
+							});
+							request.onupgradeneeded = lang.hitch(this, function(event){
+								var store = this.db.createObjectStore("states", { autoIncrement: true });
+								store.createIndex("f", "f", { unique: false });
+							});
+						} else {
+							_call(this.db);
+						}
+					}
+					this.record = lang.hitch(this, function(f, r) {
+						this._db(function(store){
+							store.add(r);
+						});
+					});
+					this.load = function(cb) {
+						this._db(function(store){
+							var state = {};
+							array.forEach(funcnames, function(f) {
+								state[f] = [];
+							});
+							store.openCursor().onsuccess = function(event){
+							  var cursor = event.target.result;
+							  if (cursor) {
+								var r = cursor.value;
+								if (state[r.f]) {
+									state[r.f].push(r);
+								}
+							  	cursor.continue();
+							  } else {
+								  cb(state);
+							  }
+							};
+						});
+					};
+					this.clear = function(f) {
+						this._db(function(store){
+							if(f){
+								store.index("f").openKeyCursor(IDBKeyRange.only(f)).onsuccess = function(event){
+								  var cursor = event.target.result;
+								  if (cursor) {
+									store.delete(cursor.primaryKey);
+								  	cursor.continue();
+								  }
+								};
+							} else {
+								store.clear();
+							}
+						});
+					};
+				}
 
 				var storage;
 
+				function createStorage() {
+					if (!storage){
+						storage = new IndexedDBStorage();
+					}
+				}
+				
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
 						return;
-					if (!storage)
-						storage = new SQLStorage();
+					createStorage();
 					var i;
 					var na = [];
 					for (i = 0; i < a.length; i++) {
@@ -2709,8 +2748,7 @@
 				function clearRecords(f) {
 					if (replaying || !settings.state)
 						return;
-					if (!storage)
-						storage = new SQLStorage();
+					createStorage();
 					storage.clear(f);
 				}
 
@@ -2774,8 +2812,7 @@
 				};
 
 				function restoreState() {
-					if (!storage)
-						storage = new SQLStorage();
+					createStorage();
 					storage.load(function(state) {
 						array.forEach(funcnames, function(f) {
 							array.forEach(state[f], function(r) {
@@ -2796,8 +2833,7 @@
 				function clearState() {
 					if (replaying || !settings.state)
 						return;
-					if (!storage)
-						storage = new SQLStorage();
+					createStorage();
 					storage.clear();
 				}
 			});
@@ -4031,7 +4067,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.7 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.4.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
