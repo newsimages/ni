@@ -2717,7 +2717,8 @@
 
 				function createStorage() {
 					if (!storage){
-						storage = new IndexedDBStorage();
+						//storage = new IndexedDBStorage();
+						storage = new SQLStorage();
 					}
 				}
 				
