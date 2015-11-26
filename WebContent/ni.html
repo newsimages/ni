@@ -474,7 +474,7 @@
 					return item;
 				}
 			
-				function gotoSeries(noTransition) {
+				function gotoSeries(evt, noTransition) {
 					
 					record("gotoSeries", this, []);
 					
@@ -496,14 +496,14 @@
 				}
 				
 				viewSeries = function() {
-					gotoSeries.call(currentItem, true);
+					gotoSeries.call(currentItem, null, true);
 					var items = seriesResultsList.getChildren();
 					items[0].body = currentItem.body;
 					record("getBody", null, [ {}, items[0] ], {
 						articleBody : currentItem.body
 					});
 					markRead(items[0]);
-					selectArticle.call(items[1], true);
+					selectArticle.call(items[1], null, true);
 				};
 				
 				leaveSeriesView = function() {
@@ -600,7 +600,7 @@
 
 				var currentItem, imageRealSized, articleImage, currentAsyncId;
 
-				function selectArticle(noTransition) {
+				function selectArticle(evt, noTransition) {
 					if (!currentServer) {
 						showMessage("No server defined");
 						return;
@@ -1195,21 +1195,33 @@
 
 				function loadImage(data, partial) {
 					articleImage.partial = partial;
-					var src = makeDataUrl(data, "image/jpeg");
-					if (src != articleImage.getAttribute("src")) {
-						articleImage.setAttribute("src", src);
-					} else if (data) {
-						fitImage();
-					} else {
+					if(!data){
 						articleImage.style.visibility = "hidden";
+					}
+					if (!setImageSrc(articleImage, data)) {
+						fitImage();
+					}
+				}
+				
+				function setImageSrc(img, data) {
+					return setSrc(img, makeDataUrl(data, "image/jpeg"));
+				}
+				
+				function setSrc(obj, src) {
+					var oldsrc = obj.getAttribute("src");
+					if (src != oldsrc) {
+						obj.setAttribute("src", src);
+						freeDataUrl(oldsrc);
+						return true;
+					} else {
+						return false;
 					}
 				}
 				
 				function loadVideo(data, name) {
 					var p = name.split(".");
 					var t = p.length >= 1 ? p[p.length - 1] : "mp4";
-					var src = makeDataUrl(data, "video/" + t);
-					dom.byId("video").setAttribute("src", src);
+					setSrc(dom.byId("video"), makeDataUrl(data, "video/" + t));
 					fitVideo();
 				}
 
@@ -1710,7 +1722,7 @@
 											th = createThumbnail(p.chunk, item,
 													thp);
 										} else {
-											th.setAttribute("src", makeImageUrl(p.chunk));
+											setImageSrc(th, p.chunk);
 										}
 									}
 
@@ -1773,7 +1785,7 @@
 						if (!th) {
 							th = createThumbnail(att.data, item, thp);
 						} else {
-							th.setAttribute("src", makeImageUrl(att.data));
+							setImageSrc(th, att.data);
 						}
 
 						item.thumbnailBody = body;
@@ -1823,7 +1835,7 @@
 					var sz = thumbnailColWidth + "px";
 					th.style.maxWidth = sz;
 					th.style.maxHeight = sz;
-					th.setAttribute("src", makeImageUrl(data));
+					setImageSrc(th, data);
 					on(th, "click", function() {
 						thumbnailClicked = true;
 						indexView.performTransition("article", -1, "slide");
@@ -2114,18 +2126,34 @@
 					return bytes;
 				}
 
+				/* using blobs
 				function makeDataUrl(data, type) {
-					var url;
-					if (!(data instanceof Uint8Array)) {
+					var ms = new Date().getTime();
+					if (data && !(data instanceof Uint8Array)) {
 						data = binaryToUint8Array(data);
 					}
-					var blob = new Blob([ data ], {
-						type : type
-					});
-					url = URL.createObjectURL(blob);
-					return url;
+					console.log(new Date().getTime() - ms);
+					return URL.createObjectURL(new Blob([ data ], { type : type }));
 				}
+				
+				function freeDataUrl(url) {
+					URL.revokeObjectURL(url);
+				}
+				*/
 
+				/* using base64 */
+				function makeDataUrl(data, type) {
+					var ms = new Date().getTime();
+					if (data && data instanceof Uint8Array) {
+						data = Uint8ArrayToBinary(data);
+					}
+					console.log(new Date().getTime() - ms);
+					return "data:" + type + ";base64," + btoa(data);
+				}
+				
+				function freeDataUrl(url) {
+				}
+				
 				function makeImageUrl(data) {
 					return makeDataUrl(data, "image/jpeg");
 				}
@@ -3413,7 +3441,7 @@ to {
 	top: 50px;
 	padding: 5px 20px 5px 5px;
 	color: #007AFF;
-	border: 1px solid rgba(0, 122, 255, 0.4);
+	//border: 1px solid rgba(0, 122, 255, 0.4);
 	background: rgba(109, 138, 162, 0.2);
 	font-size: 13px;
 	font-weight: bold;
@@ -4003,7 +4031,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.3.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.3.7 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
