@@ -2565,6 +2565,7 @@
 						"toggleThumbnailsDir", "showThumbnails" ];
 
 				function SQLStorage() {
+					this.name = "WebSQL";
 					this.db = openDatabase('NI', '1.0', 'App state storage DB',
 							50 * 1024 * 1024);
 					this.db
@@ -2652,6 +2653,7 @@
 				}
 				
 				function IndexedDBStorage() {
+					this.name = "IndexedDB";
 					this._db = function(f, mode){
 						var _call = function(db){
 							var store = db.transaction("states", "readwrite").objectStore("states");
@@ -2717,8 +2719,11 @@
 
 				function createStorage() {
 					if (!storage){
-						//storage = new IndexedDBStorage();
-						storage = new SQLStorage();
+						if(typeof indexedDB !== "undefined")
+							storage = new IndexedDBStorage();
+						else
+							storage = new SQLStorage();
+						dom.byId("stateUsing").innerHTML = storage.name;
 					}
 				}
 				
@@ -3108,7 +3113,7 @@ body,html {
 	color: #606080;
 	margin-left: 12px;
 	margin-top: 12px;
-	margin-bottom: 9px;
+	margin-bottom: 3px;
 }
 
 .versionLabel {
@@ -3140,6 +3145,19 @@ body,html {
 	width: 180px;
 	font-size: large;
 	padding-right: 9px;
+}
+
+.inlineLabel {
+	position: absolute;
+	top: 0px;
+	right: 6px;
+	border: none;
+	z-index: 2;
+	text-align: right;
+	width: 180px;
+	font-size: medium;
+	padding-right: 9px;
+	color: #606080;
 }
 
 .inlineNumberBox {
@@ -4007,13 +4025,13 @@ to {
 		data-dojo-props="onBeforeTransitionOut:cancelRequest">
 		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="fixed:'top',label:'Settings',moveTo:'search',back:'Done'"></div>
-		<p class="settingsLabel">Usenet server:</p>
+		<p class="settingsLabel">Usenet server</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-id="serverList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'New...',moveTo:'server',userClickAction:editServer"></li>
 		</ul>
-		<p class="settingsLabel">Application:</p>
+		<p class="settingsLabel">Search</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Search results'"><input
@@ -4027,11 +4045,20 @@ to {
 				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'search timeout (seconds)',onChange:updateSearchSettings">
 			</li>
+		</ul>
+		<p class="settingsLabel">Application State</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Remember
 				state<span data-dojo-id="stateSwitch"
 				data-dojo-type="dojox/mobile/Switch"
 				data-dojo-props="onStateChanged:updateStateSettings"></span>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Using:
+				<div id="stateUsing" class="inlineLabel"></div>
+			</li>
+		</ul>
+		<p class="settingsLabel">Article Loading</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show
 				progress<span data-dojo-id="asyncSwitch"
 				data-dojo-type="dojox/mobile/Switch"
@@ -4055,12 +4082,18 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
+		</ul>
+		<p class="settingsLabel">Thumbnails</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Thumbnail size'"><input
 				data-dojo-id="thumbnailSizeBox"
 				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
+		</ul>
+		<p class="settingsLabel">Slideshow</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Slideshow delay'"><input
 				data-dojo-id="slideshowDelayBox"
@@ -4068,7 +4101,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.4.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.4.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
