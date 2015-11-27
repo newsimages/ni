@@ -220,11 +220,7 @@
 					}
 
 					// restore/clear state
-					if (settings.state) {
-						restoreState();
-					} else {
-						dom.byId("loadingScreen").style.display = "none";
-					}
+					initState();
 				}
 
 				ready(init);
@@ -1034,9 +1030,13 @@
 									.map(
 											attachments,
 											function(att, index) {
+												var body = item.body||{};
 												return {
 													subject : att.filename,
 													body : {
+														from : body.from,
+														date : body.date,
+														newsgroups : body.newsgroups,
 														text : "<p><span>Attachment "
 																+ (index + 1)
 																+ " of:</span><span style=\"font-style: italic\">"
@@ -1048,19 +1048,18 @@
 											}), item);
 				}
 
-				function showIndex(articles, item, group) {
+				function showIndex(articles, item) {
 					showMultipleItems(array.map(articles, function(a) {
 						return {
 							subject : a.subject,
 							articleId : a.vols || a.parts || a.articleId,
 							bytes : a.bytes
 						};
-					}), item, group);
+					}), item);
 				}
 
-				function showMultipleItems(items, item, group) {
+				function showMultipleItems(items, item) {
 					var list = item._list;
-					item._group = [];
 					var index = list.getChildren().indexOf(item);
 					list.removeChild(item);
 					var prevItem = item.prevItem;
@@ -1068,12 +1067,7 @@
 					var firstItem;
 					array.forEach(items, function(it, i) {
 						var subject = it.subject;
-						if(group){
-							if(i == 0)
-								subject += "<span class='hideSimilar'></span>";
-						} else {
-							subject += "<div class=\"archiveEntry\"> In: " + item.get("label") + "</div>";
-						}
+						subject += "<div class=\"archiveEntry\"> In: " + item.get("label") + "</div>";
 						var newItem = new ListItem(lang.mixin({
 							id: uniqueId(item.id + "_" + i),
 							label : subject,
@@ -1083,7 +1077,6 @@
 							view : item.view
 						}, it));
 						newItem._parent = item;
-						item._group.push(newItem);
 						list.addChild(newItem, index++);
 						newItem._list = list;
 						newItem.prevItem = prevItem;
@@ -1096,22 +1089,10 @@
 						if (!firstItem)
 							firstItem = newItem;
 					});
-					if (firstItem && !group)
+					if (firstItem)
 						showArticle(firstItem);
 				}
 				
-				function hideMultipleItems(item) {
-					var parent = item._parent;
-					if(parent && parent._group){
-						var list = item._list;
-						var index = list.getChildren().indexOf(parent._group[0]);
-						array.forEach(parent._group, function(it){
-							list.removeChild(it);
-						});
-						list.addChild(parent, index);
-					}
-				}
-
 				function showImage(att) {
 					if (replaying && replaying != "selectArticle")
 						return;
@@ -2730,7 +2711,6 @@
 				function record(f, t, a, r) {
 					if (replaying || !settings.state)
 						return;
-					createStorage();
 					var i;
 					var na = [];
 					for (i = 0; i < a.length; i++) {
@@ -2754,7 +2734,6 @@
 				function clearRecords(f) {
 					if (replaying || !settings.state)
 						return;
-					createStorage();
 					storage.clear(f);
 				}
 
@@ -2818,7 +2797,6 @@
 				};
 
 				function restoreState() {
-					createStorage();
 					storage.load(function(state) {
 						array.forEach(funcnames, function(f) {
 							array.forEach(state[f], function(r) {
@@ -2837,10 +2815,19 @@
 				}
 
 				function clearState() {
-					if (replaying || !settings.state)
+					if (replaying)
 						return;
-					createStorage();
 					storage.clear();
+				}
+				
+				function initState() {
+					createStorage();
+					if (settings.state) {
+						restoreState();
+					} else {
+						clearState();
+						dom.byId("loadingScreen").style.display = "none";
+					}
 				}
 			});
 </script>
@@ -2853,10 +2840,10 @@ body,html {
 #loadingScreen {
 	position: absolute;
 	z-index: 9999;
-	left:0;
-	top:0;
-	right:0;
-	bottom:0;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
 	height: 100%;
 	background: white;
 }
@@ -3027,8 +3014,8 @@ body,html {
 
 .searchOptions .searchEngineSelect {
 	position: absolute;
-	right : 12px;
-	top : 7px;
+	right: 12px;
+	top: 7px;
 	width: 190px;
 	height: 30px;
 	line-height: 30px;
@@ -3051,7 +3038,7 @@ body,html {
 
 .searchOptions div.searchEngineSelectArrow {
 	pointer-events: none;
-	position : absolute;
+	position: absolute;
 	right: 18px;
 	top: 13px;
 	width: 10px;
@@ -3430,23 +3417,23 @@ body,html {
 	margin-top: -30px;
 }
 
-@-webkit-keyframes blink {
-from {
-	border-left-color: #404040;
+@
+-webkit-keyframes blink {from { border-left-color:#404040;
 	border-top-color: #404040;
 }
+
 to {
 	border-left-color: #d0d0d0;
 	border-top-color: #d0d0d0;
 }
-}
 
+}
 .articleArrow.slideshow {
-    -webkit-animation-name: blink;
-    -webkit-animation-duration: 0.4s;
-    -webkit-animation-iteration-count: infinite;
-    -webkit-animation-direction: alternate;
-    -webkit-animation-timing-function: linear;
+	-webkit-animation-name: blink;
+	-webkit-animation-duration: 0.4s;
+	-webkit-animation-iteration-count: infinite;
+	-webkit-animation-direction: alternate;
+	-webkit-animation-timing-function: linear;
 }
 
 .leftArrow {
@@ -3495,8 +3482,8 @@ to {
 	right: 5px;
 	top: 50px;
 	padding: 5px 20px 5px 5px;
-	color: #007AFF;
-	//border: 1px solid rgba(0, 122, 255, 0.4);
+	color: #007AFF; //
+	border: 1px solid rgba(0, 122, 255, 0.4);
 	background: rgba(109, 138, 162, 0.2);
 	font-size: 13px;
 	font-weight: bold;
@@ -3504,9 +3491,11 @@ to {
 	cursor: pointer;
 	pointer-events: all !important;
 }
+
 .seriesMessage::before {
 	content: "View all ";
 }
+
 .seriesMessage::after {
 	content: "";
 	position: absolute;
@@ -3661,8 +3650,7 @@ to {
 	visibility: visible;
 }
 
-.mblHeading .mblHeadingDivTitle, .mblHeading .mblHeadingSpanTitle
-{
+.mblHeading .mblHeadingDivTitle,.mblHeading .mblHeadingSpanTitle {
 	font-family: sans-serif;
 	font-weight: bold;
 	font-size: 11pt !important;
@@ -3727,18 +3715,16 @@ to {
 	height: 22px;
 }
 
-@media (max-width: 320px) {
-.ngSearchBoxParent {
-	width: 50px;
-}
-
-.newsgroupHeading .mblHeadingDivTitle {
-	right: 50px;
-}
-
-.ngSearchIcon {
-	right: 60px;
-}
+@media ( max-width : 320px) {
+	.ngSearchBoxParent {
+		width: 50px;
+	}
+	.newsgroupHeading .mblHeadingDivTitle {
+		right: 50px;
+	}
+	.ngSearchIcon {
+		right: 60px;
+	}
 }
 
 .showArticleText .smallHeading .mblHeadingDivTitle {
@@ -3910,8 +3896,7 @@ to {
 		data-dojo-props="onBeforeTransitionOut:leaveSeriesView">
 		<div data-dojo-type="dojox/mobile/Heading"
 			class="seriesHeading smallHeading" data-dojo-id="seriesHeading"
-			data-dojo-props="fixed:'top',back:'Back',moveTo:'search'">
-		</div>
+			data-dojo-props="fixed:'top',back:'Back',moveTo:'search'"></div>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
 			data-dojo-props="variableHeight:true"
 			data-dojo-id="seriesResultsList" id="seriesResultsList"
@@ -3989,8 +3974,8 @@ to {
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
-			<div id="seriesMessage" class="seriesMessage hidden" onclick="viewSeries()">
-			</div>
+			<div id="seriesMessage" class="seriesMessage hidden"
+				onclick="viewSeries()"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
@@ -4041,7 +4026,8 @@ to {
 			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Timeout getting headers'"><input
-				data-dojo-id="getHeadersTimeoutBox" data-dojo-type="dojox/mobile/TextBox"
+				data-dojo-id="getHeadersTimeoutBox"
+				data-dojo-type="dojox/mobile/TextBox"
 				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'search timeout (seconds)',onChange:updateSearchSettings">
 			</li>
@@ -4076,9 +4062,9 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Optimize image download
-				<span
-				data-dojo-id="optimizeImageDownloadSwitch" data-dojo-type="dojox/mobile/Switch"
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Optimize
+				image download <span data-dojo-id="optimizeImageDownloadSwitch"
+				data-dojo-type="dojox/mobile/Switch"
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
@@ -4088,7 +4074,8 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Thumbnail size'"><input
 				data-dojo-id="thumbnailSizeBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
+				data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
 		</ul>
@@ -4097,11 +4084,12 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Delay'"><input
 				data-dojo-id="slideshowDelayBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
+				data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.4.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.4.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -4134,7 +4122,8 @@ to {
 				data-dojo-props="placeHolder:'e.g. news.acme.org',onChange:hostnameBoxChanged"></input></li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'Port'"><input data-dojo-id="portBox"
-				data-dojo-type="dojox/mobile/TextBox" class="inlineTextBox inlineNumberBox"
+				data-dojo-type="dojox/mobile/TextBox"
+				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default=119'"></input></li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-props="label:'User name'"><input
