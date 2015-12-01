@@ -411,25 +411,18 @@
 								var a0 = a.group[0];
 								var ga = lang.mixin({}, a0, {
 									groupId: "group_" + (a0.vols || a0.parts || a0.articleId),
-									subject: a.subject + "<div class='similar'>" + a.group.length + " similar articles</div>",
+									subject: a.subject,
 									key: a.key
 								});
 								var groupItem = item = addArticleItem(list, ga, gotoSeries, item);
-								domClass.add(groupItem.domNode, "series");
 								array.forEach(children, function(pitem) {
 									if(pitem._key === a.key){
 										domClass.add(pitem.domNode, "obsolete");
 									}
 								});
 								list.addChild(groupItem);
-								groupItem._groupItems = [];
 								groupItem._subject = a.subject;
-								var subItem = null;
-								for(var j = 0; j < a.group.length; j++){
-									subItem = addArticleItem(list, a.group[j], selectArticle, subItem, newsgroup);
-									groupItem._groupItems.push(subItem);
-									subItem._parentGroup = groupItem;
-								}
+								addGroupItems(list, groupItem, a.group, "similar articles", newsgroup);
 							} else {
 								item = addArticleItem(list, a, selectArticle, item, newsgroup);
 								list.addChild(item);
@@ -444,6 +437,22 @@
 					}
 				}
 				
+				function addGroupItems(list, groupItem, groupArticles, label, newsgroup){
+					domClass.add(groupItem.domNode, "series");
+					groupItem.noArrow = false;
+					groupItem.setArrow();
+					groupItem.onClick = gotoSeries;
+					groupItem._duration = 200;
+					groupItem._groupItems = [];
+					groupItem.set("label", groupItem.label + "<div class='similar'>" + groupArticles.length + " " + label + "</div>")
+					var subItem = null;
+					for(var i = 0; i < groupArticles.length; i++){
+						subItem = addArticleItem(list, groupArticles[i], selectArticle, subItem, newsgroup);
+						groupItem._groupItems.push(subItem);
+						subItem._parentGroup = groupItem;
+					}
+				}
+				
 				function addArticleItem(list, a, callback, prevItem, newsgroup) {
 					var id = a.vols || a.parts || a.articleId;
 					var item = new ListItem(
@@ -451,7 +460,7 @@
 									id : uniqueId(a.groupId || id),
 									label : a.subject ,
 									clickable : true,
-									noArrow : a.groupId ? false : true,
+									noArrow : true,
 									onClick : callback,
 									articleId : id,
 									newsgroup : newsgroup
@@ -459,7 +468,7 @@
 													: a.newsgroups),
 									bytes : a.bytes,
 									view : list.view,
-									_duration: a.groupId ? 200 : 800
+									_duration: 800
 								});
 					item._list = list;
 					item._key = a.key;
@@ -476,8 +485,21 @@
 					
 					seriesHeading.set("label", this._subject||this.label);
 					seriesHeading.set("moveTo", this.view.id);
-					this.view.performTransition("series", 1,
-							(replaying||noTransition) ? "none" : "slide");
+					var fromView = this.view.getShowingView();
+					var oldCallback = fromView.onAfterTransitionOut;
+					var f = function(){
+						fromView.onAfterTransitionOut = oldCallback;
+						console.log("trans fromView = " + fromView.getShowingView().id + " -> series");
+						fromView.getShowingView().performTransition("series", 1,
+								(replaying||noTransition) ? "none" : "slide");
+					}
+					console.log("fromView = " + fromView.id);
+					if(fromView._inProgress){
+						console.log("wait for end of trans");
+						fromView.onAfterTransitionOut = f;
+					} else {
+						f();
+					}
 					seriesView.scrollTo({
 						x : 0,
 						y : 0
@@ -1058,6 +1080,7 @@
 					}), item);
 				}
 
+				/*
 				function showMultipleItems(items, item) {
 					var list = item._list;
 					var index = list.getChildren().indexOf(item);
@@ -1091,6 +1114,17 @@
 					});
 					if (firstItem)
 						showArticle(firstItem);
+				}
+				*/
+
+				function showMultipleItems(items, item) {
+					var list = item._list;
+					if(!item._groupItems){
+						addGroupItems(list, item, items, "articles in series");
+					}
+					if(!replaying){
+						gotoSeries.call(item, null, false, true);
+					}
 				}
 				
 				function showImage(att) {
@@ -1179,7 +1213,7 @@
 					if(!data){
 						articleImage.style.visibility = "hidden";
 					}
-					if (!setImageSrc(articleImage, data)) {
+					if (!setImageSrc(articleImage, data) && data) {
 						fitImage();
 					}
 				}
@@ -2109,11 +2143,9 @@
 
 				/* using blobs
 				function makeDataUrl(data, type) {
-					var ms = new Date().getTime();
 					if (data && !(data instanceof Uint8Array)) {
 						data = binaryToUint8Array(data);
 					}
-					console.log(new Date().getTime() - ms);
 					return URL.createObjectURL(new Blob([ data ], { type : type }));
 				}
 				
@@ -2128,7 +2160,6 @@
 					if (data && data instanceof Uint8Array) {
 						data = Uint8ArrayToBinary(data);
 					}
-					console.log(new Date().getTime() - ms);
 					return "data:" + type + ";base64," + btoa(data);
 				}
 				
@@ -2540,9 +2571,9 @@
 				//---------- Current state ----------
 
 				var funcnames = [ "setSearch", "getNewsgroups",
-						"selectNewsgroup", "getArticles", "gotoSeries",
+						"selectNewsgroup", "getArticles",
 						"searchScroll", "newsgroupScroll", "seriesScroll",
-						"getBody", "selectArticle", "addThumbnails",
+						"getBody", "gotoSeries", "selectArticle", "addThumbnails",
 						"toggleThumbnailsDir", "showThumbnails" ];
 
 				function SQLStorage() {
@@ -4089,7 +4120,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.4.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.5.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
