@@ -2678,6 +2678,7 @@
 								_call(this.db);
 							});
 							request.onupgradeneeded = lang.hitch(this, function(event){
+								this.db = event.target.result;
 								var store = this.db.createObjectStore("states", { autoIncrement: true });
 								store.createIndex("f", "f", { unique: false });
 							});
@@ -4120,7 +4121,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.5.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.5.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
