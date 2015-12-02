@@ -177,13 +177,16 @@
 						var v = searchView.domNode.style.display != "none" ? searchView
 								: (newsgroupView.domNode.style.display != "none" ? newsgroupView
 										: (seriesView.domNode.style.display != "none" ? seriesView
-											: null));
+												: (seriesView2.domNode.style.display != "none" ? seriesView2
+											: null)));
 						if (v) {
 							switch (k) {
 							case keys.BACKSPACE:
 							case keys.ESCAPE:
-								if(v === newsgroupView || v === seriesView){
-									v.performTransition(v === seriesView ? seriesHeading.moveTo : "search", -1, "slide");
+								if(v === newsgroupView || v === seriesView || v === seriesView2){
+									v.performTransition(v === seriesView ? seriesHeading.moveTo :
+														v === seriesView2 ? seriesHeading2.moveTo :
+														"search", -1, "slide");
 								}
 								break;
 							case keys.UP_ARROW:
@@ -447,7 +450,9 @@
 					groupItem.set("label", groupItem.label + "<div class='similar'>" + groupArticles.length + " " + label + "</div>")
 					var subItem = null;
 					for(var i = 0; i < groupArticles.length; i++){
-						subItem = addArticleItem(list, groupArticles[i], selectArticle, subItem, newsgroup);
+						var a = groupArticles[i];
+						subItem = addArticleItem(list, a, selectArticle, subItem, newsgroup);
+						lang.mixin(subItem, a);
 						groupItem._groupItems.push(subItem);
 						subItem._parentGroup = groupItem;
 					}
@@ -479,43 +484,54 @@
 					return item;
 				}
 			
+				var gotoSeriesCount = 0;
+				
 				function gotoSeries(evt, noTransition) {
 					
 					record("gotoSeries", this, []);
 					
-					seriesHeading.set("label", this._subject||this.label);
-					seriesHeading.set("moveTo", this.view.id);
+					var view, heading, list;
+					if(gotoSeriesCount++ % 2 == 0){
+						view = seriesView;
+						heading = seriesHeading;
+						list = seriesResultsList;
+					} else {
+						view = seriesView2;
+						heading = seriesHeading2;
+						list = seriesResultsList2;
+					}
+					
+					heading.set("label", this._subject||this.label);
+					heading.set("moveTo", this.view.id);
 					var fromView = this.view.getShowingView();
 					var oldCallback = fromView.onAfterTransitionOut;
 					var f = function(){
 						fromView.onAfterTransitionOut = oldCallback;
-						console.log("trans fromView = " + fromView.getShowingView().id + " -> series");
-						fromView.getShowingView().performTransition("series", 1,
+						fromView.getShowingView().performTransition(view.id, 1,
 								(replaying||noTransition) ? "none" : "slide");
 					}
-					console.log("fromView = " + fromView.id);
 					if(fromView._inProgress){
-						console.log("wait for end of trans");
 						fromView.onAfterTransitionOut = f;
 					} else {
 						f();
 					}
-					seriesView.scrollTo({
+					view.scrollTo({
 						x : 0,
 						y : 0
 					});
-					var list = seriesResultsList;
-					list.view = seriesView;
+					list.view = view;
 					array.forEach(this._groupItems, function(child){
 						list.addChild(child);
 						child._list = list;
-						child.view = seriesView;
+						child.view = view;
 					});
+					
+					return list;
 				}
 				
 				viewSeries = function() {
-					gotoSeries.call(currentItem, null, true);
-					var items = seriesResultsList.getChildren();
+					var list = gotoSeries.call(currentItem, null, true);
+					var items = list.getChildren();
 					items[0].body = currentItem.body;
 					record("getBody", null, [ {}, items[0] ], {
 						articleBody : currentItem.body
@@ -526,15 +542,22 @@
 				
 				leaveSeriesView = function() {
 					if (arguments[1] == -1) {
-						clearRecords("gotoSeries");
-						clearRecords("seriesScroll");
-						var list = seriesResultsList;
+						var list = this === seriesView ? seriesResultsList : seriesResultsList2;
 						while ((children = list.getChildren()).length > 0) {
 							list.removeChild(children[0]);
+						}
+						if(--gotoSeriesCount == 0){
+							clearRecords("gotoSeries");
+							clearRecords("seriesScroll");
+						} else {
+							clearLastRecord("gotoSeries")
+							clearLastRecord("seriesScroll")
 						}
 					}				
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
+					fixList(seriesResultsList);
+					fixList(seriesResultsList2);
 				}
 				
 				//---------- Newsgroup browsing ----------
@@ -842,6 +865,7 @@
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
 					fixList(seriesResultsList);
+					fixList(seriesResultsList2);
 					clearRecords("selectArticle");
 				}
 
@@ -2216,9 +2240,8 @@
 											}
 										}
 									}
-									if (v == searchView || v == newsgroupView
-											|| v == seriesView) {
-										var f = v.id + "Scroll";
+									if (v == searchView || v == newsgroupView || v == seriesView || v == seriesView2) {
+										var f = v.id.replace(/2$/, "") + "Scroll";
 										clearRecords(f);
 										record(f, null, [ to.y ]);
 									}
@@ -2650,14 +2673,14 @@
 							date : body.date,
 							newsgroups : body.newsgroups,
 							text : body.text,
+							articles: body.articles,
 							attachments : array
 									.map(
 											ensureArray(body.attachments),
 											function(att) {
 												return {
 													filename : att.filename,
-													data : record ? btoa(Uint8ArrayToBinary(att.data))
-															: binaryToUint8Array(atob(att.data))
+													data : record ? btoa(Uint8ArrayToBinary(att.data)) : atob(att.data)
 												};
 											})
 						};
@@ -2669,7 +2692,15 @@
 					this._db = function(f, mode){
 						var _call = function(db){
 							var store = db.transaction("states", "readwrite").objectStore("states");
-							f(store);
+							var req = f(store);
+							if(req){
+								req.onsuccess = function(evt){
+									console.log(req + " success");
+								};
+								req.onerror = function(evt){
+									console.log(req + " error");
+								};
+							}
 						};
 						if(!this.db){
 							var request = indexedDB.open("NI", 2);
@@ -2688,7 +2719,7 @@
 					}
 					this.record = lang.hitch(this, function(f, r) {
 						this._db(function(store){
-							store.add(r);
+							return store.add(r);
 						});
 					});
 					this.load = function(cb) {
@@ -2769,6 +2800,21 @@
 					storage.clear(f);
 				}
 
+				function clearLastRecord(f) {
+					if (replaying || !settings.state)
+						return;
+					storage.load(function(state) {
+						var s = state[f];
+						clearRecords(f);
+						for(var i = 0; i < s.length-1; i++){
+							storage.record(f, s[i]);
+						}
+						replaying = null;
+						domClass.remove(document.documentElement, "replaying");
+						dom.byId("loadingScreen").style.display = "none";
+					});
+				}
+
 				var replaying, replayResult;
 
 				function replay(r) {
@@ -2807,7 +2853,8 @@
 				}
 
 				function seriesScroll(y) {
-					seriesView.scrollTo({
+					var view = (seriesView.domNode.style.display != "none" ? seriesView : seriesView2);
+					view.scrollTo({
 						y : y
 					});
 				}
@@ -2838,7 +2885,7 @@
 									console.log("error replaying " + f + " : "
 											+ err);
 								}
-							})
+							});
 						});
 						replaying = null;
 						domClass.remove(document.documentElement, "replaying");
@@ -3935,6 +3982,18 @@ to {
 			data-dojo-mixins="dojox/mobile/LongListMixin">
 		</ul>
 	</div>
+	<div data-dojo-type="dojox/mobile/ScrollableView" id="series2"
+		data-dojo-id="seriesView2"
+		data-dojo-props="onBeforeTransitionOut:leaveSeriesView">
+		<div data-dojo-type="dojox/mobile/Heading"
+			class="seriesHeading smallHeading" data-dojo-id="seriesHeading2"
+			data-dojo-props="fixed:'top',back:'Back',moveTo:'search'"></div>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList"
+			data-dojo-props="variableHeight:true"
+			data-dojo-id="seriesResultsList2" id="seriesResultsList2"
+			data-dojo-mixins="dojox/mobile/LongListMixin">
+		</ul>
+	</div>
 	<div data-dojo-type="dojox/mobile/View" id="article"
 		class="articleView" data-dojo-id="articleView"
 		data-dojo-props="onBeforeTransitionOut:leaveArticleView"
@@ -4121,7 +4180,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.5.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.5.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
