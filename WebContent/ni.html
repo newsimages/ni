@@ -64,7 +64,8 @@
 					state : false,
 					thumbnailSize : 150,
 					slideshowDelay: 1000,
-					optimizeImageDownload: true
+					optimizeImageDownload: true,
+					listThumbnails: true
 				};
 
 				//---------- Initialization ----------
@@ -983,6 +984,9 @@
 								case "gif":
 								case "png":
 									showImage(att);
+									if(settings.listThumbnails){
+										setListThumbnail(item, att.data);
+									}
 									break;
 								case "mpg":
 								case "mp4":
@@ -1033,6 +1037,19 @@
 					domClass.add(item.domNode, "read");
 					if(item._parentGroup){
 						domClass.add(item._parentGroup.domNode, "read");
+					}
+				}
+				
+				function setListThumbnail(item, data){
+					if(!item._listThumbnail){
+						var th = document.createElement("div");
+						domClass.add(th, "listThumbnailParent");
+						var img = document.createElement("img");
+						domClass.add(img, "listThumbnailImage");
+						setImageSrc(img, data);
+						th.appendChild(img);
+						item.domNode.insertBefore(th, item.labelNode);
+						item._listThumbnail = th;
 					}
 				}
 
@@ -1320,21 +1337,7 @@
 						img.style.left = Math.max(0, (vw - iw) / 2) + "px";
 						img.style.top = Math.max(0, (vh - ih) / 2) + "px";
 					} else {
-
-						if (ih / iw > vh / vw) {
-							iw *= vh / ih;
-							ih = vh;
-							img.style.top = "0";
-							img.style.left = ((vw - iw) / 2) + "px";
-						} else {
-							ih *= vw / iw;
-							iw = vw;
-							img.style.top = ((vh - ih) / 2) + "px";
-							img.style.left = "0";
-						}
-						img.style.width = iw + "px";
-						img.style.height = ih + "px";
-
+						centerImage(img, vw, vh, iw, ih);
 						imageScroller.scrollTo({
 							x : 0,
 							y : 0
@@ -1358,6 +1361,24 @@
 					}
 
 					img.style.visibility = resize ? oldvis : "inherit";
+				}
+				
+				function centerImage(img, vw, vh, iw, ih) {
+					iw = iw||img.offsetWidth;
+					ih = ih||img.offsetHeight;
+					if (ih / iw > vh / vw) {
+						iw *= vh / ih;
+						ih = vh;
+						img.style.top = "0";
+						img.style.left = ((vw - iw) / 2) + "px";
+					} else {
+						ih *= vw / iw;
+						iw = vw;
+						img.style.top = ((vh - ih) / 2) + "px";
+						img.style.left = "0";
+					}
+					img.style.width = iw + "px";
+					img.style.height = ih + "px";
 				}
 
 				fitVideo = function() {
@@ -2338,6 +2359,7 @@
 					stateSwitch.set("value", settings.state ? "on" : "off");
 
 					thumbnailSizeBox.set("value", settings.thumbnailSize);
+					listThumbnailsSwitch.set("value", settings.listThumbnails ? "on" : "off");
 
 					slideshowDelayBox.set("value", settings.slideshowDelay);
 
@@ -2410,6 +2432,7 @@
 
 					settings.thumbnailSize = parseInt(thumbnailSizeBox
 							.get("value"));
+					settings.listThumbnails = listThumbnailsSwitch.get("value") == "on";
 
 					localStorage.settings = json.stringify(settings);
 
@@ -3890,6 +3913,22 @@ to {
 .mblEdgeToEdgeList .mblListItem.series.obsolete div.similar {
 	text-decoration: line-through;
 }
+
+.mblEdgeToEdgeList .mblListItem .listThumbnailParent {
+	float: right;
+	width: 40px;
+	height: 40px;
+	line-height: 39px;
+	text-align: center;
+	margin: -10px 0 -10px 5px;
+}
+
+.mblEdgeToEdgeList .mblListItem .listThumbnailImage {
+	max-width: 40px;
+	max-height: 40px;
+	vertical-align: middle;
+}
+
 </style>
 
 </head>
@@ -4186,6 +4225,12 @@ to {
 				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show thumbnails in list
+				<span data-dojo-id="listThumbnailsSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateThumbnailsSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
 		</ul>
 		<p class="settingsLabel">Slideshow</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
@@ -4197,7 +4242,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.5.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
