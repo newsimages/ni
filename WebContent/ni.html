@@ -503,6 +503,10 @@
 					
 					heading.set("label", this._subject||this.label);
 					heading.set("moveTo", this.view.id);
+					if(this.view === seriesView || this.view === seriesView2){
+						this.view._savedItems = (this.view === seriesView ? seriesResultsList : seriesResultsList2).getChildren();
+						console.log(this.view.id + " save items " + this.view._savedItems.length);
+					}
 					var fromView = this.view.getShowingView();
 					var oldCallback = fromView.onAfterTransitionOut;
 					var f = function(){
@@ -540,7 +544,7 @@
 					selectArticle.call(items[1], null, true);
 				};
 				
-				leaveSeriesView = function() {
+				leaveSeriesView = function(moveTo) {
 					if (arguments[1] == -1) {
 						var list = this === seriesView ? seriesResultsList : seriesResultsList2;
 						while ((children = list.getChildren()).length > 0) {
@@ -552,6 +556,19 @@
 						} else {
 							clearLastRecord("gotoSeries")
 							clearLastRecord("seriesScroll")
+						}
+						if(moveTo === "series" || moveTo === "series2"){
+							var view = moveTo === "series" ? seriesView : seriesView2;
+							if(view._savedItems){
+								list = view === seriesView ? seriesResultsList : seriesResultsList2;
+								while ((children = list.getChildren()).length > 0) {
+									list.removeChild(children[0]);
+								}
+								console.log(view.id + " restore items " + view._savedItems.length);
+								array.forEach(view._savedItems, function(item){
+									list.addChild(item);
+								});
+							}
 						}
 					}				
 					fixList(searchResultsList);
@@ -4180,7 +4197,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.5.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.5.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
