@@ -453,7 +453,6 @@
 					for(var i = 0; i < groupArticles.length; i++){
 						var a = groupArticles[i];
 						subItem = addArticleItem(list, a, selectArticle, subItem, newsgroup);
-						lang.mixin(subItem, a);
 						groupItem._groupItems.push(subItem);
 						subItem._parentGroup = groupItem;
 					}
@@ -462,7 +461,7 @@
 				function addArticleItem(list, a, callback, prevItem, newsgroup) {
 					var id = a.vols || a.parts || a.articleId;
 					var item = new ListItem(
-								{
+								lang.mixin(a, {
 									id : uniqueId(a.groupId || id),
 									label : a.subject ,
 									clickable : true,
@@ -475,7 +474,7 @@
 									bytes : a.bytes,
 									view : list.view,
 									_duration: 800
-								});
+								}));
 					item._list = list;
 					item._key = a.key;
 					if (prevItem) {
@@ -506,7 +505,6 @@
 					heading.set("moveTo", this.view.id);
 					if(this.view === seriesView || this.view === seriesView2){
 						this.view._savedItems = (this.view === seriesView ? seriesResultsList : seriesResultsList2).getChildren();
-						console.log(this.view.id + " save items " + this.view._savedItems.length);
 					}
 					var fromView = this.view.getShowingView();
 					var oldCallback = fromView.onAfterTransitionOut;
@@ -565,7 +563,6 @@
 								while ((children = list.getChildren()).length > 0) {
 									list.removeChild(children[0]);
 								}
-								console.log(view.id + " restore items " + view._savedItems.length);
 								array.forEach(view._savedItems, function(item){
 									list.addChild(item);
 								});
@@ -1137,43 +1134,6 @@
 						};
 					}), item);
 				}
-
-				/*
-				function showMultipleItems(items, item) {
-					var list = item._list;
-					var index = list.getChildren().indexOf(item);
-					list.removeChild(item);
-					var prevItem = item.prevItem;
-					var nextItem = item.nextItem;
-					var firstItem;
-					array.forEach(items, function(it, i) {
-						var subject = it.subject;
-						subject += "<div class=\"archiveEntry\"> In: " + item.get("label") + "</div>";
-						var newItem = new ListItem(lang.mixin({
-							id: uniqueId(item.id + "_" + i),
-							label : subject,
-							clickable : true,
-							noArrow : true,
-							onClick : selectArticle,
-							view : item.view
-						}, it));
-						newItem._parent = item;
-						list.addChild(newItem, index++);
-						newItem._list = list;
-						newItem.prevItem = prevItem;
-						newItem.nextItem = nextItem;
-						if (prevItem)
-							prevItem.nextItem = newItem;
-						if (nextItem)
-							nextItem.prevItem = newItem;
-						prevItem = newItem;
-						if (!firstItem)
-							firstItem = newItem;
-					});
-					if (firstItem)
-						showArticle(firstItem);
-				}
-				*/
 
 				function showMultipleItems(items, item) {
 					var list = item._list;
@@ -2135,7 +2095,10 @@
 
 				function makeErrorMessage(error, defaultMessage) {
 					var m = error.responseText
-							|| (error.response && error.response.text);
+							|| (error.response && 
+									(error.response.text ||
+											(error.response.data instanceof ArrayBuffer &&
+													Uint8ArrayToBinary(new Uint8Array(error.response.data)))));
 					if (m) {
 						var i = m.indexOf(' ');
 						if (i > 0) {
@@ -2734,9 +2697,6 @@
 							var store = db.transaction("states", "readwrite").objectStore("states");
 							var req = f(store);
 							if(req){
-								req.onsuccess = function(evt){
-									console.log(req + " success");
-								};
 								req.onerror = function(evt){
 									console.log(req + " error");
 								};
@@ -3890,18 +3850,6 @@ to {
 	color: gray;
 }
 
-.archiveEntry {
-	font-size: 10pt;
-	font-weight: normal;
-	color: #404040;
-	margin-top: 3px;
-	margin-left: 1px;
-}
-
-.mblEdgeToEdgeList .mblListItem.read .archiveEntry {
-	color: #a0a0a0;
-}
-
 .mblEdgeToEdgeList .mblListItem.series div.similar {
 	font-weight: normal;
 	font-style: italic;
@@ -4242,7 +4190,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
