@@ -1090,50 +1090,70 @@ public class NewsService implements ProtocolCommandListener {
 
 	private void computeMultivolumes(List<ArticleHeader> list) {
 
-		Map<String, ArticleHeader[]> map = multivolumeMap;
+		for (int i = 0; i < list.size(); i++) {
 
-		for (int j = 0; j < list.size(); j++) {
+			ArticleHeader article = list.get(i);
 
-			ArticleHeader article = list.get(j);
-
-			Matcher m = multivolumePattern.matcher(article.subject);
-			if (m.matches() && m.groupCount() == 2) {
-
-				String file = m.group(1);
-				String n = m.group(2);
-				int partNumber = Integer.parseInt(n);
-				int partCount = (int) Math.pow(10, n.length());
-
-				String key = file;
-
-				ArticleHeader[] parts = map.get(key);
-				if (parts == null) {
-					parts = new ArticleHeader[partCount];
-					map.put(key, parts);
-				}
-				parts[partNumber - 1] = article;
-
-				if (parts[0] != null) {
-					parts[0].vols = "";
-					for (int i = 0; i < parts.length; i++) {
-						if (parts[i] == null) {
-							break;
-						}
-						if (i > 0) {
-							parts[0].vols += ",";
-							parts[0].bytes += parts[i].bytes;
-						}
-						parts[0].vols += parts[i].parts;
+			if (article.group != null) {
+				for (int j = 0; j < article.group.size(); j++) {
+					ArticleHeader a = article.group.get(j);
+					int nn = computeMultivolumes(a);
+					if (nn > 1) {
+						article.group.remove(j--);
 					}
 				}
-
-				if (partNumber > 1) {
-					list.remove(j--);
+				if (article.group.size() == 1) {
+					list.set(i, article.group.get(0));
+				}
+			} else {
+				int n = computeMultivolumes(article);
+				if (n > 1) {
+					list.remove(i--);
 				}
 			}
 		}
 	}
 
+	private int computeMultivolumes(ArticleHeader article) {
+		Matcher m = multivolumePattern.matcher(article.subject);
+		if (m.matches() && m.groupCount() == 2) {
+
+			String file = m.group(1);
+			String n = m.group(2);
+			int partNumber = Integer.parseInt(n);
+			int partCount = (int) Math.pow(10, n.length());
+
+			String key = file;
+
+			Map<String, ArticleHeader[]> map = multivolumeMap;
+
+			ArticleHeader[] parts = map.get(key);
+			if (parts == null) {
+				parts = new ArticleHeader[partCount];
+				map.put(key, parts);
+			}
+			parts[partNumber - 1] = article;
+
+			if (parts[0] != null) {
+				parts[0].vols = "";
+				for (int i = 0; i < parts.length; i++) {
+					if (parts[i] == null) {
+						break;
+					}
+					if (i > 0) {
+						parts[0].vols += ",";
+						parts[0].bytes += parts[i].bytes;
+					}
+					parts[0].vols += parts[i].parts;
+				}
+			}
+
+			return partNumber;
+		}
+		
+		return 0;
+	}
+	
 	private void addArticle(List<ArticleHeader> list, ArticleHeader header,
 			int start) {
 		String key = header.subject.replaceAll("\\d+", "");

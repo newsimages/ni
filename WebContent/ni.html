@@ -1185,9 +1185,7 @@
 					if (att) {
 						setArticleTitle(att.filename);
 						type = type || "application/octet-stream";
-						var url = "open.html#" + makeDataUrl(att.data, type);
-						text += "<a href=\"" + url + "\" type=\"" + type + "\" target=\"_blank\">"
-								+ att.filename + "</a> ";
+						text += "<a href=\"" + makeDataUrl(att.data, type) + "\" type=\"" + type + "\" download>" + att.filename + "</a> ";
 					}
 					textView.scrollTo({
 						x : 0,
@@ -2181,7 +2179,6 @@
 
 				/* using base64 */
 				function makeDataUrl(data, type) {
-					var ms = new Date().getTime();
 					if (data && data instanceof Uint8Array) {
 						data = Uint8ArrayToBinary(data);
 					}
@@ -4190,7 +4187,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
