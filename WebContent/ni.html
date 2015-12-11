@@ -1309,7 +1309,9 @@
 					imageScroller.containerNode.style.height = Math.max(vh, ih)
 							+ "px";
 
-					img.style.webkitTransform = "";
+					if(!imageRealSized){
+						img.style.webkitTransform = "";
+					}
 
 					if (imageRealSized) {
 						imageScroller.scrollTo({
@@ -1512,7 +1514,7 @@
 							cx = (x1 + x2) / 2;
 							cy = (y1 + y2) / 2;
 							initialScale = imageScale;
-							initialScroll = imageScroller.getPos();
+							initialScroll = getImagePosition();
 							dom.byId("zoomDiv").style.visibility = "visible";
 							event.stop(e);
 						}
@@ -1574,14 +1576,22 @@
 					if (imageRealSized && !e.shiftKey) {
 						var delta = has("ff") ? -e.detail : e.wheelDelta;
 						zoomImage(delta > 0 ? 1.5 : 0.75, e.pageX, e.pageY,
-								imageScale, imageScroller.getPos());
+								imageScale, getImagePosition());
 						event.stop(e);
 					}
 				}
 
+				function getImagePosition() {
+					var pos = imageScroller.getPos();
+					return {
+						x : pos.x + parseInt(articleImage.style.left)||0,
+						y : pos.y + parseInt(articleImage.style.top)||0
+					}
+				}
+				
 				function zoomImage(s, cx, cy, initialScale, initialScroll) {
 
-					imageScale = initialScale * s;
+					imageScale = Math.max(initialScale * s, 0.1);
 
 					var img = articleImage;
 
@@ -1604,10 +1614,14 @@
 					// at the middle point of the two fingers
 					var r = (imageScale / initialScale - 1);
 					var p = initialScroll;
+					var x = p.x - (cx - p.x) * r;
+					var y = p.y - (cy - p.y) * r;
 					imageScroller.scrollTo({
-						x : p.x - (cx - p.x) * r,
-						y : p.y - (cy - p.y) * r,
+						x : Math.min(0, x),
+						y : Math.min(0, y),
 					}, true);
+					img.style.left = Math.max(0, x) + "px";
+					img.style.top = Math.max(0, y) + "px";
 					imageScroller._locked = true;
 
 					// display new scale
@@ -4187,7 +4201,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
