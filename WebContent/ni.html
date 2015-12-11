@@ -456,6 +456,7 @@
 						groupItem._groupItems.push(subItem);
 						subItem._parentGroup = groupItem;
 					}
+					domClass.add(list.domNode, "hasArrows");
 				}
 				
 				function addArticleItem(list, a, callback, prevItem, newsgroup) {
@@ -1048,6 +1049,13 @@
 						item.domNode.insertBefore(th, item.labelNode);
 						item._listThumbnail = th;
 						domClass.add(item.domNode, "hasThumbnail");
+					}
+					if(item._parentGroup){
+						var index = array.indexOf(item._parentGroup._groupItems, item);
+						if(index === 0){
+							item._parentGroup._listThumbnail = null;
+						}
+						setListThumbnail(item._parentGroup, data);
 					}
 				}
 
@@ -2164,6 +2172,7 @@
 						v.autoLoadItem = null;
 					}
 					clearThumbnails();
+					domClass.remove(list.domNode, "hasArrows");
 				}
 
 				function suffix(name) {
@@ -3882,18 +3891,26 @@ to {
 }
 
 .mblEdgeToEdgeList .mblListItem.hasThumbnail .mblListItemLabel {
-	margin-right: 60px;
+	margin-right: 45px;
 }
 
 .mblEdgeToEdgeList .mblListItem .listThumbnailParent {
 	position: absolute;
-	right: 25px;
+	right: 10px;
 	top: 50%;
 	margin-top: -20px;
 	width: 40px;
 	height: 40px;
 	line-height: 39px;
 	text-align: center;
+}
+
+.mblEdgeToEdgeList.hasArrows .mblListItem.hasThumbnail .mblListItemLabel {
+	margin-right: 60px;
+}
+
+.mblEdgeToEdgeList.hasArrows .mblListItem .listThumbnailParent {
+	right: 25px;
 }
 
 .mblEdgeToEdgeList .mblListItem .listThumbnailImage {
@@ -4215,7 +4232,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
