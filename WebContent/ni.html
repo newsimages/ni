@@ -1282,8 +1282,10 @@
 
 					img.style.width = "auto";
 					img.style.height = "auto";
-					img.style.left = "0";
-					img.style.top = "0";
+					if(!(imageRealSized && resize)){
+						img.style.left = "0";
+						img.style.top = "0";
+					}
 
 					var vw = bg.offsetWidth;
 					var vh = bg.offsetHeight;
@@ -1292,8 +1294,10 @@
 					var ih = img.offsetHeight;
 
 					if (imageRealSized || (iw < vw && ih < vh)) {
-						img.style.left = Math.max(0, (vw - iw) / 2) + "px";
-						img.style.top = Math.max(0, (vh - ih) / 2) + "px";
+						if(!resize){
+							img.style.left = Math.max(0, (vw - iw) / 2) + "px";
+							img.style.top = Math.max(0, (vh - ih) / 2) + "px";
+						}
 					} else {
 						centerImage(img, vw, vh, iw, ih);
 						imageScroller.scrollTo({
@@ -1313,7 +1317,7 @@
 						img.style.webkitTransform = "";
 					}
 
-					if (imageRealSized) {
+					if (imageRealSized && !resize) {
 						imageScroller.scrollTo({
 							x : Math.min(0, -(iw - vw) / 2),
 							y : Math.min(0, -(ih - vh) / 2)
@@ -1591,9 +1595,11 @@
 				
 				function zoomImage(s, cx, cy, initialScale, initialScroll) {
 
-					imageScale = Math.max(initialScale * s, 0.1);
+					imageScale = initialScale * s;
 
 					var img = articleImage;
+					
+					imageScale = Math.max(imageScale, 30/Math.max(img.offsetWidth, img.offsetHeight));
 
 					// resize scrollable view container
 					var bg = dom.byId("imageBackground");
@@ -1630,6 +1636,7 @@
 				}
 
 				resize = function() {
+					realSize(false);
 					fitImage(true);
 					fitVideo();
 					resizeThumbnails();
@@ -4201,7 +4208,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
