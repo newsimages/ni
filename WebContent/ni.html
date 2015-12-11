@@ -1047,6 +1047,7 @@
 						th.appendChild(img);
 						item.domNode.insertBefore(th, item.labelNode);
 						item._listThumbnail = th;
+						domClass.add(item.domNode, "hasThumbnail");
 					}
 				}
 
@@ -3880,13 +3881,19 @@ to {
 	text-decoration: line-through;
 }
 
+.mblEdgeToEdgeList .mblListItem.hasThumbnail .mblListItemLabel {
+	margin-right: 60px;
+}
+
 .mblEdgeToEdgeList .mblListItem .listThumbnailParent {
-	float: right;
+	position: absolute;
+	right: 25px;
+	top: 50%;
+	margin-top: -20px;
 	width: 40px;
 	height: 40px;
 	line-height: 39px;
 	text-align: center;
-	margin: -10px 0 -10px 5px;
 }
 
 .mblEdgeToEdgeList .mblListItem .listThumbnailImage {
@@ -4208,7 +4215,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
