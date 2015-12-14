@@ -569,11 +569,11 @@
 								});
 							}
 						}
-					}				
-					fixList(searchResultsList);
-					fixList(newsgroupResultsList);
-					fixList(seriesResultsList);
-					fixList(seriesResultsList2);
+						fixList(searchResultsList);
+						fixList(newsgroupResultsList);
+						fixList(seriesResultsList);
+						fixList(seriesResultsList2);
+					}			
 				}
 				
 				//---------- Newsgroup browsing ----------
@@ -1053,7 +1053,10 @@
 					if(item._parentGroup){
 						var index = array.indexOf(item._parentGroup._groupItems, item);
 						if(index === 0){
-							item._parentGroup._listThumbnail = null;
+							if(item._parentGroup._listThumbnail){
+								item._parentGroup.domNode.removeChild(item._parentGroup._listThumbnail);
+								item._parentGroup._listThumbnail = null;
+							}
 						}
 						setListThumbnail(item._parentGroup, data);
 					}
@@ -1271,15 +1274,14 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
-				fitImage = function(resize, force) {
+				fitImage = function(force) {
 
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					if (!resize)
-						progress();
+					progress();
 
-					if (img.partial && !force && !resize) {
+					if (img.partial && !force) {
 						if (img.invalid)
 							img.invalid = false;
 						else
@@ -1291,10 +1293,8 @@
 
 					img.style.width = "auto";
 					img.style.height = "auto";
-					if(!(imageRealSized && resize)){
-						img.style.left = "0";
-						img.style.top = "0";
-					}
+					img.style.left = "0";
+					img.style.top = "0";
 
 					var vw = bg.offsetWidth;
 					var vh = bg.offsetHeight;
@@ -1303,10 +1303,8 @@
 					var ih = img.offsetHeight;
 
 					if (imageRealSized || (iw < vw && ih < vh)) {
-						if(!resize){
-							img.style.left = Math.max(0, (vw - iw) / 2) + "px";
-							img.style.top = Math.max(0, (vh - ih) / 2) + "px";
-						}
+						img.style.left = Math.max(0, (vw - iw) / 2) + "px";
+						img.style.top = Math.max(0, (vh - ih) / 2) + "px";
 					} else {
 						centerImage(img, vw, vh, iw, ih);
 						imageScroller.scrollTo({
@@ -1326,14 +1324,14 @@
 						img.style.webkitTransform = "";
 					}
 
-					if (imageRealSized && !resize) {
+					if (imageRealSized) {
 						imageScroller.scrollTo({
 							x : Math.min(0, -(iw - vw) / 2),
 							y : Math.min(0, -(ih - vh) / 2)
 						});
 					}
 
-					img.style.visibility = resize ? oldvis : "inherit";
+					img.style.visibility = "inherit";
 				}
 				
 				function centerImage(img, vw, vh, iw, ih) {
@@ -1646,7 +1644,6 @@
 
 				resize = function() {
 					realSize(false);
-					fitImage(true);
 					fitVideo();
 					resizeThumbnails();
 				}
@@ -4232,7 +4229,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.6.7 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
