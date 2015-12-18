@@ -65,7 +65,8 @@
 					thumbnailSize : 150,
 					slideshowDelay: 1000,
 					optimizeImageDownload: true,
-					listThumbnails: true
+					listThumbnails: true,
+					preload: false
 				};
 
 				//---------- Initialization ----------
@@ -225,6 +226,10 @@
 
 					// restore/clear state
 					initState();
+					
+					if(settings.preload){
+						startPreload();
+					}
 				}
 
 				ready(init);
@@ -347,6 +352,7 @@
 							articles.reverse();
 						}
 						list.view = view;
+						view.list = list;
 						fillArticleList(list, articles, newsgroup, offset > 0);
 						if (result.articleList.available > 0 && articles
 								&& articles.length > 0) {
@@ -524,6 +530,7 @@
 						y : 0
 					});
 					list.view = view;
+					view.list = list;
 					array.forEach(this._groupItems, function(child){
 						list.addChild(child);
 						child._list = list;
@@ -2301,6 +2308,90 @@
 
 				//---------- Settings ----------
 
+				var preloadTimer;
+				
+				function startPreload() {
+					
+					if(!settings.preload) return;
+				
+					if(preloadTimer){
+						clearTimeout(preloadTimer);
+						preloadTimer = null;
+					}
+					
+					var v = searchView.domNode.style.display != "none" ? searchView
+							: (newsgroupView.domNode.style.display != "none" ? newsgroupView
+									: (seriesView.domNode.style.display != "none" ? seriesView
+											: (seriesView2.domNode.style.display != "none" ? seriesView2
+										: null)));
+					if(v){
+						var l = v.list;
+						if(l){
+							var vt = v.fixedHeaderHeight;
+							var vh = v.domNode.offsetHeight;
+							if (array.some(l.getChildren(), function(item){
+								if(!item.body){
+									var rect = item.domNode.getBoundingClientRect();
+									var lit = rect.top;
+									var lib = rect.bottom;
+									var lih = rect.bottom - rect.top;
+									if(rect.top !== rect.bottom && rect.bottom - lih/2 > v.fixedHeaderHeight && rect.top + lih/2 < vh){
+										if(item.label.match(/(jpg|png|gif)/)){
+											
+											var th = document.createElement("div");
+											domClass.add(th, "listThumbnailParent");
+											if(settings.listThumbnails){
+												domClass.add(item.domNode, "hasThumbnail");
+											}
+											item.domNode.insertBefore(th, item.labelNode);
+											
+											var args = {
+												articleId : item.articleId,
+												screenSize: 0
+											};
+											doRequest("b", args, th, function(result) {
+												
+												item.domNode.removeChild(th);
+												domClass.remove(item.domNode, "hasThumbnail");
+												
+												var body = result.articleBody;
+												item.body = body;
+												body.attachments = ensureArray(body.attachments);
+												if(settings.listThumbnails){
+													array.some(body.attachments, function(att){
+														if(att.filename.match(/\.(jpg|png|gif)/)){
+															setListThumbnail(item, att.data);
+															return true;
+														}
+													});
+												}
+												
+												startPreload();
+												
+											}, function(err) {
+												progress();
+												
+												item.domNode.removeChild(th);
+												domClass.remove(item.domNode, "hasThumbnail");
+												
+												startPreload();
+											});
+											return true; // startPreload will be restarted when article has finished loading
+										}
+									}
+								}
+							})) {
+								return;
+							};
+						}
+					}
+					
+					// nothing to load, come back in a moment
+					preloadTimer = setTimeout(startPreload, 500);
+				}
+				
+				//---------- Settings ----------
+
 				var connectEnabled, autoName, editedServer;
 
 				var settingsInited;
@@ -2346,6 +2437,8 @@
 					optimizeImageDownloadSwitch.set("value",
 							settings.optimizeImageDownload ? "on" : "off");
 
+					preloadSwitch.set("value", settings.preload ? "on" : "off");
+					
 					updateLoadingSettingsItems();
 
 					stateSwitch.set("value", settings.state ? "on" : "off");
@@ -2403,6 +2496,11 @@
 					settings.partial = partialSwitch.get("value") == "on";
 					settings.optimizeImageDownload = optimizeImageDownloadSwitch
 							.get("value") == "on";
+					
+					settings.preload = preloadSwitch.get("value") == "on";
+					if(settings.preload){
+						startPreload();
+					}
 
 					updateLoadingSettingsItems();
 
@@ -3911,6 +4009,13 @@ to {
 	text-align: center;
 }
 
+.mblEdgeToEdgeList .mblListItem .listThumbnailParent .mblProgressIndicator {
+	-webkit-transform: scale(0.5,0.5);
+	transform: scale(0.5,0.5);
+	transform-origin: 0 50%;
+	-webkit-transform-origin: 0 50%;
+}
+
 .mblEdgeToEdgeList.hasArrows .mblListItem.hasThumbnail .mblListItemLabel {
 	margin-right: 60px;
 }
@@ -4211,6 +4316,12 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Preload articles
+				<span data-dojo-id="preloadSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
 		</ul>
 		<p class="settingsLabel">Thumbnails</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
@@ -4238,7 +4349,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.6.8 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.7.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
