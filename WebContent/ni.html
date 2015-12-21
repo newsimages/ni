@@ -66,7 +66,8 @@
 					slideshowDelay: 1000,
 					optimizeImageDownload: true,
 					listThumbnails: true,
-					preload: false
+					preload: true,
+					autoload: false,
 				};
 
 				//---------- Initialization ----------
@@ -227,8 +228,8 @@
 					// restore/clear state
 					initState();
 					
-					if(settings.preload){
-						startPreload();
+					if(settings.autoload){
+						startAutoLoad();
 					}
 				}
 
@@ -1040,6 +1041,8 @@
 					}
 					
 					doSlideshow();
+					
+					preloadNext();
 				}
 				
 				function markRead(item) {
@@ -1426,6 +1429,7 @@
 					if(!testOnly && !bySlideshow && startStopSlideshow(1)){
 						return;
 					}
+					if(!testOnly) preloadDir = 1;
 					var item = (curItem||currentItem).nextItem;
 					if (item && item.isMoreItem && !testOnly) {
 						item.itemsLoaded = function() {
@@ -1450,6 +1454,7 @@
 					if(!testOnly && !bySlideshow && startStopSlideshow(-1)){
 						return;
 					}
+					if(!testOnly) preloadDir = -1;
 					var item = (curItem || currentItem).prevItem;
 					if (item && !testOnly) {
 						nextTimer = setTimeout(function(){ showArticle(item); }, 200);
@@ -2306,17 +2311,17 @@
 					});
 				}
 
-				//---------- Settings ----------
+				//---------- Auto-load ----------
 
-				var preloadTimer;
+				var autoloadTimer;
 				
-				function startPreload() {
+				function startAutoLoad() {
 					
-					if(!settings.preload) return;
+					if(!settings.autoload) return;
 				
-					if(preloadTimer){
-						clearTimeout(preloadTimer);
-						preloadTimer = null;
+					if(autoloadTimer){
+						clearTimeout(autoloadTimer);
+						autoloadTimer = null;
 					}
 					
 					var v = searchView.domNode.style.display != "none" ? searchView
@@ -2354,19 +2359,9 @@
 												item.domNode.removeChild(th);
 												domClass.remove(item.domNode, "hasThumbnail");
 												
-												var body = result.articleBody;
-												item.body = body;
-												body.attachments = ensureArray(body.attachments);
-												if(settings.listThumbnails){
-													array.some(body.attachments, function(att){
-														if(att.filename.match(/\.(jpg|png|gif)/)){
-															setListThumbnail(item, att.data);
-															return true;
-														}
-													});
-												}
+												bodyPreloaded(item, result);
 												
-												startPreload();
+												startAutoLoad();
 												
 											}, function(err) {
 												progress();
@@ -2374,9 +2369,9 @@
 												item.domNode.removeChild(th);
 												domClass.remove(item.domNode, "hasThumbnail");
 												
-												startPreload();
+												startAutoLoad();
 											});
-											return true; // startPreload will be restarted when article has finished loading
+											return true; // startAutoLoad will be restarted when article has finished loading
 										}
 									}
 								}
@@ -2387,7 +2382,47 @@
 					}
 					
 					// nothing to load, come back in a moment
-					preloadTimer = setTimeout(startPreload, 500);
+					autoloadTimer = setTimeout(startAutoLoad, 500);
+				}
+				
+				function bodyPreloaded(item, result) {
+					var body = result.articleBody;
+					item.body = body;
+					body.attachments = ensureArray(body.attachments);
+					if(settings.listThumbnails){
+						array.some(body.attachments, function(att){
+							if(att.filename.match(/\.(jpg|png|gif)/)){
+								setListThumbnail(item, att.data);
+								return true;
+							}
+						});
+					}
+				}
+				
+				//---------- Pre-load ----------
+				
+				var preloadDir;
+				
+				function preloadNext() {
+					if(!settings.preload || slideshow) {
+						return;
+					}
+					
+					var item = preloadDir < 0 ? previous(null, true) : next(null, true);
+					if(!item || item.body){
+						item = preloadDir < 0 ? next(null, true) : previous(null, true);
+					}
+					if(item && !item.body && item.bytes < 5000000){
+						var args = {
+								articleId : item.articleId,
+								screenSize: 0
+						};
+						console.log("preloading " + item.label + "...");
+						doRequest("b", args, null, function(result) {
+							console.log("preloaded " + item.label);
+							bodyPreloaded(item, result);
+						}, function(err) {});
+					}
 				}
 				
 				//---------- Settings ----------
@@ -2437,6 +2472,7 @@
 					optimizeImageDownloadSwitch.set("value",
 							settings.optimizeImageDownload ? "on" : "off");
 
+					autoloadSwitch.set("value", settings.autoload ? "on" : "off");
 					preloadSwitch.set("value", settings.preload ? "on" : "off");
 					
 					updateLoadingSettingsItems();
@@ -2497,11 +2533,13 @@
 					settings.optimizeImageDownload = optimizeImageDownloadSwitch
 							.get("value") == "on";
 					
-					settings.preload = preloadSwitch.get("value") == "on";
-					if(settings.preload){
-						startPreload();
+					settings.autoload = autoloadSwitch.get("value") == "on";
+					if(settings.autoload){
+						startAutoLoad();
 					}
 
+					settings.preload = preloadSwitch.get("value") == "on";
+					
 					updateLoadingSettingsItems();
 
 					localStorage.settings = json.stringify(settings);
@@ -3628,8 +3666,7 @@ body,html {
 	margin-top: -30px;
 }
 
-@
--webkit-keyframes blink {from { border-left-color:#404040;
+@-webkit-keyframes blink {from { border-left-color:#404040;
 	border-top-color: #404040;
 }
 
@@ -4316,7 +4353,13 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Preload articles
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Auto-load visible articles
+				<span data-dojo-id="autoloadSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateLoadSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Preload next/previous article
 				<span data-dojo-id="preloadSwitch"
 				data-dojo-type="dojox/mobile/Switch"
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
@@ -4349,7 +4392,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.7.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
