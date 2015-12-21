@@ -1293,7 +1293,8 @@
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					progress();
+					if(!preloading)
+						progress();
 
 					if (img.partial && !force) {
 						if (img.invalid)
@@ -2401,7 +2402,7 @@
 				
 				//---------- Pre-load ----------
 				
-				var preloadDir;
+				var preloadDir, preloading;
 				
 				function preloadNext() {
 					if(!settings.preload || slideshow) {
@@ -2427,10 +2428,14 @@
 							screenSize: 0
 						};
 						console.log("preloading " + item.label + "...");
+						preloading = dir;
 						doRequest("b", args, dom.byId(dir > 0 ? "rightArrow" : "leftArrow"), function(result) {
 							console.log("preloaded " + item.label);
+							preloading = 0;
 							bodyPreloaded(item, result);
-						}, function(err) {});
+						}, function(err) {
+							preloading = 0;
+						});
 					}
 				}
 				
@@ -4415,7 +4420,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
