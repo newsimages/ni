@@ -4353,14 +4353,17 @@ to {
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Auto-load visible articles
-				<span data-dojo-id="autoloadSwitch"
+		</ul>
+		<p class="settingsLabel">Pre-load</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Next/previous article
+				<span data-dojo-id="preloadSwitch"
 				data-dojo-type="dojox/mobile/Switch"
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
-			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Preload next/previous article
-				<span data-dojo-id="preloadSwitch"
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">All visible articles in list
+				<span data-dojo-id="autoloadSwitch"
 				data-dojo-type="dojox/mobile/Switch"
 				data-dojo-props="onStateChanged:updateLoadSettings"></span>
 				<div class="itemDisabler"></div>
@@ -4392,7 +4395,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
