@@ -2408,17 +2408,26 @@
 						return;
 					}
 					
-					var item = preloadDir < 0 ? previous(null, true) : next(null, true);
+					var item, dir;
+					if(preloadDir < 0){
+						item = previous(null, true); 		dir = -1;
+					}else{
+						item = next(null, true); 			dir = 1;
+					}
 					if(!item || item.body){
-						item = preloadDir < 0 ? next(null, true) : previous(null, true);
+						if(preloadDir < 0){
+							item = next(null, true); 		dir = 1;
+						}else{
+							item = previous(null, true); 	dir = -1;
+						}
 					}
 					if(item && !item.body && item.bytes < 5000000){
 						var args = {
-								articleId : item.articleId,
-								screenSize: 0
+							articleId : item.articleId,
+							screenSize: 0
 						};
 						console.log("preloading " + item.label + "...");
-						doRequest("b", args, null, function(result) {
+						doRequest("b", args, dom.byId(dir > 0 ? "rightArrow" : "leftArrow"), function(result) {
 							console.log("preloaded " + item.label);
 							bodyPreloaded(item, result);
 						}, function(err) {});
@@ -4046,11 +4055,22 @@ to {
 	text-align: center;
 }
 
-.mblEdgeToEdgeList .mblListItem .listThumbnailParent .mblProgressIndicator {
-	-webkit-transform: scale(0.5,0.5);
+.mblEdgeToEdgeList .mblListItem .listThumbnailParent .mblProgressIndicator,
+.arrowContainer .mblProgressIndicator {
 	transform: scale(0.5,0.5);
+	-webkit-transform: scale(0.5,0.5);
 	transform-origin: 0 50%;
 	-webkit-transform-origin: 0 50%;
+}
+
+.rightArrowContainer .mblProgressIndicator {
+	transform-origin-x: -20%;
+	-webkit-transform-origin-x: -20%;
+}
+
+.leftArrowContainer .mblProgressIndicator {
+	transform-origin-x: 20%;
+	-webkit-transform-origin-x: 20%;
 }
 
 .mblEdgeToEdgeList.hasArrows .mblListItem.hasThumbnail .mblListItemLabel {
@@ -4395,7 +4415,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
