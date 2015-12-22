@@ -2389,7 +2389,7 @@
 				function bodyPreloaded(item, result) {
 					var body = result.articleBody;
 					item.body = body;
-					body.attachments = ensureArray(body.attachments);
+					body.attachments = ensureArray(body.attachments) || [];
 					if(settings.listThumbnails){
 						array.some(body.attachments, function(att){
 							if(att.filename.match(/\.(jpg|png|gif)/)){
@@ -2990,7 +2990,6 @@
 						}
 						replaying = null;
 						domClass.remove(document.documentElement, "replaying");
-						dom.byId("loadingScreen").style.display = "none";
 					});
 				}
 
@@ -3109,6 +3108,15 @@ body,html {
 	bottom: 0;
 	height: 100%;
 	background: white;
+}
+
+#loadingDiv {
+	display: none;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	text-align: center;
 }
 
 .mblEdgeToEdgeList .mblListItem {
@@ -4420,7 +4428,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -4490,6 +4498,8 @@ to {
 	</div>
 	<div data-dojo-type="dojox/mobile/ToolBarButton"
 		data-dojo-id="invisibleButton" class="invisibleButton"></div>
-	<div id="loadingScreen"></div>
+	<div id="loadingScreen">
+		<div id="loadingDiv">Loading...</div>
+	</div>
 </body>
 </html>
