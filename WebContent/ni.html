@@ -496,6 +496,8 @@
 				
 				function gotoSeries(evt, noTransition) {
 					
+					restartAutoLoad();
+					
 					record("gotoSeries", this, []);
 					
 					var view, heading, list;
@@ -554,6 +556,7 @@
 				
 				leaveSeriesView = function(moveTo) {
 					if (arguments[1] == -1) {
+						restartAutoLoad();
 						var list = this === seriesView ? seriesResultsList : seriesResultsList2;
 						while ((children = list.getChildren()).length > 0) {
 							list.removeChild(children[0]);
@@ -899,6 +902,7 @@
 
 				leaveNewsgroupView = function() {
 					if (arguments[1] == -1) {
+						restartAutoLoad();
 						clearRecords("getArticles");
 						clearRecords("getBody");
 						clearRecords("selectNewsgroup");
@@ -2096,6 +2100,7 @@
 					if (currentRequest) {
 						currentRequest.cancel();
 						currentRequest = null;
+						autoLoadRequest = null;
 						prevTouchTime = 0;
 					}
 					if (currentUnrar) {
@@ -2270,6 +2275,7 @@
 											: e.wheelDelta) > 0 ? 1 : -1);
 								});
 								var autoLoad = function(to) {
+									restartAutoLoad();
 									if (!currentRequest && !replaying) {
 										var item = v.autoLoadItem;
 										if (item && item.getParent()) {
@@ -2314,7 +2320,7 @@
 
 				//---------- Auto-load ----------
 
-				var autoloadTimer;
+				var autoloadTimer, autoLoadRequest;
 				
 				function startAutoLoad() {
 					
@@ -2356,6 +2362,7 @@
 												screenSize: 0
 											};
 											doRequest("b", args, th, function(result) {
+												autoLoadRequest = null;
 												
 												item.domNode.removeChild(th);
 												domClass.remove(item.domNode, "hasThumbnail");
@@ -2365,13 +2372,18 @@
 												startAutoLoad();
 												
 											}, function(err) {
+												autoLoadRequest = null;
+												
 												progress();
 												
-												item.domNode.removeChild(th);
-												domClass.remove(item.domNode, "hasThumbnail");
+												if(item.domNode){
+													item.domNode.removeChild(th);
+													domClass.remove(item.domNode, "hasThumbnail");
+												}
 												
 												startAutoLoad();
 											});
+											autoLoadRequest = currentRequest;
 											return true; // startAutoLoad will be restarted when article has finished loading
 										}
 									}
@@ -2397,6 +2409,13 @@
 								return true;
 							}
 						});
+					}
+				}
+				
+				function restartAutoLoad() {
+					if(autoLoadRequest){
+						cancelRequest();
+						startAutoLoad();
 					}
 				}
 				
@@ -4428,7 +4447,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.8.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

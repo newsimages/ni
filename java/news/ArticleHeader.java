@@ -27,4 +27,14 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	public int compareTo(ArticleHeader o) {
 		return this.subject.compareTo(o.subject);
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		return (o instanceof ArticleHeader) && this.bytes == ((ArticleHeader)o).bytes && this.subject.equals(((ArticleHeader)o).subject);
+	}
+
+	@Override
+	public int hashCode() {
+		return this.subject.hashCode() + this.bytes;
+	}
 }

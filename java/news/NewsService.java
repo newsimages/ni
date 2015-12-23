@@ -1176,10 +1176,12 @@ public class NewsService implements ProtocolCommandListener {
 				// add to existing group header
 				group = last;
 			}
-			group.group.add(header);
-			Collections.sort(group.group);
-			if (header.subject.compareTo(group.subject) < 0) {
-				group.subject = header.subject;
+			if (!group.group.contains(header)) {
+				group.group.add(header);
+				Collections.sort(group.group);
+				if (header.subject.compareTo(group.subject) < 0) {
+					group.subject = header.subject;
+				}
 			}
 			if (list.indexOf(group) >= 0)
 				return;
