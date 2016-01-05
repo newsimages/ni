@@ -68,6 +68,7 @@
 					listThumbnails: true,
 					preload: true,
 					autoload: false,
+					autoloadThumbnails: false
 				};
 
 				//---------- Initialization ----------
@@ -228,7 +229,7 @@
 					// restore/clear state
 					initState();
 					
-					if(settings.autoload){
+					if(settings.autoload || settings.autoloadThumbnails){
 						startAutoLoad();
 					}
 				}
@@ -2324,7 +2325,7 @@
 				
 				function startAutoLoad() {
 					
-					if(!settings.autoload) return;
+					if(!settings.autoload && !settings.autoloadThumbnails) return;
 				
 					if(autoloadTimer){
 						clearTimeout(autoloadTimer);
@@ -2342,7 +2343,7 @@
 							var vt = v.fixedHeaderHeight;
 							var vh = v.domNode.offsetHeight;
 							if (array.some(l.getChildren(), function(item){
-								if(!item.body){
+								if(!((settings.autoload && item.body) || (settings.autoloadThumbnails && item.thumbnailPreloaded))){
 									var rect = item.domNode.getBoundingClientRect();
 									var lit = rect.top;
 									var lib = rect.bottom;
@@ -2357,17 +2358,24 @@
 											}
 											item.domNode.insertBefore(th, item.labelNode);
 											
-											var args = {
-												articleId : item.articleId,
-												screenSize: 0
+											var c, args = {
+												articleId : item.articleId
 											};
-											doRequest("b", args, th, function(result) {
+											if(settings.autoload){
+												c = "b";
+												args.screenSize = 0;
+											} else {
+												c = "th";
+												args.size = settings.thumbnailSize;
+											}
+											
+											doRequest(c, args, th, function(result) {
 												autoLoadRequest = null;
 												
 												item.domNode.removeChild(th);
 												domClass.remove(item.domNode, "hasThumbnail");
 												
-												bodyPreloaded(item, result);
+												bodyPreloaded(item, result, settings.autoloadThumbnails && !settings.autoload);
 												
 												startAutoLoad();
 												
@@ -2398,9 +2406,13 @@
 					autoloadTimer = setTimeout(startAutoLoad, 500);
 				}
 				
-				function bodyPreloaded(item, result) {
+				function bodyPreloaded(item, result, thumbnailOnly) {
 					var body = result.articleBody;
-					item.body = body;
+					if(thumbnailOnly){
+						item.thumbnailPreloaded = true;
+					} else {
+						item.body = body;
+					}
 					body.attachments = ensureArray(body.attachments) || [];
 					if(settings.listThumbnails){
 						array.some(body.attachments, function(att){
@@ -2446,10 +2458,8 @@
 							articleId : item.articleId,
 							screenSize: 0
 						};
-						console.log("preloading " + item.label + "...");
 						preloading = dir;
 						doRequest("b", args, dom.byId(dir > 0 ? "rightArrow" : "leftArrow"), function(result) {
-							console.log("preloaded " + item.label);
 							preloading = 0;
 							bodyPreloaded(item, result);
 						}, function(err) {
@@ -2514,6 +2524,7 @@
 
 					thumbnailSizeBox.set("value", settings.thumbnailSize);
 					listThumbnailsSwitch.set("value", settings.listThumbnails ? "on" : "off");
+					autoloadThumbnailsSwitch.set("value", settings.autoloadThumbnails ? "on" : "off");
 
 					slideshowDelayBox.set("value", settings.slideshowDelay);
 
@@ -2594,6 +2605,10 @@
 					settings.thumbnailSize = parseInt(thumbnailSizeBox
 							.get("value"));
 					settings.listThumbnails = listThumbnailsSwitch.get("value") == "on";
+					settings.autoloadThumbnails = autoloadThumbnailsSwitch.get("value") == "on";
+					if(settings.autoloadThumbnails){
+						startAutoLoad();
+					}
 
 					localStorage.settings = json.stringify(settings);
 
@@ -4436,6 +4451,12 @@ to {
 				data-dojo-props="onStateChanged:updateThumbnailsSettings"></span>
 				<div class="itemDisabler"></div>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Auto-load thumbnails in list
+				<span data-dojo-id="autoloadThumbnailsSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateThumbnailsSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
 		</ul>
 		<p class="settingsLabel">Slideshow</p>
 		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
@@ -4447,7 +4468,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.8.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.9.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
