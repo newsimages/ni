@@ -2372,8 +2372,10 @@
 											doRequest(c, args, th, function(result) {
 												autoLoadRequest = null;
 												
-												item.domNode.removeChild(th);
-												domClass.remove(item.domNode, "hasThumbnail");
+												if(item.domNode){
+													item.domNode.removeChild(th);
+													domClass.remove(item.domNode, "hasThumbnail");
+												}
 												
 												bodyPreloaded(item, result, settings.autoloadThumbnails && !settings.autoload);
 												
@@ -4468,7 +4470,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.9.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.9.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
