@@ -1157,6 +1157,9 @@ public class NewsService implements ProtocolCommandListener {
 	private void addArticle(List<ArticleHeader> list, ArticleHeader header,
 			int start) {
 		String key = header.subject.replaceAll("\\d+", "");
+		if(header.newsgroups != null){
+			key += header.newsgroups;
+		}
 		ArticleHeader last = groupMap.get(key);
 		if (last != null) {
 			ArticleHeader group;
@@ -1262,6 +1265,20 @@ public class NewsService implements ProtocolCommandListener {
 				continue;
 			}
 			ArticleHeader article = new ArticleHeader(subject, null);
+			// get newsgroups to separate different posts with same files
+			NodeList groups = file.getElementsByTagName("groups");
+			if (groups.getLength() > 0) {
+				groups = ((Element) groups.item(0))
+						.getElementsByTagName("group");
+				if (groups.getLength() > 0) {
+					String newsgroups = "";
+					for (int j = 0; j < groups.getLength(); j++) {
+						String group = groups.item(j).getTextContent();
+						newsgroups += "," + group;
+					}
+					article.newsgroups = newsgroups;
+				}
+			}
 			NodeList segments = file.getElementsByTagName("segments");
 			if (segments.getLength() > 0) {
 				segments = ((Element) segments.item(0))
@@ -1272,8 +1289,12 @@ public class NewsService implements ProtocolCommandListener {
 						Element segment = (Element) segments.item(j);
 						int number = Integer.parseInt(segment
 								.getAttribute("number")) - 1;
-						if (number >= 0 && number < ids.length)
+						if (number >= 0 && number < ids.length){
+							while(ids[number] != null && number < ids.length-1){
+								number++;
+							}
 							ids[number] = segment.getTextContent();
+						}
 						article.bytes += Integer.parseInt(segment
 								.getAttribute("bytes"));
 					}

@@ -497,8 +497,6 @@
 				
 				function gotoSeries(evt, noTransition) {
 					
-					restartAutoLoad();
-					
 					record("gotoSeries", this, []);
 					
 					var view, heading, list;
@@ -540,6 +538,8 @@
 						child._list = list;
 						child.view = view;
 					});
+
+					restartAutoLoad();
 					
 					return list;
 				}
@@ -557,7 +557,6 @@
 				
 				leaveSeriesView = function(moveTo) {
 					if (arguments[1] == -1) {
-						restartAutoLoad();
 						var list = this === seriesView ? seriesResultsList : seriesResultsList2;
 						while ((children = list.getChildren()).length > 0) {
 							list.removeChild(children[0]);
@@ -585,6 +584,8 @@
 						fixList(newsgroupResultsList);
 						fixList(seriesResultsList);
 						fixList(seriesResultsList2);
+						
+						restartAutoLoad();
 					}			
 				}
 				
@@ -903,12 +904,12 @@
 
 				leaveNewsgroupView = function() {
 					if (arguments[1] == -1) {
-						restartAutoLoad();
 						clearRecords("getArticles");
 						clearRecords("getBody");
 						clearRecords("selectNewsgroup");
 						clearRecords("selectArticle");
 						clearRecords("newsgroupScroll");
+						restartAutoLoad();
 					}
 					fixList(searchResultsList);
 				}
@@ -969,6 +970,9 @@
 					item.body = body;
 					if(item._parentGroup && !item._parentGroup.body){
 						item._parentGroup.body = body;
+					}
+					if(item._groupItems && item._groupItems.length > 0){
+						item._groupItems[0].body = body;
 					}
 
 					record("getBody", null, [ {}, item ], {
@@ -1051,13 +1055,16 @@
 				}
 				
 				function markRead(item) {
+					if(replaying && replaying !== "markRead")
+						return;
+					record("markRead", null, [ item ]);
 					domClass.add(item.domNode, "read");
 					if(item._parentGroup){
 						domClass.add(item._parentGroup.domNode, "read");
 					}
 				}
 				
-				function setListThumbnail(item, data){
+				function setListThumbnail(item, data, noParent){
 					if(!item._listThumbnail){
 						var th = document.createElement("div");
 						domClass.add(th, "listThumbnailParent");
@@ -1069,7 +1076,7 @@
 						item._listThumbnail = th;
 						domClass.add(item.domNode, "hasThumbnail");
 					}
-					if(item._parentGroup){
+					if(item._parentGroup && !noParent){
 						var index = array.indexOf(item._parentGroup._groupItems, item);
 						if(index === 0){
 							if(item._parentGroup._listThumbnail){
@@ -1078,6 +1085,9 @@
 							}
 						}
 						setListThumbnail(item._parentGroup, data);
+					}
+					if(item._groupItems && item._groupItems.length > 0){
+						setListThumbnail(item._groupItems[0], data, true);
 					}
 				}
 
@@ -2101,7 +2111,6 @@
 					if (currentRequest) {
 						currentRequest.cancel();
 						currentRequest = null;
-						autoLoadRequest = null;
 						prevTouchTime = 0;
 					}
 					if (currentUnrar) {
@@ -2276,7 +2285,6 @@
 											: e.wheelDelta) > 0 ? 1 : -1);
 								});
 								var autoLoad = function(to) {
-									restartAutoLoad();
 									if (!currentRequest && !replaying) {
 										var item = v.autoLoadItem;
 										if (item && item.getParent()) {
@@ -2295,6 +2303,7 @@
 										clearRecords(f);
 										record(f, null, [ to.y ]);
 									}
+									restartAutoLoad();
 								}
 								aspect.after(v, "scrollTo", autoLoad, true);
 								aspect.after(v, "slideTo", autoLoad, true);
@@ -2326,6 +2335,10 @@
 				function startAutoLoad() {
 					
 					if(!settings.autoload && !settings.autoloadThumbnails) return;
+					
+					if(currentRequest && currentRequest === autoLoadRequest) {
+						cancelRequest();
+					}
 				
 					if(autoloadTimer){
 						clearTimeout(autoloadTimer);
@@ -2337,7 +2350,7 @@
 									: (seriesView.domNode.style.display != "none" ? seriesView
 											: (seriesView2.domNode.style.display != "none" ? seriesView2
 										: null)));
-					if(v){
+					if(v && !currentRequest){
 						var l = v.list;
 						if(l){
 							var vt = v.fixedHeaderHeight;
@@ -2370,8 +2383,6 @@
 											}
 											
 											doRequest(c, args, th, function(result) {
-												autoLoadRequest = null;
-												
 												if(item.domNode){
 													item.domNode.removeChild(th);
 													domClass.remove(item.domNode, "hasThumbnail");
@@ -2382,7 +2393,6 @@
 												startAutoLoad();
 												
 											}, function(err) {
-												autoLoadRequest = null;
 												
 												progress();
 												
@@ -2414,6 +2424,9 @@
 						item.thumbnailPreloaded = true;
 					} else {
 						item.body = body;
+						record("getBody", null, [ {}, item, true ], {
+							articleBody : body
+						});
 					}
 					body.attachments = ensureArray(body.attachments) || [];
 					if(settings.listThumbnails){
@@ -2427,10 +2440,7 @@
 				}
 				
 				function restartAutoLoad() {
-					if(autoLoadRequest){
-						cancelRequest();
-						startAutoLoad();
-					}
+					setTimeout(startAutoLoad);
 				}
 				
 				//---------- Pre-load ----------
@@ -2438,7 +2448,7 @@
 				var preloadDir, preloading;
 				
 				function preloadNext() {
-					if(!settings.preload || slideshow) {
+					if(!settings.preload || slideshow || replaying) {
 						return;
 					}
 					
@@ -2814,7 +2824,7 @@
 				var funcnames = [ "setSearch", "getNewsgroups",
 						"selectNewsgroup", "getArticles", "setNewsgroupSearch",
 						"searchScroll", "newsgroupScroll", "seriesScroll",
-						"getBody", "gotoSeries", "selectArticle", "addThumbnails",
+						"getBody", "gotoSeries", "markRead", "selectArticle", "addThumbnails",
 						"toggleThumbnailsDir", "showThumbnails" ];
 
 				function SQLStorage() {
@@ -3088,6 +3098,7 @@
 					newsgroupScroll : newsgroupScroll,
 					seriesScroll : seriesScroll,
 					getBody : getBody,
+					markRead : markRead,
 					selectArticle : selectArticle,
 					addThumbnails : addThumbnails,
 					toggleThumbnailsDir : toggleThumbnailsDir,
@@ -4470,7 +4481,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.9.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.9.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

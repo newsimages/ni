@@ -5,6 +5,7 @@ import java.util.List;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 @XmlRootElement
 public class ArticleHeader implements Comparable<ArticleHeader> {
@@ -15,6 +16,8 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	@XmlAttribute public int bytes;
 	@XmlElement public List<ArticleHeader> group;
 	@XmlAttribute public String key;
+	
+	@XmlTransient public String newsgroups;
 	
 	public ArticleHeader(){}
 	
