@@ -686,8 +686,21 @@
 					showArticle(this);
 				}
 				
-				function showArticle(item, noClear) {
+				var itemBeingPreloaded, catchupPreloading;
+				
+				function showArticle(item, preload) {
 					
+					catchupPreloading = false;
+					
+					if(preload){
+						itemBeingPreloaded = item;
+					} else if(item === itemBeingPreloaded) {
+						itemBeingPreloaded = null;
+						catchupPreloading = true;
+					}
+					
+					if(item !== itemBeingPreloaded || catchupPreloading){
+						
 					clearRecords("selectArticle");
 					record("selectArticle", item, []);
 
@@ -724,7 +737,13 @@
 					}
 
 					domClass.add(textButton.domNode, "disabled");
-
+					
+					} // item !== itemBeingPreloaded
+					
+					if(catchupPreloading){
+						return;
+					}
+					
 					var args = {
 						articleId : item.articleId,
 						screenSize: settings.optimizeImageDownload ?
@@ -736,9 +755,11 @@
 						var data = "";
 						var filename;
 						var multi;
+						if(item !== itemBeingPreloaded){
 						if (settings.partial) {
 							loadImage("", true);
 						}
+						} // item !== itemBeingPreloaded
 						var f = function(id) {
 							currentAsyncId = null;
 							doRequest(
@@ -750,7 +771,9 @@
 									function(result) {
 										var p = result.progress;
 										p.complete = p.complete == "true";
+										if(item !== itemBeingPreloaded){
 										showProgress(p, item.bytes);
+										} // item !== itemBeingPreloaded
 										if (p.chunk) {
 											data += p.chunk;
 											if (p.attSizes) {
@@ -774,6 +797,7 @@
 												data = data.substring(start);
 											}
 										}
+										if(item !== itemBeingPreloaded){
 										if (p.filename) {
 											filename = p.filename;
 											var suff = suffix(p.filename);
@@ -784,6 +808,10 @@
 												setImageTitle(p.filename);
 												if (settings.partial && p.chunk) {
 													loadImage(data, true);
+													if(catchupPreloading){
+														fitImage(true);
+														catchupPreloading = false;
+													}
 												}
 												break;
 											case "mpg":
@@ -803,6 +831,7 @@
 												}
 											}
 										}
+										} // item !== itemBeingPreloaded
 										if (!p.complete) {
 											f(id);
 										} else {
@@ -810,7 +839,10 @@
 											progress();
 											showProgressBar(false);
 											if (p.exception) {
+												if(item !== itemBeingPreloaded){
 												showError(p.exception);
+												} // item !== itemBeingPreloaded
+												itemBeingPreloaded = null;
 											} else {
 												if (p.body) {
 													if (multi && data) {
@@ -827,17 +859,26 @@
 										if (err.dojoType != "cancel") {
 											progress();
 											showProgressBar(false);
+											if(item !== itemBeingPreloaded){
 											showError(err);
+											} // item !== itemBeingPreloaded
 										}
+										itemBeingPreloaded = null;
 									});
 							currentAsyncId = id;
 						};
-						progress(articleView);
+						if(item !== itemBeingPreloaded){
+							progress(articleView);
 						showProgressBar(true);
+						} else { // item !== itemBeingPreloaded
+							progress(preloadArrow);
+						}
 						doRequest("ba", args, null, f);
 					} else {
+						if(item !== itemBeingPreloaded){
 						if(!slideshow)
 							loadImage("");
+						} // item !== itemBeingPreloaded
 						getBody(args, item);
 					}
 				}
@@ -949,8 +990,8 @@
 				}
 
 				function getBody(args, item) {
-					doRequest("b", args, articleView, function(result) {
-						gotBody(item, result.articleBody);
+					doRequest("b", args, item === itemBeingPreloaded ? preloadArrow : articleView, function(result) {
+						gotBody(item, result.articleBody, null);
 					});
 				}
 
@@ -979,7 +1020,11 @@
 						articleBody : body
 					});
 
+					if(item !== itemBeingPreloaded){
 					showBody(item, body);
+					} else { // item !== itemBeingPreloaded
+						itemBeingPreloaded = null;
+					}
 				}
 
 				function showBody(item, body) {
@@ -1308,7 +1353,7 @@
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					if(!preloading)
+					if(!itemBeingPreloaded)
 						progress();
 
 					if (img.partial && !force) {
@@ -2445,7 +2490,7 @@
 				
 				//---------- Pre-load ----------
 				
-				var preloadDir, preloading;
+				var preloadDir, preloadArrow;
 				
 				function preloadNext() {
 					if(!settings.preload || slideshow || replaying) {
@@ -2466,17 +2511,20 @@
 						}
 					}
 					if(item && !item.body && item.bytes < 5000000){
+						preloadArrow = dom.byId(dir > 0 ? "rightArrow" : "leftArrow");
+						showArticle(item, true);
+						/*
 						var args = {
 							articleId : item.articleId,
 							screenSize: 0
 						};
-						preloading = dir;
 						doRequest("b", args, dom.byId(dir > 0 ? "rightArrow" : "leftArrow"), function(result) {
 							preloading = 0;
 							bodyPreloaded(item, result);
 						}, function(err) {
 							preloading = 0;
 						});
+						*/
 					}
 				}
 				
@@ -4481,7 +4529,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.9.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.10.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
