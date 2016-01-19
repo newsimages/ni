@@ -686,11 +686,11 @@
 					showArticle(this);
 				}
 				
-				var itemBeingPreloaded, catchupPreloading;
+				var itemBeingPreloaded;
 				
 				function showArticle(item, preload) {
 					
-					catchupPreloading = false;
+					var catchupPreloading = false;
 					
 					if(preload){
 						itemBeingPreloaded = item;
@@ -741,6 +741,9 @@
 					} // item !== itemBeingPreloaded
 					
 					if(catchupPreloading){
+						if (settings.partial) {
+							loadImage("", true);
+						}
 						showProgressBar(true);
 						return;
 					}
@@ -809,10 +812,6 @@
 												setImageTitle(p.filename);
 												if (settings.partial && p.chunk) {
 													loadImage(data, true);
-													if(catchupPreloading){
-														fitImage(true);
-														catchupPreloading = false;
-													}
 												}
 												break;
 											case "mpg":
@@ -1349,7 +1348,7 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
-				fitImage = function(force) {
+				fitImage = function() {
 
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
@@ -1357,11 +1356,12 @@
 					if(!itemBeingPreloaded)
 						progress();
 
-					if (img.partial && !force) {
-						if (img.invalid)
+					if (img.partial) {
+						if (img.invalid) {
 							img.invalid = false;
-						else
+						} else {
 							return;
+						}
 					}
 
 					var oldvis = img.style.visibility;
@@ -1636,7 +1636,7 @@
 					imageScroller.scrollDir = imageRealSized ? "vh" : "h";
 					imageScroller._v = imageRealSized;
 
-					fitImage(false, true);
+					fitImage();
 				}
 
 				function onImageTouchMove(e) {
@@ -4530,7 +4530,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.10.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.10.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
