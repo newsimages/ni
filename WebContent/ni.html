@@ -687,6 +687,9 @@
 				}
 				
 				var itemBeingPreloaded;
+
+				// async progress state
+				var data, filename;
 				
 				function showArticle(item, preload) {
 					
@@ -744,6 +747,7 @@
 						if (settings.partial) {
 							loadImage("", true);
 							showProgressBar(true);
+							showPartialData();
 						} else {
 							loadImage("");
 							progress(articleView);
@@ -759,8 +763,8 @@
 					};
 
 					if (settings.async) { // async + progress
-						var data = "";
-						var filename;
+						data = "";
+						filename = null;
 						var multi;
 						if(item !== itemBeingPreloaded){
 						if (settings.partial) {
@@ -805,35 +809,10 @@
 											}
 										}
 										if(item !== itemBeingPreloaded){
-										if (p.filename) {
-											filename = p.filename;
-											var suff = suffix(p.filename);
-											switch (suff) {
-											case "jpg":
-											case "gif":
-											case "png":
-												setImageTitle(p.filename);
-												if (settings.partial && p.chunk) {
-													loadImage(data, true);
-												}
-												break;
-											case "mpg":
-											case "mp4":
-											case "avi":
-											case "ogg":
-											case "ogv":
-												if (showVideos
-														&& showVideosWhileLoading) {
-													setVideoTitle(p.filename);
-													if (settings.partial
-															&& p.chunk) {
-														loadVideo(data, false,
-																p.filename);
-														break;
-													}
-												}
+											if(p.filename) {
+												filename = p.filename;
+												showPartialData(p.chunk);
 											}
-										}
 										} // item !== itemBeingPreloaded
 										if (!p.complete) {
 											f(id);
@@ -872,10 +851,8 @@
 						};
 						if(item !== itemBeingPreloaded){
 							progress(articleView);
-						showProgressBar(true);
-						} else { // item !== itemBeingPreloaded
-							progress(preloadArrow);
-						}
+							showProgressBar(true);
+						} // item !== itemBeingPreloaded
 						doRequest("ba", args, null, f);
 					} else {
 						if(item !== itemBeingPreloaded){
@@ -886,6 +863,37 @@
 					}
 				}
 
+				function showPartialData(chunk) {
+					if (filename) {
+						var suff = suffix(filename);
+						switch (suff) {
+						case "jpg":
+						case "gif":
+						case "png":
+							setImageTitle(filename);
+							if (settings.partial && chunk) {
+								loadImage(data, true);
+							}
+							break;
+						case "mpg":
+						case "mp4":
+						case "avi":
+						case "ogg":
+						case "ogv":
+							if (showVideos
+									&& showVideosWhileLoading) {
+								setVideoTitle(filename);
+								if (settings.partial
+										&& chunk) {
+									loadVideo(data, false,
+											filename);
+									break;
+								}
+							}
+						}
+					}
+				}
+				
 				var startTime;
 
 				function showProgress(progress, total) {
@@ -993,7 +1001,7 @@
 				}
 
 				function getBody(args, item) {
-					doRequest("b", args, item === itemBeingPreloaded ? preloadArrow : articleView, function(result) {
+					doRequest("b", args, item === itemBeingPreloaded ? null : articleView, function(result) {
 						gotBody(item, result.articleBody, null);
 					});
 				}
@@ -1491,7 +1499,9 @@
 				var nextTimer;
 				
 				next = function(curItem, testOnly, bySlideshow) {
+					if(!testOnly) console.log("next...");
 					if(!testOnly && !bySlideshow && startStopSlideshow(1)){
+						console.log("next returns");
 						return;
 					}
 					if(!testOnly) preloadDir = 1;
@@ -1509,7 +1519,11 @@
 						return item;
 					}
 					if (item && !testOnly) {
-						nextTimer = setTimeout(function(){ showArticle(item); }, 200);
+						console.log("timer " + item.label);
+						nextTimer = setTimeout(function(){
+							console.log("show " + item.label);
+							showArticle(item);
+						}, 200);
 						prevTouchTime = 0;
 					}
 					return item;
@@ -2494,7 +2508,7 @@
 				
 				//---------- Pre-load ----------
 				
-				var preloadDir, preloadArrow;
+				var preloadDir;
 				
 				function preloadNext() {
 					if(!settings.preload || slideshow || replaying) {
@@ -2515,7 +2529,6 @@
 						}
 					}
 					if(item && !item.body && item.bytes < 5000000){
-						preloadArrow = dom.byId(dir > 0 ? "rightArrow" : "leftArrow");
 						showArticle(item, true);
 						/*
 						var args = {
@@ -3210,7 +3223,6 @@ body,html {
 }
 
 #loadingDiv {
-	display: none;
 	position: absolute;
 	left: 0;
 	right: 0;
@@ -4533,7 +4545,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.10.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.10.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
