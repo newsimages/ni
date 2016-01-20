@@ -2511,7 +2511,7 @@
 				var preloadDir;
 				
 				function preloadNext() {
-					if(!settings.preload || slideshow || replaying) {
+					if(!settings.preload || slideshow || replaying || currentRequest || currentUnrar) {
 						return;
 					}
 					
@@ -4545,7 +4545,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.10.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.10.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
