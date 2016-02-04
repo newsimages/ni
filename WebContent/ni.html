@@ -2898,6 +2898,7 @@
 
 				function SQLStorage() {
 					this.name = "WebSQL";
+					this.isSupported = function() { return true; };
 					this.db = openDatabase('NI', '1.0', 'App state storage DB',
 							50 * 1024 * 1024);
 					this.db
@@ -2986,6 +2987,10 @@
 				
 				function IndexedDBStorage() {
 					this.name = "IndexedDB";
+					this.isSupported = function() {
+						return typeof indexedDB !== "undefined" &&
+								indexedDB.open("NI", 2) != null;
+					};
 					this._db = function(f, mode){
 						var _call = function(db){
 							var store = db.transaction("states", "readwrite").objectStore("states");
@@ -2998,10 +3003,7 @@
 						};
 						if(!this.db){
 							var request = indexedDB.open("NI", 2);
-							if(!request) alert("IndexedDB: request is null");
 							request.onsuccess = lang.hitch(this, function(event){
-								if(!event) alert("IndexedDB: event is null");
-								if(!event.target) alert("IndexedDB: event.target is null");
 								this.db = event.target.result;
 								_call(this.db);
 							});
@@ -3060,10 +3062,10 @@
 
 				function createStorage() {
 					if (!storage){
-						if(typeof indexedDB !== "undefined")
-							storage = new IndexedDBStorage();
-						else
+						storage = new IndexedDBStorage();
+						if(!storage.isSupported()){
 							storage = new SQLStorage();
+						}
 						dom.byId("stateUsing").innerHTML = storage.name;
 					}
 				}
