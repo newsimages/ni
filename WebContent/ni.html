@@ -234,7 +234,13 @@
 					}
 				}
 
-				ready(init);
+				ready(function(){
+					try {
+						init();
+					} catch(err) {
+						alert(err);
+					}
+				});
 
 				//---------- Search ----------
 
@@ -2509,7 +2515,7 @@
 				var preloadDir;
 				
 				function preloadNext() {
-					if(!settings.preload || slideshow || replaying || currentRequest || currentUnrar) {
+					if(!settings.preload || replaying || currentRequest || currentUnrar) {
 						return;
 					}
 					
@@ -4543,7 +4549,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.10.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 5.10.7 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
