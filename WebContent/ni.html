@@ -2998,7 +2998,10 @@
 						};
 						if(!this.db){
 							var request = indexedDB.open("NI", 2);
+							if(!request) alert("IndexedDB: request is null");
 							request.onsuccess = lang.hitch(this, function(event){
+								if(!event) alert("IndexedDB: event is null");
+								if(!event.target) alert("IndexedDB: event.target is null");
 								this.db = event.target.result;
 								_call(this.db);
 							});
