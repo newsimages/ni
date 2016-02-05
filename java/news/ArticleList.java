@@ -12,4 +12,5 @@ public class ArticleList {
 	@XmlElement public List<ArticleHeader> articles = new ArrayList<ArticleHeader>();
 	@XmlAttribute public long available;
 	@XmlAttribute public long offset;
+	@XmlAttribute public long timedout;
 }

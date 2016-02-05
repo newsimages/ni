@@ -193,8 +193,10 @@ public class NewsService implements ProtocolCommandListener {
 				break;
 
 			// timeout?
-			if (System.currentTimeMillis() > startTime + timeout * 1000)
+			if (System.currentTimeMillis() > startTime + timeout * 1000){
+				list.timedout = timeout;
 				break;
+			}
 
 			high = Math.max(high - blockSize, first);
 			low = Math.max(high - blockSize + 1, first);
