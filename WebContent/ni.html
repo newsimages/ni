@@ -361,12 +361,13 @@
 						}
 						list.view = view;
 						view.list = list;
-						if((articles && articles.length > 0) || !result.articleList.available){
+						var available = parseInt(result.articleList.available);
+						if((articles && articles.length > 0) || !available){
 							fillArticleList(list, articles, newsgroup, offset > 0);
 						}
-						if (result.articleList.available > 0) {
+						if (available > 0) {
 							var moreItem = new ListItem({
-								label : result.articleList.timedout ? "Continue..." : "More...",
+								label : (articles && articles.length > 0) ? "More..." : "Timeout: continue...",
 								clickable : true,
 								noArrow : true,
 								onClick : function() {
@@ -4555,7 +4556,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 5.11.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.0.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
