@@ -3,8 +3,27 @@
 <head>
 <title>Ni! - Attachment</title>
 <script>
-	document.location.href = document.location.hash.substr(1);
+	function init() {
+		var args = document.location.href.split("?")[1].split(",");
+		for(var i = 0; i < args.length; i++){
+			var arg = args[i].split("=");
+			var name = arg[0], value = arg[1];
+			var anchor = document.getElementById("download");
+			switch(name){
+			case "filename":
+				anchor.download = value;
+				anchor.innerHTML = value;
+				break;
+			case "url":
+				anchor.href = value;
+				break;
+			}
+		}
+	}
 </script>
 </head>
-<body>
+<body onload="init()">
+<p style="font-family: sans-serif; font-size: 14px;">
+Download attachment: <a id="download"></a>
+</p>
 </body>
