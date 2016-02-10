@@ -1321,7 +1321,7 @@
 				
 				function getDownloadLink(att) {
 					if(has("ios")){
-						return '<br>Attachment: <a href="open.html?filename=' + att.filename + ",url=" + makeBlobUrl(att.data, "application/octet-stream") + '">' + 
+						return '<br>Attachment: <a href="open.html#' + makeDataUrl(att.data, "application/octet-stream") + '">' + 
 								att.filename +
 								'</a>';
 					} else {
