@@ -809,7 +809,7 @@ public class NewsService implements ProtocolCommandListener {
 		StringBuffer text = new StringBuffer();
 
 		if (fileInfo.encoding != CODE_NONE)
-			decode(reader, body, text, part, bodies, fileInfo);
+			decode(reader, body, part, bodies, fileInfo);
 
 		String line;
 		while ((line = reader.readLine()) != null) {
@@ -820,7 +820,7 @@ public class NewsService implements ProtocolCommandListener {
 					fileInfo.filename = null;
 					readHeaders(reader, body, fileInfo);
 					if (fileInfo.encoding != CODE_NONE)
-						decode(reader, body, text, part, bodies, fileInfo);
+						decode(reader, body, part, bodies, fileInfo);
 					continue;
 				}
 				if (line.equals(fileInfo.boundary + "--")) {
@@ -845,7 +845,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 
 			if (fileInfo.encoding != CODE_NONE) {
-				decode(reader, body, text, part, bodies, fileInfo);
+				decode(reader, body, part, bodies, fileInfo);
 			} else {
 				text.append(line);
 				text.append('\n');
@@ -857,7 +857,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	private void decode(BufferedReader reader, ArticleBody body,
-			StringBuffer text, int part, ArticleBody[] bodies, FileInfo fileInfo)
+			int part, ArticleBody[] bodies, FileInfo fileInfo)
 			throws IOException {
 
 		ByteArrayOutputStream bytes;
@@ -894,8 +894,6 @@ public class NewsService implements ProtocolCommandListener {
 			Attachment att = new Attachment(fileInfo.filename, data);
 			body.attachments.add(att);
 			body.size += data.length;
-			text.append("[attachment: " + att.filename + " (" + (part + 1)
-					+ "/" + bodies.length + ")]\n");
 			if (reader instanceof ProgressReader) {
 				// notify Progress, e.g. to send a thumbnail
 				Progress progress = ((ProgressReader) reader).progress;

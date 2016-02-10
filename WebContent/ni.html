@@ -492,6 +492,9 @@
 									view : list.view,
 									_duration: 800
 								}));
+					if(a.itemClass){
+						domClass.add(item.domNode, a.itemClass);
+					}
 					item._list = list;
 					item._key = a.key;
 					if (prevItem) {
@@ -527,7 +530,7 @@
 						list = seriesResultsList2;
 					}
 					
-					heading.set("label", this._subject||this.label);
+					heading.set("label", this._seriesTitle||this._subject||this.label);
 					heading.set("moveTo", this.view.id);
 					if(this.view === seriesView || this.view === seriesView2){
 						this.view._savedItems = (this.view === seriesView ? seriesResultsList : seriesResultsList2).getChildren();
@@ -1029,6 +1032,7 @@
 						body.attachments = [];
 					else if (!(body.attachments instanceof Array))
 						body.attachments = [ body.attachments ];
+					
 					array.forEach(body.attachments, function(att, i) {
 						if (data && data[i]) {
 							att.data = data[i];
@@ -1088,8 +1092,7 @@
 									if (showVideos) {
 										showVideo(att);
 									} else {
-										showText(body, null, att, "video/"
-												+ suff);
+										showText(body);
 									}
 									break;
 								case "zip":
@@ -1100,19 +1103,8 @@
 								case "cbr":
 									showRar(att, item);
 									break;
-								case "txt":
-									setArticleTitle(att.filename);
-									showText(body, att.data);
-									break;
-								case "exe":
-									showText(body, null, att,
-											"application/x-msdownload");
-									break;
-								case "pdf":
-									showText(body, null, att, "application/pdf");
-									break;
 								default:
-									showText(body, null, att);
+									showText(body);
 								}
 							} else {
 								showText(body);
@@ -1189,7 +1181,7 @@
 							}
 						}
 						if (attachments.length > 0) {
-							showMultipleAttachments(attachments, item);
+							showMultipleAttachments(attachments, item, att);
 						}
 					}
 				}
@@ -1202,12 +1194,13 @@
 					currentUnrar = unrar(binaryToUint8Array(att.data).buffer, replaying);
 					currentUnrar.then(function(attachments) {
 						currentUnrar = null;
-						showMultipleAttachments(attachments, item);
+						showMultipleAttachments(attachments, item, att);
 					}, function(err) {
 						currentUnrar = null;
 						progress();
 						showProgressBar(false);
-						showError(err);
+						//showError(err);
+						showText(item.body, "<br>" + err);
 					}, function(p) {
 						progressBar.set("value", Math.round(p.index / p.total
 								* 100)
@@ -1217,28 +1210,37 @@
 					});
 				}
 
-				function showMultipleAttachments(attachments, item) {
-					showMultipleItems(
-							array
-									.map(
-											attachments,
-											function(att, index) {
-												var body = item.body||{};
-												return {
-													subject : att.filename,
-													body : {
-														from : body.from,
-														date : body.date,
-														newsgroups : body.newsgroups,
-														text : "<p><span>Attachment "
-																+ (index + 1)
-																+ " of:</span><span style=\"font-style: italic\">"
-																+ item.label
-																+ "</span></p>",
-														attachments : [ att ]
-													}
-												};
-											}), item);
+				function showMultipleAttachments(attachments, item, att) {
+					var items = array.map(attachments, function(att, index) {
+						var body = item.body||{};
+									return {
+										subject : att.filename,
+										body : {
+											from : body.from,
+											date : body.date,
+											newsgroups : body.newsgroups,
+											text : "",
+											attachments : [ att ]
+										}
+									};
+								});
+					if(att){
+						// add item to download the whole archive
+						var body = item.body||{};
+						items.push({
+										subject : "Download archive: " + att.filename,
+										itemClass: "grayItem",
+										body : {
+											from : body.from,
+											date : body.date,
+											newsgroups : body.newsgroups,
+											text : getDownloadLink(att),
+											attachments: []
+										}
+									});
+						item._seriesTitle = att.filename;
+					}
+					showMultipleItems(items, item);
 				}
 
 				function showIndex(articles, item) {
@@ -1286,7 +1288,7 @@
 					}
 				}
 
-				function showText(body, text, att, type) {
+				function showText(body, addText) {
 					if (!body) {
 						return;
 					}
@@ -1294,14 +1296,17 @@
 						return;
 					domClass.remove(articleView.domNode, "image video");
 					domClass.add(articleView.domNode, "text");
-					text = text || body.text;
+					var text = body.text.replace(/(&#xa;)*$/g, "");
+					if(addText){
+						text += addText;
+					}
 					if (!text.match(/<\/\w*>/)) {
 						text = "<pre>" + text + "</pre>";
 					}
-					if (att) {
-						setArticleTitle(att.filename);
-						type = type || "application/octet-stream";
-						text += "<a href=\"" + makeDataUrl(att.data, type) + "\" type=\"" + type + "\" download>" + att.filename + "</a> ";
+					if(body.attachments){
+						array.forEach(ensureArray(body.attachments), function(att){
+							text += getDownloadLink(att);
+						});
 					}
 					textView.scrollTo({
 						x : 0,
@@ -1312,6 +1317,12 @@
 					dom.byId("newsgroups").innerHTML = body.newsgroups || "";
 					dom.byId("textRect").innerHTML = text;
 					progress();
+				}
+				
+				function getDownloadLink(att) {
+					return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/force-download") + '">' + 
+							att.filename +
+							'</a>';
 				}
 
 				showArticleText = function() {
@@ -2318,6 +2329,13 @@
 				}
 				*/
 
+				function makeBlobUrl(data, type) {
+					if (data && !(data instanceof Uint8Array)) {
+						data = binaryToUint8Array(data);
+					}
+					return URL.createObjectURL(new Blob([ data ], { type : type }));
+				}
+				
 				/* using base64 */
 				function makeDataUrl(data, type) {
 					if (data && data instanceof Uint8Array) {
@@ -4568,7 +4586,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.0.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.1.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
