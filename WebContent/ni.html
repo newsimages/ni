@@ -1320,16 +1320,9 @@
 				}
 				
 				function getDownloadLink(att) {
-					if(has("ios")){
-						return '<br>Attachment: <a href="open.html#' + makeBlobUrl(att.data, "application/force-download") + '">' + 
-						att.filename +
-						'</a>';
-					} else {
-						return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/force-download") + '">' + 
-						att.filename +
-						'</a>';
-						
-					}
+					return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/octet-stream") + '">' + 
+							att.filename +
+							'</a>';
 				}
 
 				showArticleText = function() {
