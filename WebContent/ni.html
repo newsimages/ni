@@ -1378,12 +1378,12 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
-				fitImage = function() {
+				fitImage = function(keepProgress) {
 
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					if(!itemBeingPreloaded)
+					if(!itemBeingPreloaded && keepProgress !== true)
 						progress();
 
 					if (img.partial) {
@@ -1653,7 +1653,7 @@
 					}
 				}
 
-				function realSize(real) {
+				function realSize(real, keepProgress) {
 					imageRealSized = real;
 
 					if (imageRealSized) {
@@ -1668,7 +1668,7 @@
 					imageScroller.scrollDir = imageRealSized ? "vh" : "h";
 					imageScroller._v = imageRealSized;
 
-					fitImage();
+					fitImage(keepProgress);
 				}
 
 				function onImageTouchMove(e) {
@@ -1753,7 +1753,7 @@
 				}
 
 				resize = function() {
-					realSize(false);
+					realSize(false, true);
 					fitVideo();
 					resizeThumbnails();
 				}
