@@ -1320,9 +1320,16 @@
 				}
 				
 				function getDownloadLink(att) {
-					return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/force-download") + '">' + 
-							att.filename +
-							'</a>';
+					if(has("ios")){
+						return '<br>Attachment: <a href="open.html#' + makeBlobUrl(att.data, "application/force-download") + '">' + 
+						att.filename +
+						'</a>';
+					} else {
+						return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/force-download") + '">' + 
+						att.filename +
+						'</a>';
+						
+					}
 				}
 
 				showArticleText = function() {
@@ -4586,7 +4593,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.1.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.1.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
