@@ -1321,8 +1321,17 @@
 				
 				function getDownloadLink(att) {
 					return '<br>Attachment: <a download="' + att.filename + '" href="' + makeBlobUrl(att.data, "application/octet-stream") + '">' + 
-							att.filename +
-							'</a>';
+					att.filename +
+					'</a>' +
+					'<br>Attachment: <a download="' + att.filename + '" href="' + makeDataUrl(att.data, "application/octet-stream") + '">' + 
+					att.filename +
+					'</a>' +
+					'<br>Attachment: <a href="' + makeDataUrl(att.data, "application/octet-stream") + '">' + 
+					att.filename +
+					'</a>' +
+					'<br>Attachment: <a href="open.html#' + makeDataUrl(att.data, "application/octet-stream") + '">' + 
+					att.filename +
+					'</a>';
 				}
 
 				showArticleText = function() {
