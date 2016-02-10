@@ -1291,7 +1291,10 @@ public class NewsService implements ProtocolCommandListener {
 						Element segment = (Element) segments.item(j);
 						int number = Integer.parseInt(segment
 								.getAttribute("number")) - 1;
-						if (number >= 0 && number < ids.length){
+						if (number >= 0){
+							if(number >= ids.length){
+								number = 0;
+							}
 							while(ids[number] != null && number < ids.length-1){
 								number++;
 							}

@@ -1486,6 +1486,9 @@
 				imageError = function() {
 					articleImage.style.visibility = "hidden";
 					articleImage.invalid = true;
+					if(!articleImage.partial){
+						showMessage("Invalid image");
+					}
 				}
 
 				var lastX, lastY, controlsTimer;
@@ -4565,7 +4568,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.0.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.0.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
