@@ -1319,12 +1319,13 @@
 					progress();
 				}
 				
-				var attachmentToDownload;
-				
 				function getDownloadLink(att) {
 					if(true||has("ios")){
-						attachmentToDownload = att;
-						return '<br>Attachment: <a href="javascript:void(0)" onclick="dowloadAttachment()">' + 
+						var url = serviceUrl + "a/" + buildServerString() + "/" + currentItem.articleId + "/" + att.filename;
+								return '<br>Attachment: <a href="' + url + '">' + 
+								att.filename +
+								'</a>' +
+								'<br>Attachment: <a href="open.html#' + encodeURIComponent(url) + '">' + 
 								att.filename +
 								'</a>';
 					} else {
@@ -1334,11 +1335,6 @@
 					}
 				}
 
-				dowloadAttachment = function() {
-					var w = window.open("open.html");
-					w.attachmentToDownload = attachmentToDownload;
-				};
-				
 				showArticleText = function() {
 					if (currentItem && currentItem.body) {
 						domClass.add(textView.domNode, "showArticleText");

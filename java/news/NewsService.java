@@ -24,8 +24,10 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -1384,6 +1386,32 @@ public class NewsService implements ProtocolCommandListener {
 		}
 
 		return thumbnailBody;
+	}
+
+	// ---------
+	// Direct attachment download
+	// ---------
+
+	@GET
+	@Path("a/{host}/{articleId}/{name}")
+	@Produces("application/octet-stream")
+	public ByteArrayInputStream getAttachment(@PathParam("host") String host,
+			@PathParam("articleId") String articleId,
+			@PathParam("name") String name) throws SocketException,
+			IOException, ParserConfigurationException, SAXException {
+		ArticleBody body = getBody(host, articleId, null, 0);
+		if(body.attachments != null){
+			for(int i = 0; i < body.attachments.size(); i++){
+				Attachment att = body.attachments.get(i);
+				if(name.equals(att.filename)){
+					if(att.data != null){
+						return new ByteArrayInputStream(att.data);
+					}
+					break;
+				}
+			}
+		}
+		return null;
 	}
 
 	// ---------

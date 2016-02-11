@@ -3,43 +3,8 @@
 <head>
 <title>Ni! - Attachment</title>
 <script>
-	function init() {
-		function wait(){
-			var att = window.attachmentToDownload;
-			if(att){
-				alert(att);
-				var a = document.getElementById("download");
-				a.download = att.filename;
-				a.innerHTML = att.filename;
-				a.href = makeBlobUrl(att.data, "application/octet-stream");
-				return;
-			}
-			setTimeout(wait, 200);
-		}
-		wait();
-	}
-	function binaryToUint8Array(binary) {
-		if (binary instanceof Uint8Array) {
-			return binary;
-		}
-		var len = binary.length;
-		var bytes = new Uint8Array(len);
-		for ( var i = 0; i < len; i++) {
-			var ascii = binary.charCodeAt(i);
-			bytes[i] = ascii;
-		}
-		return bytes;
-	}
-	function makeBlobUrl(data, type) {
-		if (data && !(data instanceof Uint8Array)) {
-			data = binaryToUint8Array(data);
-		}
-		return URL.createObjectURL(new Blob([ data ], { type : type }));
-	}
+	document.location.href = decodeURIComponent(document.location.hash.substr(1));
 </script>
 </head>
-<body onload="init()">
-<p style="font-family: sans-serif; font-size: 14px;">
-Download attachment: <a id="download"></a>
-</p>
+<body>
 </body>
