@@ -86,6 +86,10 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static int progressId = 0;
 	private static HashMap<String, Progress> progressById = new HashMap<String, Progress>();
+	
+	private static ArticleBody lastBody;
+	private static String lastHost;
+	private static String lastArticleId;
 
 	private static final int CODE_NONE = 0;
 	private static final int CODE_BASE64 = 1;
@@ -429,6 +433,11 @@ public class NewsService implements ProtocolCommandListener {
 			Progress progress, int screenSize) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
 
+		// cached?
+		if(lastBody!= null && host.equals(lastHost) && articleId.equals(lastArticleId) && screenSize <= 0){
+			return lastBody;
+		}
+		
 		String[] aids = articleId.split(",");
 
 		NNTPClient client = connect(host);
@@ -541,6 +550,13 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
+		// cache last body in case user wants to download an attachment directly
+		if(screenSize <= 0){
+			lastBody = body;
+			lastHost = host;
+			lastArticleId = articleId;
+		}
+		
 		return body;
 	}
 
