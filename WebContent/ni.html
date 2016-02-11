@@ -1092,7 +1092,7 @@
 									if (showVideos) {
 										showVideo(att);
 									} else {
-										showText(body);
+										showText(body, item);
 									}
 									break;
 								case "zip":
@@ -1104,13 +1104,13 @@
 									showRar(att, item);
 									break;
 								default:
-									showText(body);
+									showText(body, item);
 								}
 							} else {
-								showText(body);
+								showText(body, item);
 							}
 						} else {
-							showText(body);
+							showText(body, item);
 						}
 					}
 					
@@ -1200,7 +1200,7 @@
 						progress();
 						showProgressBar(false);
 						//showError(err);
-						showText(item.body, "<br>" + err);
+						showText(item.body, item, "<br>" + err);
 					}, function(p) {
 						progressBar.set("value", Math.round(p.index / p.total
 								* 100)
@@ -1234,7 +1234,7 @@
 											from : body.from,
 											date : body.date,
 											newsgroups : body.newsgroups,
-											text : getDownloadLink(att),
+											text : getDownloadLink(att, item),
 											attachments: []
 										}
 									});
@@ -1288,7 +1288,7 @@
 					}
 				}
 
-				function showText(body, addText) {
+				function showText(body, item, addText) {
 					if (!body) {
 						return;
 					}
@@ -1305,7 +1305,7 @@
 					}
 					if(body.attachments){
 						array.forEach(ensureArray(body.attachments), function(att){
-							text += getDownloadLink(att);
+							text += getDownloadLink(att, item);
 						});
 					}
 					textView.scrollTo({
@@ -1319,13 +1319,10 @@
 					progress();
 				}
 				
-				function getDownloadLink(att) {
-					if(true||has("ios")){
-						var url = serviceUrl + "a/" + buildServerString() + "/" + currentItem.articleId + "/" + att.filename;
-								return '<br>Attachment: <a href="' + url + '">' + 
-								att.filename +
-								'</a>' +
-								'<br>Attachment: <a href="open.html#' + encodeURIComponent(url) + '">' + 
+				function getDownloadLink(att, item) {
+					if(has("ios")){
+						var url = serviceUrl + "a/" + buildServerString() + "/" + item.articleId + "/" + att.filename;
+								return '<br>Attachment: <a download="' + att.filename + '" href="' + url + '">' + 
 								att.filename +
 								'</a>';
 					} else {
@@ -1338,7 +1335,7 @@
 				showArticleText = function() {
 					if (currentItem && currentItem.body) {
 						domClass.add(textView.domNode, "showArticleText");
-						showText(currentItem.body);
+						showText(currentItem.body, currentItem);
 					}
 				};
 
