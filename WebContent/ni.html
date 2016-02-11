@@ -1320,16 +1320,20 @@
 				}
 				
 				function getDownloadLink(att, item) {
-					var url;
+					var a;
 					if(has("ios")){
 						// download attachment from server as IOS home screen web app cant read blobs...
-						url = serviceUrl + "a/" + buildServerString() + "/" + item.articleId + "/" + att.filename;
+						if(item.articleId){
+							var url = serviceUrl + "a/" + buildServerString() + "/" + item.articleId + "/" + att.filename;
+							a = '<a download="' + att.filename + '" href="' + url + '">' + att.filename + '</a>';
+						} else {
+							a = att.filename;
+						}
 					} else {
-						url = makeBlobUrl(att.data, "application/octet-stream");
+						var url = makeBlobUrl(att.data, "application/octet-stream");
+						a = '<a download="' + att.filename + '" href="' + url + '">' + att.filename + '</a>';
 					}
-					return '<br>Attachment: <a download="' + att.filename + '" href="' + url + '">' + 
-							att.filename +
-							'</a>';
+					return '<br>Attachment: ' + a;
 				}
 
 				showArticleText = function() {
@@ -4593,7 +4597,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.1.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.1.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
