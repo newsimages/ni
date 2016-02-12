@@ -1400,12 +1400,12 @@
 					domClass.add(dom.byId("articleMessage"), "hidden");
 				}
 
-				fitImage = function(keepProgress) {
+				fitImage = function(resize) {
 
 					var bg = dom.byId("imageBackground");
 					var img = articleImage;
 
-					if(!itemBeingPreloaded && keepProgress !== true)
+					if(!itemBeingPreloaded && resize !== true)
 						progress();
 
 					if (img.partial) {
@@ -1459,7 +1459,7 @@
 						});
 					}
 
-					img.style.visibility = "inherit";
+					img.style.visibility = resize ? oldvis : "inherit";
 				}
 				
 				function centerImage(img, vw, vh, iw, ih) {
@@ -1678,7 +1678,7 @@
 					}
 				}
 
-				function realSize(real, keepProgress) {
+				function realSize(real, resize) {
 					imageRealSized = real;
 
 					if (imageRealSized) {
@@ -1693,7 +1693,7 @@
 					imageScroller.scrollDir = imageRealSized ? "vh" : "h";
 					imageScroller._v = imageRealSized;
 
-					fitImage(keepProgress);
+					fitImage(resize);
 				}
 
 				function onImageTouchMove(e) {
@@ -4597,7 +4597,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.1.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.1.5 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
