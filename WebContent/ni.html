@@ -611,6 +611,7 @@
 								array.forEach(saved.children, function(item){
 									list.addChild(item);
 								});
+								list.resize();
 								var h = view === seriesView ? seriesHeading : seriesHeading2;
 								h.set("label", saved.label);
 								h.set("moveTo", saved.moveTo);
@@ -1207,18 +1208,14 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
-					console.log("unrar " + att.filename + " " + att.data.length);
-					currentUnrar = unrar(binaryToUint8Array(att.data).buffer, replaying);
+					currentUnrar = unrar(att.filename, binaryToUint8Array(att.data), replaying);
 					currentUnrar.then(function(attachments) {
-						console.log("  -> " + attachments.length + " attachments");
-						array.forEach(attachments, function(a) { console.log("      " + a.filename + " " + a.data.length)});
 						currentUnrar = null;
 						showMultipleAttachments(attachments, item, att);
 					}, function(err) {
 						currentUnrar = null;
 						progress();
 						showProgressBar(false);
-						//showError(err);
 						showText(item.body, item, "<br>" + err);
 					}, function(p) {
 						progressBar.set("value", Math.round(p.index / p.total
@@ -4616,7 +4613,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.1.6 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.2.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
