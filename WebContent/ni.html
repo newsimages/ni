@@ -533,7 +533,15 @@
 					heading.set("label", this._seriesTitle||this._subject||this.label);
 					heading.set("moveTo", this.view.id);
 					if(this.view === seriesView || this.view === seriesView2){
-						this.view._savedItems = (this.view === seriesView ? seriesResultsList : seriesResultsList2).getChildren();
+						this.view._saved = this.view._saved||[];
+						var l = this.view === seriesView ? seriesResultsList : seriesResultsList2;
+						var h = this.view === seriesView ? seriesHeading : seriesHeading2;
+						var saved = {
+							label: h.get("label"),
+							moveTo: h.get("moveTo"),
+							children: l.getChildren()
+						};
+						this.view._saved.push(saved);
 					}
 					var fromView = this.view.getShowingView();
 					var oldCallback = fromView.onAfterTransitionOut;
@@ -553,6 +561,10 @@
 					});
 					list.view = view;
 					view.list = list;
+					//clearList(list);
+					while ((children = list.getChildren()).length > 0) {
+						list.removeChild(children[0]);
+					}
 					array.forEach(this._groupItems, function(child){
 						list.addChild(child);
 						child._list = list;
@@ -590,14 +602,18 @@
 						}
 						if(moveTo === "series" || moveTo === "series2"){
 							var view = moveTo === "series" ? seriesView : seriesView2;
-							if(view._savedItems){
+							if(view._saved){
+								var saved = view._saved.pop();
 								list = view === seriesView ? seriesResultsList : seriesResultsList2;
 								while ((children = list.getChildren()).length > 0) {
 									list.removeChild(children[0]);
 								}
-								array.forEach(view._savedItems, function(item){
+								array.forEach(saved.children, function(item){
 									list.addChild(item);
 								});
+								var h = view === seriesView ? seriesHeading : seriesHeading2;
+								h.set("label", saved.label);
+								h.set("moveTo", saved.moveTo);
 							}
 						}
 						fixList(searchResultsList);
@@ -1120,11 +1136,11 @@
 				}
 				
 				function markRead(item) {
-					if(replaying && replaying !== "markRead")
+					if(replaying && replaying !== "markRead" || !item)
 						return;
 					record("markRead", null, [ item ]);
-					domClass.add(item.domNode, "read");
-					if(item._parentGroup){
+					if(item.domNode) domClass.add(item.domNode, "read");
+					if(item._parentGroup && item._parentGroup.domNode){
 						domClass.add(item._parentGroup.domNode, "read");
 					}
 				}
@@ -1191,8 +1207,11 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
+					console.log("unrar " + att.filename + " " + att.data.length);
 					currentUnrar = unrar(binaryToUint8Array(att.data).buffer, replaying);
 					currentUnrar.then(function(attachments) {
+						console.log("  -> " + attachments.length + " attachments");
+						array.forEach(attachments, function(a) { console.log("      " + a.filename + " " + a.data.length)});
 						currentUnrar = null;
 						showMultipleAttachments(attachments, item, att);
 					}, function(err) {
@@ -4597,7 +4616,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.1.5 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.1.6 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
