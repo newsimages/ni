@@ -34,12 +34,12 @@
 					"dojox/mobile/ProgressIndicator",
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
 					"dojox/mobile/ToolBarButton", "dojox/mobile",
-					"js-unzip.js", "js-inflate.js", "unrar.js" ],
+					"js-unzip.js", "js-inflate.js", "unrar.js", "unrar2.js" ],
 			function(ready, parser, has, on, touch, keys, event, aspect, json,
 					array, lang, dom, domConstruct, domClass, request, handlers,
 					registry, ListItem, Progressindicator, viewRegistry,
 					ScrollableView, ToolBarButton, mobile, JSUnzip, JSInflate,
-					unrar) {
+					unrar, unrar2) {
 
 				var showVideos = true;
 				var showVideosWhileLoading = false;
@@ -1208,22 +1208,31 @@
 					showProgressBar(true);
 					progressBar.set("value", 0);
 					progressBar.set("label", "Unpacking RAR archive...");
-					currentUnrar = unrar(att.filename, binaryToUint8Array(att.data), replaying);
-					currentUnrar.then(function(attachments) {
+					function unrar_success(attachments){
 						currentUnrar = null;
 						showMultipleAttachments(attachments, item, att);
-					}, function(err) {
+					}
+					function unrar_error(err) {
 						currentUnrar = null;
 						progress();
 						showProgressBar(false);
 						showText(item.body, item, "<br>" + err);
-					}, function(p) {
+					}
+					function unrar_progress(p){
 						progressBar.set("value", Math.round(p.index / p.total
 								* 100)
 								+ "%");
 						progressBar.set("label", "Unpacking " + p.file + " ("
 								+ p.index + "/" + p.total + ")");
-					});
+					}
+					currentUnrar = unrar(att.filename, binaryToUint8Array(att.data), replaying);
+					currentUnrar.then(unrar_success,
+							function(err){
+								progressBar.set("label", "Unpacking RAR archive (trying 2nd unrar)...");
+								currentUnrar = unrar2(att.filename, binaryToUint8Array(att.data), replaying);
+								currentUnrar.then(unrar_success, unrar_error, unrar_progress);
+							}, 
+							unrar_progress);
 				}
 
 				function showMultipleAttachments(attachments, item, att) {
