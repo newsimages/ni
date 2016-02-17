@@ -1,4 +1,4 @@
-define(["dojo/Deferred", "libunrar.js"], function(Deferred) {
+define(["dojo/Deferred", "libunrar.js"], function(Deferred, readRARContent) {
 	
 	function _dir(d, attachments){
 		for(var name in d.ls){

@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <link rel="apple-touch-icon" href="icon.png" />
 <link rel="apple-touch-startup-image" href="startup.png">
+<link rel="shortcut icon" href="icon.png" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Ni!</title>
 
@@ -3040,25 +3041,37 @@
 				
 				function IndexedDBStorage() {
 					this.name = "IndexedDB";
+					this.version = 3;
 					this.isSupported = function() {
-						return typeof indexedDB !== "undefined" &&
-								indexedDB.open("NI", 2) != null;
+						if(typeof indexedDB === "undefined"){
+							return false;
+						}
+						return this._db();
 					};
 					this._db = function(f, mode){
 						var _call = function(db){
 							var store = db.transaction("states", "readwrite").objectStore("states");
-							var req = f(store);
+							var req = f&&f(store);
 							if(req){
 								req.onerror = function(evt){
-									console.log(req + " error");
+									console.log(req + " error: " + evt.target.error);
 								};
 							}
 						};
 						if(!this.db){
-							var request = indexedDB.open("NI", 2);
+							var request = indexedDB.open("NI", this.version);
+							if(!request){
+								return null;
+							}
+							request.onerror = function(event) {
+								alert(event.target.error);
+							};
 							request.onsuccess = lang.hitch(this, function(event){
 								this.db = event.target.result;
 								_call(this.db);
+							});
+							request.onversionchanged = lang.hitch(this, function(event){
+								alert("version change");
 							});
 							request.onupgradeneeded = lang.hitch(this, function(event){
 								this.db = event.target.result;
@@ -3068,6 +3081,7 @@
 						} else {
 							_call(this.db);
 						}
+						return this.db;
 					}
 					this.record = lang.hitch(this, function(f, r) {
 						this._db(function(store){
@@ -4607,7 +4621,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.2.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.2.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
