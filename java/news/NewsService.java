@@ -8,6 +8,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
@@ -24,12 +26,11 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -40,6 +41,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import news.search.SearchEngine;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.net.ProtocolCommandEvent;
 import org.apache.commons.net.ProtocolCommandListener;
 import org.apache.commons.net.nntp.NNTPClient;
@@ -87,10 +89,6 @@ public class NewsService implements ProtocolCommandListener {
 	private static int progressId = 0;
 	private static HashMap<String, Progress> progressById = new HashMap<String, Progress>();
 	
-	private static ArticleBody lastBody;
-	private static String lastHost;
-	private static String lastArticleId;
-
 	private static final int CODE_NONE = 0;
 	private static final int CODE_BASE64 = 1;
 	private static final int CODE_UU = 2;
@@ -181,7 +179,7 @@ public class NewsService implements ProtocolCommandListener {
 					String subject = s[1];
 					String id = s[4];
 					int bytes = s[6].length() > 0 ? Integer.parseInt(s[6]) : 0;
-					ArticleHeader header = new ArticleHeader(subject, id);
+					ArticleHeader header = new ArticleHeader(cleanString(subject), id);
 					header.bytes = bytes;
 
 					if (!computeMultipart(header, multipartMap)
@@ -433,11 +431,6 @@ public class NewsService implements ProtocolCommandListener {
 			Progress progress, int screenSize) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
 
-		// cached?
-		if(lastBody!= null && host.equals(lastHost) && articleId.equals(lastArticleId) && screenSize <= 0){
-			return lastBody;
-		}
-		
 		String[] aids = articleId.split(",");
 
 		NNTPClient client = connect(host);
@@ -550,13 +543,6 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
-		// cache last body in case user wants to download an attachment directly
-		if(screenSize <= 0){
-			lastBody = body;
-			lastHost = host;
-			lastArticleId = articleId;
-		}
-		
 		return body;
 	}
 
@@ -789,7 +775,7 @@ public class NewsService implements ProtocolCommandListener {
 									String[] p = ct[j].split("=", 2);
 									if (p.length == 2) {
 										if (p[0].equals("name"))
-											fileInfo.filename = trimQuotes(p[1]);
+											fileInfo.filename = cleanString(trimQuotes(p[1]));
 										else if (p[0].equals("boundary")
 												&& ct[0].equals("multipart/mixed"))
 											fileInfo.boundary = "--"
@@ -819,6 +805,10 @@ public class NewsService implements ProtocolCommandListener {
 				&& s.charAt(s.length() - 1) == '"')
 			s = s.substring(1, s.length() - 1);
 		return s;
+	}
+	
+	private String cleanString(String s) {
+		return s.replaceAll("\\P{Print}", "");
 	}
 
 	private void readBody(BufferedReader reader, ArticleBody body, int part,
@@ -850,14 +840,14 @@ public class NewsService implements ProtocolCommandListener {
 				fileInfo.encoding = CODE_YENC;
 				int nameIndex = line.indexOf("name=");
 				if (nameIndex > 0)
-					fileInfo.filename = line.substring(nameIndex + 5);
+					fileInfo.filename = cleanString(line.substring(nameIndex + 5));
 				else
 					fileInfo.filename = "(unnamed)";
 			} else if (line.startsWith("begin ")) {
 				fileInfo.encoding = CODE_UU;
 				int nameIndex = line.lastIndexOf(" ");
 				if (nameIndex > 0)
-					fileInfo.filename = line.substring(nameIndex + 1);
+					fileInfo.filename = cleanString(line.substring(nameIndex + 1));
 				else
 					fileInfo.filename = "(unnamed)";
 			}
@@ -1282,7 +1272,7 @@ public class NewsService implements ProtocolCommandListener {
 			if (isHidden(subject, filter)) {
 				continue;
 			}
-			ArticleHeader article = new ArticleHeader(subject, null);
+			ArticleHeader article = new ArticleHeader(cleanString(subject), null);
 			// get newsgroups to separate different posts with same files
 			NodeList groups = file.getElementsByTagName("groups");
 			if (groups.getLength() > 0) {
@@ -1408,26 +1398,66 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct attachment download
 	// ---------
 
-	@GET
-	@Path("a/{host}/{articleId}/{name}")
+	@POST
+	@Path("a")
 	@Produces("application/octet-stream")
-	public ByteArrayInputStream getAttachment(@PathParam("host") String host,
-			@PathParam("articleId") String articleId,
-			@PathParam("name") String name) throws SocketException,
+	public Response getAttachment(@FormParam("host") final String host,
+			@FormParam("articleId") final String articleId,
+			@FormParam("name") final String name) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
-		ArticleBody body = getBody(host, articleId, null, 0);
-		if(body.attachments != null){
-			for(int i = 0; i < body.attachments.size(); i++){
-				Attachment att = body.attachments.get(i);
-				if(name.equals(att.filename)){
-					if(att.data != null){
-						return new ByteArrayInputStream(att.data);
-					}
-					break;
+		PipedInputStream in = new PipedInputStream();
+		final PipedOutputStream out = new PipedOutputStream(in);
+		final Progress progress = new Progress();
+		new Thread() {
+			public void run() {
+				try {
+					getBody(host, articleId, progress, 0);
+				} catch (Throwable ex) {
+					progress.exception = ex.getMessage();
+				}
+				synchronized (progress) {
+					progress.complete = true;
+					progress.updated = true;
+					progress.notify();
 				}
 			}
-		}
-		return null;
+		}.start();
+		new Thread() {
+			public void run() {
+				while (true) {
+					synchronized (progress) {
+						while (!progress.updated) {
+							try {
+								progress.wait();
+							} catch (InterruptedException ex) {
+								ex.printStackTrace();
+							}
+						}
+						try {
+							progress.getProgress();
+							if(name.equals(progress.filename)){
+								out.write(progress.chunk);
+								out.flush();
+							}
+						} catch (Exception ex) {
+							ex.printStackTrace();
+							progress.cancelled = true;
+							break;
+						}
+						if (progress.complete) {
+							break;
+						}
+						progress.updated = false;
+					}
+				}
+				try {
+					out.flush();
+				} catch (IOException ex) {
+					ex.printStackTrace();
+				}
+			}
+		}.start();
+		return Response.ok(in).header("Content-Disposition", "attachment; filename=" + name).build();
 	}
 
 	// ---------

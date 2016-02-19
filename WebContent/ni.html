@@ -627,6 +627,21 @@
 					}			
 				}
 				
+				function showDirectDownloadButton(show) {
+					domClass[show ? "remove" : "add"](dom.byId("directDownloadMessage"), "hidden");
+				}
+				
+				directDownload = function() {
+					cancelRequest();
+					progress();
+					showProgressBar(false);
+					showDirectDownloadButton(false);
+					showText({
+						text: "",
+						attachments: [ { filename: filename } ]
+					}, currentItem);
+				};
+				
 				//---------- Newsgroup browsing ----------
 
 				var currentNewsgroup;
@@ -755,12 +770,7 @@
 							: "hidden";
 					
 					var seriesMessage = dom.byId("seriesMessage");
-					if(item._groupItems){
-						seriesMessage.innerHTML = item._groupItems.length;
-						domClass.remove(seriesMessage, "hidden");
-					} else {
-						domClass.add(seriesMessage, "hidden");
-					}
+					domClass.add(seriesMessage, "hidden");
 
 					setArticleTitle(item.get("label"));
 
@@ -819,7 +829,6 @@
 									null,
 									function(result) {
 										var p = result.progress;
-										p.complete = p.complete == "true";
 										if(item !== itemBeingPreloaded){
 										showProgress(p, item.bytes);
 										} // item !== itemBeingPreloaded
@@ -849,7 +858,7 @@
 										if(item !== itemBeingPreloaded){
 											if(p.filename) {
 												filename = p.filename;
-												showPartialData(p.chunk);
+												showPartialData();
 											}
 										} // item !== itemBeingPreloaded
 										if (!p.complete) {
@@ -858,6 +867,7 @@
 											currentAsyncId = null;
 											progress();
 											showProgressBar(false);
+											showDirectDownloadButton(false);
 											if (p.exception) {
 												if(item !== itemBeingPreloaded){
 												showError(p.exception);
@@ -879,6 +889,7 @@
 										if (err.dojoType != "cancel") {
 											progress();
 											showProgressBar(false);
+											showDirectDownloadButton(false);
 											if(item !== itemBeingPreloaded){
 											showError(err);
 											} // item !== itemBeingPreloaded
@@ -901,7 +912,7 @@
 					}
 				}
 
-				function showPartialData(chunk) {
+				function showPartialData() {
 					if (filename) {
 						var suff = suffix(filename);
 						switch (suff) {
@@ -910,7 +921,7 @@
 						case "gif":
 						case "png":
 							setImageTitle(filename);
-							if (settings.partial && chunk) {
+							if (settings.partial) {
 								loadImage(data, true);
 							}
 							break;
@@ -922,13 +933,17 @@
 							if (showVideos
 									&& showVideosWhileLoading) {
 								setVideoTitle(filename);
-								if (settings.partial
-										&& chunk) {
+								if (settings.partial) {
 									loadVideo(data, false,
 											filename);
 									break;
 								}
 							}
+							showDirectDownloadButton(true);
+							break;
+						default:
+							showDirectDownloadButton(true);
+							break;
 						}
 					}
 				}
@@ -1080,6 +1095,12 @@
 
 				function showBody(item, body) {
 
+					var seriesMessage = dom.byId("seriesMessage");
+					if(item._groupItems){
+						seriesMessage.innerHTML = item._groupItems.length;
+						domClass.remove(seriesMessage, "hidden");
+					}
+					
 					markRead(item);
 					domClass.remove(textButton.domNode, "disabled");
 
@@ -1224,7 +1245,7 @@
 				}
 
 				function showMultipleAttachments(attachments, item, att) {
-					var items = array.map(attachments, function(att, index) {
+					var items = array.map(attachments, function(att) {
 						var body = item.body||{};
 									return {
 										subject : att.filename,
@@ -1334,11 +1355,16 @@
 				
 				function getDownloadLink(att, item) {
 					var a;
-					if(has("ios")){
+					if(has("ios") || !att.data){
 						// download attachment from server as IOS home screen web app cant read blobs...
 						if(item.articleId){
-							var url = serviceUrl + "a/" + buildServerString() + "/" + item.articleId + "/" + att.filename;
-							a = '<a download="' + att.filename + '" href="' + url + '">' + att.filename + '</a>';
+							var url = serviceUrl + "a";
+							a = '<form id="downloadForm" action="' + url + '" method="post" style="display: inline">' +
+							'<input type="text" style="display: none" name="host" value="' + buildServerString() + '"></input>' +
+							'<input type="text" style="display: none" name="articleId" value="' + item.articleId + '"></input>' +
+							'<input type="text" style="display: none" name="name" value="' + att.filename + '"></input>' +
+							'<a href="#" onclick="document.getElementById(\'downloadForm\').submit()">' + att.filename + '</a>' +
+							'</form>';
 						} else {
 							a = att.filename;
 						}
@@ -1518,10 +1544,16 @@
 					img.setAttribute("height", ih);
 				}
 
+				var emptyImageUrl;
+				
 				imageError = function() {
 					articleImage.style.visibility = "hidden";
 					articleImage.invalid = true;
 					if(!articleImage.partial){
+						if(!emptyImageUrl){
+							emptyImageUrl = makeDataUrl("", "image/jpeg");
+						}
+						if(articleImage.src !== emptyImageUrl)
 						showMessage("Invalid image");
 					}
 				}
@@ -1922,7 +1954,6 @@
 									id : id
 								}, null, function(result) {
 									var p = result.progress;
-									p.complete = p.complete == "true";
 
 									if (p.filename) {
 										setThumbnailName(thp, p.filename);
@@ -2115,11 +2146,11 @@
 
 				function decodeBinaryResponse(response){
 					response = Uint8ArrayToBinary(new Uint8Array(response));
-					var parts = response.split("\n--simple boundary");
+					var parts = response.split(/\r?\n?--simple boundary\r?\n?/);
 					var result;
 					for(var i = 0; i < parts.length; i++){
 						var p = parts[i];
-						var m = p.match(/^\nContent-Type: application\/([\w-_]*)\n\n/);
+						var m = p.match(/^Content-Type: application\/([\w-_]*)(;[\w-_]*=[\w-_]*)?\r?\n\r?\n/);
 						if(m){
 							var t = p.substring(m[0].length);
 							switch(m[1]){
@@ -2130,7 +2161,7 @@
 								if (result) {
 									var body;
 									if (result.progress) {
-										if(result.progress.hasChunk === "true" && !result.progress.chunk){
+										if(result.progress.hasChunk && !result.progress.chunk){
 											result.progress.chunk = t;
 										} else {
 											body = result.progress.body;
@@ -2369,10 +2400,6 @@
 				}
 				
 				function freeDataUrl(url) {
-				}
-				
-				function makeImageUrl(data) {
-					return makeDataUrl(data, "image/jpeg");
 				}
 				
 				var blockSize = 10000;
@@ -3936,7 +3963,7 @@ to {
 	right: 0;
 }
 
-.seriesMessage {
+.topRightArticleMessage {
 	position: absolute;
 	right: 5px;
 	top: 50px;
@@ -3951,11 +3978,7 @@ to {
 	pointer-events: all !important;
 }
 
-.seriesMessage::before {
-	content: "View all ";
-}
-
-.seriesMessage::after {
+.topRightArticleMessage::after {
 	content: "";
 	position: absolute;
 	border-left-color: #007AFF;
@@ -3972,8 +3995,16 @@ to {
 	transform: scale(0.7, 0.8) rotate(135deg);
 }
 
-.seriesMessage.hidden {
+.topRightArticleMessage.hidden {
 	visibility: hidden;
+}
+
+.seriesMessage::before {
+	content: "View all ";
+}
+
+.directDownloadMessage::before {
+	content: "Direct download ";
 }
 
 .imageScroller {
@@ -4481,8 +4512,10 @@ to {
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
-			<div id="seriesMessage" class="seriesMessage hidden"
+			<div id="seriesMessage" class="topRightArticleMessage seriesMessage hidden"
 				onclick="viewSeries()"></div>
+			<div id="directDownloadMessage" class="topRightArticleMessage directDownloadMessage hidden"
+				onclick="directDownload()"></div>
 		</div>
 		<div id="articleMessage" class="articleMessage hidden">
 			<div id="articleMessageText" class="articleMessageText"></div>
@@ -4623,7 +4656,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.2.4 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.3.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
