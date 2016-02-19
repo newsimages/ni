@@ -1359,7 +1359,7 @@
 						// download attachment from server as IOS home screen web app cant read blobs...
 						if(item.articleId){
 							var url = serviceUrl + "a";
-							a = '<form id="downloadForm" action="' + url + '" method="post" style="display: inline">' +
+							a = '<form id="downloadForm" action="' + url + '" method="post" style="display: inline" + target="_blank">' +
 							'<input type="text" style="display: none" name="host" value="' + buildServerString() + '"></input>' +
 							'<input type="text" style="display: none" name="articleId" value="' + item.articleId + '"></input>' +
 							'<input type="text" style="display: none" name="name" value="' + att.filename + '"></input>' +
@@ -4656,7 +4656,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.3.0 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.3.1 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
