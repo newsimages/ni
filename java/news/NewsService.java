@@ -13,7 +13,6 @@ import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -37,7 +36,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -48,7 +46,6 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import news.search.SearchEngine;
 
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.net.ProtocolCommandEvent;
 import org.apache.commons.net.ProtocolCommandListener;
 import org.apache.commons.net.nntp.NNTPClient;
@@ -1419,7 +1416,7 @@ public class NewsService implements ProtocolCommandListener {
 		String content = new String(Files.readAllBytes(templatePath), StandardCharsets.UTF_8);
 		content = content.replace("HOST", host).replace("ARTICLE_ID", articleId).replace("FILENAME",  name);
 		Files.write(htmlPath, content.getBytes(StandardCharsets.UTF_8));
-		return "download.html";
+		return "template path = " + templatePath + " html path = " + htmlPath;
 	}
 	
 	@POST

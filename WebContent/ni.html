@@ -1365,6 +1365,10 @@
 											name: att.filename
 										},
 										handleAs : "text"
+									}).then(function(response){
+										console.log(response);
+									}, function(err){
+										showError(err)
 									});
 							a = '<a href="download.html" target="_blank">' + att.filename + '</a>';
 						} else {
