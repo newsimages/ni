@@ -1360,17 +1360,24 @@
 									serviceUrl + "d",
 									{
 										data : {
-											host: buildServerString(),
 											articleId: item.articleId,
 											name: att.filename
 										},
 										handleAs : "text"
-									}).then(function(response){
-										console.log(response);
+									}).then(function(id){
+										function f() {
+											var l = dom.byId("downloadLink");
+											if(l){
+												l.href = "download.html#" + encodeURIComponent("svc/a/" + buildServerString() + "/" + id);
+											} else {
+												setTimeout(f, 100);
+											}
+										}
+										f();
 									}, function(err){
 										showError(err)
 									});
-							a = '<a href="download.html" target="_blank">' + att.filename + '</a>';
+							a = '<a id="downloadLink" href="#" target="_blank">' + att.filename + '</a>';
 						} else {
 							a = att.filename;
 						}
@@ -4665,7 +4672,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.3.2 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.3.3 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

@@ -13,9 +13,6 @@ import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,8 +27,10 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletContext;
 import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -92,6 +91,9 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static int progressId = 0;
 	private static HashMap<String, Progress> progressById = new HashMap<String, Progress>();
+	
+	private static int downloadId = 0;
+	private static HashMap<String, Download> downloadById = new HashMap<String, Download>();
 	
 	private static final int CODE_NONE = 0;
 	private static final int CODE_BASE64 = 1;
@@ -1402,33 +1404,40 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct attachment download
 	// ---------
 
-	@POST
-	@Path("d")
-	@Produces(MediaType.TEXT_PLAIN)
-	public String getAttachmentDownloadPage(@FormParam("host") final String host,
-			@FormParam("articleId") final String articleId,
-			@FormParam("name") final String name,
-			@Context ServletContext context) throws IOException {
-		String template = context.getRealPath("download_template.html");
-		String html = context.getRealPath("download.html");
-		java.nio.file.Path templatePath = FileSystems.getDefault().getPath(template);
-		java.nio.file.Path htmlPath = FileSystems.getDefault().getPath(html);
-		String content = new String(Files.readAllBytes(templatePath), StandardCharsets.UTF_8);
-		content = content.replace("HOST", host).replace("ARTICLE_ID", articleId).replace("FILENAME",  name);
-		Files.write(htmlPath, content.getBytes(StandardCharsets.UTF_8));
-		return "template path = " + templatePath + " html path = " + htmlPath;
+	private static class Download {
+		public String articleId;
+		public String filename;
+		
+		public Download(String articleId, String filename) {
+			this.articleId = articleId;
+			this.filename = filename;
+		}
 	}
 	
 	@POST
-	@Path("a")
+	@Path("d")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getAttachmentDownload(@FormParam("articleId") final String articleId,
+			@FormParam("name") final String name,
+			@Context ServletContext context) {
+		Download download = new Download(articleId, name);
+		String id = String.valueOf(++downloadId);
+		downloadById.put(id, download);
+		return id;
+	}
+	
+	@GET
+	@Path("a/{host}/{id}")
 	@Produces("application/octet-stream")
-	public Response getAttachment(@FormParam("host") final String host,
-			@FormParam("articleId") final String articleId,
-			@FormParam("name") final String name) throws SocketException,
+	public Response getAttachment(@PathParam("host") final String host,
+			@PathParam("id") String id) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
 		PipedInputStream in = new PipedInputStream();
 		final PipedOutputStream out = new PipedOutputStream(in);
 		final Progress progress = new Progress();
+		Download d = downloadById.get(id);
+		final String articleId = d.articleId;
+		final String name = d.filename;
 		new Thread() {
 			public void run() {
 				try {
