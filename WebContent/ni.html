@@ -78,9 +78,7 @@
 
 					// Compute service URL: same location as HTML + "/svc/".
 
-					serviceUrl = document.location.href.substring(0,
-							document.location.href.lastIndexOf("/"))
-							+ "/svc/";
+					serviceUrl = "svc/";
 
 					initSettings();
 
@@ -1353,18 +1351,17 @@
 					progress();
 				}
 				
+				var downloadArticleId, downloadFilename;
+				
 				function getDownloadLink(att, item) {
 					var a;
 					if(has("ios") || !att.data){
 						// download attachment from server as IOS home screen web app cant read blobs...
 						if(item.articleId){
-							var url = serviceUrl + "a";
-							a = '<form id="downloadForm" action="' + url + '" method="post" style="display: inline" target="ni_download" onsubmit="window.open(\"about:blank\",\"ni_download\")">' +
-							'<input type="text" style="display: none" name="host" value="' + buildServerString() + '"></input>' +
-							'<input type="text" style="display: none" name="articleId" value="' + item.articleId + '"></input>' +
-							'<input type="text" style="display: none" name="name" value="' + att.filename + '"></input>' +
-							'<a href="#" onclick="document.getElementById(\'downloadForm\').submit()">' + att.filename + '</a>' +
-							'</form>';
+							downloadArticleId = item.articleId;
+							downloadFilename = att.filename;
+							att.item = item;
+							a = '<a href="#" onclick="downloadAttachment()">' + att.filename + '</a>';
 						} else {
 							a = att.filename;
 						}
@@ -1374,6 +1371,25 @@
 					}
 					return '<br>Attachment: ' + a;
 				}
+				
+				downloadAttachment = function() {
+					request.post(
+							serviceUrl + "d",
+							{
+								data : {
+									host: buildServerString(),
+									articleId: downloadArticleId,
+									name: downloadFilename
+								},
+								preventCache : true,
+								handleAs : "text"
+							}).then(function(response) {
+								window.open(response);
+							},
+							function(err) {
+								showError(err);
+							});
+				};
 
 				showArticleText = function() {
 					if (currentItem && currentItem.body) {
@@ -4656,7 +4672,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.3.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.3.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

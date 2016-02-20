@@ -13,6 +13,10 @@ import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,12 +29,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
+import javax.servlet.ServletContext;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -1398,6 +1405,23 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct attachment download
 	// ---------
 
+	@POST
+	@Path("d")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getAttachmentDownloadPage(@FormParam("host") final String host,
+			@FormParam("articleId") final String articleId,
+			@FormParam("name") final String name,
+			@Context ServletContext context) throws IOException {
+		String template = context.getRealPath("download_template.html");
+		String html = context.getRealPath("download.html");
+		java.nio.file.Path templatePath = FileSystems.getDefault().getPath(template);
+		java.nio.file.Path htmlPath = FileSystems.getDefault().getPath(html);
+		String content = new String(Files.readAllBytes(templatePath), StandardCharsets.UTF_8);
+		content = content.replace("HOST", host).replace("ARTICLE_ID", articleId).replace("FILENAME",  name);
+		Files.write(htmlPath, content.getBytes(StandardCharsets.UTF_8));
+		return "download.html";
+	}
+	
 	@POST
 	@Path("a")
 	@Produces("application/octet-stream")
