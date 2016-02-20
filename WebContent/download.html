@@ -3,8 +3,11 @@
 <head>
 <title>Ni! - Attachment</title>
 <script>
-	document.location.href = decodeURIComponent(document.location.hash.substr(1));
+function init(){
+	document.getElementById("downloadLink").href = decodeURIComponent(document.location.hash.substr(1));
+}
 </script>
 </head>
-<body>
+<body onload="init()">
+<a id="downloadLink" style="font-family: Helvetica">Download Attachment</a>
 </body>
