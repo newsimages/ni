@@ -1,120 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
 <title>Ni! - Attachment</title>
-
-<meta name="viewport"
-	content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<link rel="apple-touch-icon" href="icon.png" />
-<link rel="apple-touch-startup-image" href="startup.png">
-<link rel="shortcut icon" href="icon.png" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-
-<link href="dojo/dojox/mobile/themes/ios7/ios7.css" rel="stylesheet"></link>
-
-<script type="text/javascript" src="dojo/dojo/dojo.js"
-	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
-
 <script>
-require([ "dojo/ready", "dojo/parser", "dojo/_base/array", "dojo/on", "dojo/request", "dojo/dom", "dojox/mobile/ProgressBar" ],
-function(ready, parser, array, on, request, dom) {
-	ready(function(){
-		var args = {};
-		array.forEach(document.location.search.substring(1).split("&"), function(arg){
-			var a = arg.split("=");
-			args[a[0]] = a[1];
-		});
-		
-		var downloadLink = dom.byId("downloadLink")
-		var filename = decodeURIComponent(args.name);
-		downloadLink.innerHTML = filename;
-		dom.byId("downloadSave").download = filename;
-		
-		var max = parseInt(args.bytes);
-		downloadProgressBar.maximum = max;
-		
-		on(downloadLink, "click", function(){
-			var url = "svc/a/" + args.host + "/" + args.id + "/" + args.name;
-			downloadProgressBar.domNode.style.display = "block";
-			dom.byId("downloadStatus").innerHTML = "Loading...";
-			
-			request(url,
-					{
-						handleAs : "application/octet-stream"
-					}).then(function(response) {
-						dom.byId("downloadStatus").innerHTML = "Done:";
-						var blob = makeBlobUrl(response, "application/octet-stream");
-						dom.byId("downloadSave").href = blob;
-						dom.byId("downloadSave").style.display = "inline";
-						downloadProgressBar.domNode.style.display = "none";
-					}, function(err) {
-						dom.byId("downloadStatus").innerHTML = "Download error: " + err;
-					}, function(progress){
-						downloadProgressBar.set("value", progress.loaded);
-						downloadProgressBar.set("label", printBytes(progress.loaded, max) + " / " + printBytes(max));
-					});
-		});
-		
-		function makeBlobUrl(data, type) {
-			if (data && !(data instanceof Uint8Array)) {
-				data = binaryToUint8Array(data);
-			}
-			return URL.createObjectURL(new Blob([ data ], { type : type }));
-		}
-		
-		function binaryToUint8Array(binary) {
-			if (binary instanceof Uint8Array) {
-				return binary;
-			}
-			var len = binary.length;
-			var bytes = new Uint8Array(len);
-			for ( var i = 0; i < len; i++) {
-				var ascii = binary.charCodeAt(i);
-				bytes[i] = ascii;
-			}
-			return bytes;
-		}
-		
-		function printBytes(b, m) {
-			m = m || b;
-			if(m > 1024*1024){
-				return (Math.round(10 * b / (1024*1024)) / 10).toFixed(1) + " Mb"; 
-			}
-			if(m > 1024){
-				return (Math.round(10 * b / (1024)) / 10).toFixed(1) + " Kb"; 
-			}
-			return b + " bytes";
-		}
+	var args = {};
+	document.location.search.substring(1).split("&").forEach(function(arg){
+		var a = arg.split("=");
+		args[a[0]] = a[1];
 	});
-});
+	document.location.href = "svc/a/" + args.host + "/" + args.id + "/" + args.name;
 </script>
-<style type="text/css">
-body {
-	font-family: Helvetica;
-	font-size: 14px;
-}
-#download {
-	margin: 20px;
-	line-height: 30px;
-}
-#downloadProgressBar {
-	display: none;
-	width: 300px;
-}
-#downloadSave {
-	display: none;
-	margin-left: 6px;
-}
-</style>
 </head>
 <body>
-	<div id="download">
-	<span>Download attachment:</span>
-	<a id="downloadLink" href="#"></a>
-    <div><span id="downloadStatus"></span><a id="downloadSave">Save</a></div>
-	<div data-dojo-type="dojox/mobile/ProgressBar"
-    	data-dojo-id="downloadProgressBar" id="downloadProgressBar"></div>
-	</div>    	
 </body>
