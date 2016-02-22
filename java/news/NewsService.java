@@ -25,14 +25,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
-import javax.servlet.ServletContext;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -92,8 +90,8 @@ public class NewsService implements ProtocolCommandListener {
 	private static int progressId = 0;
 	private static HashMap<String, Progress> progressById = new HashMap<String, Progress>();
 	
-	private static int downloadId = 0;
-	private static HashMap<String, Download> downloadById = new HashMap<String, Download>();
+	private static int shortId = 0;
+	private static HashMap<String, String> articleIdByShortId = new HashMap<String, String>();
 	
 	private static final int CODE_NONE = 0;
 	private static final int CODE_BASE64 = 1;
@@ -1404,40 +1402,27 @@ public class NewsService implements ProtocolCommandListener {
 	// Direct attachment download
 	// ---------
 
-	private static class Download {
-		public String articleId;
-		public String filename;
-		
-		public Download(String articleId, String filename) {
-			this.articleId = articleId;
-			this.filename = filename;
-		}
-	}
-	
 	@POST
-	@Path("d")
+	@Path("i")
 	@Produces(MediaType.TEXT_PLAIN)
-	public String getAttachmentDownload(@FormParam("articleId") final String articleId,
-			@FormParam("name") final String name,
-			@Context ServletContext context) {
-		Download download = new Download(articleId, name);
-		String id = String.valueOf(++downloadId);
-		downloadById.put(id, download);
+	public String getShortId(@FormParam("articleId") final String articleId) {
+		String id = String.valueOf(++shortId);
+		articleIdByShortId.put(id, articleId);
 		return id;
 	}
 	
 	@GET
-	@Path("a/{host}/{id}")
+	@Path("a/{host}/{id}/{name}")
 	@Produces("application/octet-stream")
 	public Response getAttachment(@PathParam("host") final String host,
-			@PathParam("id") String id) throws SocketException,
+			@PathParam("id") String id,
+			@PathParam("name") final String name) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
 		PipedInputStream in = new PipedInputStream();
 		final PipedOutputStream out = new PipedOutputStream(in);
 		final Progress progress = new Progress();
-		Download d = downloadById.get(id);
-		final String articleId = d.articleId;
-		final String name = d.filename;
+		String longId = articleIdByShortId.get(id);
+		final String articleId =  longId != null ? longId : id;
 		new Thread() {
 			public void run() {
 				try {

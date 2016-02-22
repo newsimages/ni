@@ -1357,18 +1357,17 @@
 						// download attachment from server as IOS home screen web app cant read blobs...
 						if(item.articleId){
 							request.post(
-									serviceUrl + "d",
+									serviceUrl + "i",
 									{
 										data : {
 											articleId: item.articleId,
-											name: att.filename
 										},
 										handleAs : "text"
 									}).then(function(id){
 										function f() {
 											var l = dom.byId("downloadLink");
 											if(l){
-												l.href = "download.html#" + encodeURIComponent("svc/a/" + buildServerString() + "/" + id);
+												l.href = "download.html?host=" + encodeURIComponent(buildServerString()) + "&id=" + id + "&bytes=" + item.bytes + "&name=" + encodeURIComponent(att.filename);
 											} else {
 												setTimeout(f, 100);
 											}
@@ -4672,7 +4671,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.3.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.4.0 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
