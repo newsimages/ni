@@ -187,6 +187,8 @@
 							case keys.BACKSPACE:
 							case keys.ESCAPE:
 								if(v === newsgroupView || v === seriesView || v === seriesView2){
+									if(v === newsgroupView && !confirmLeaveNewsgroup())
+										return;
 									v.performTransition(v === seriesView ? seriesHeading.moveTo :
 														v === seriesView2 ? seriesHeading2.moveTo :
 														"search", -1, "slide");
@@ -225,6 +227,9 @@
 						}
 					}
 
+					// prevent exiting a newsgroup accidentally as user may have loaded many articles
+					newsgroupHeading.backButton.userClickAction = confirmLeaveNewsgroup;
+					
 					// restore/clear state
 					initState();
 					
@@ -719,6 +724,14 @@
 					record("setNewsgroupSearch", null, [ v ]);
 					clearList(newsgroupResultsList);
 					getHeaders(currentNewsgroup, 0, v);
+				}
+				
+				function confirmLeaveNewsgroup(){
+					if(newsgroupResultsList.getChildren().length >= 2 * settings.searchResultsCount &&
+						!confirm("Leave newsgroup?")){
+						return false;
+					}
+					return true;
 				}
 
 				//---------- Article ----------
@@ -4671,7 +4684,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.4.1 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.4.2 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

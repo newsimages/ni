@@ -163,7 +163,7 @@ public class NewsService implements ProtocolCommandListener {
 		long first = info.getFirstArticleLong();
 		long last = info.getLastArticleLong() - offset;
 
-		int blockSize = count * 2;
+		int blockSize = 5000;
 
 		long high = last;
 		long low = Math.max(high - blockSize + 1, first);
