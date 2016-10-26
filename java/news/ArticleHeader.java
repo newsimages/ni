@@ -1,12 +1,14 @@
 package news;
 
-import java.text.Collator;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
+
+import alphanum.AlphanumComparator;
 
 @XmlRootElement
 public class ArticleHeader implements Comparable<ArticleHeader> {
@@ -20,7 +22,8 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	
 	@XmlTransient public String newsgroups;
 	
-	private static Collator collator = Collator.getInstance();
+	@SuppressWarnings("unchecked")
+	private static Comparator<String> alphanum = new AlphanumComparator();
 	
 	public ArticleHeader(){}
 	
@@ -31,7 +34,7 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 
 	@Override
 	public int compareTo(ArticleHeader o) {
-		return collator.compare(this.subject, o.subject);
+		return alphanum.compare(this.subject, o.subject);
 	}
 
 	@Override
