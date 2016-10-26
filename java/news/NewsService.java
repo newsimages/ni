@@ -13,7 +13,6 @@ import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
-import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1194,7 +1193,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			if (!group.group.contains(header)) {
 				group.group.add(header);
-				Collections.sort(group.group, Collator.getInstance());
+				Collections.sort(group.group);
 				if (header.subject.compareTo(group.subject) < 0) {
 					group.subject = header.subject;
 				}

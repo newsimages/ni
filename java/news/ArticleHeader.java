@@ -1,5 +1,6 @@
 package news;
 
+import java.text.Collator;
 import java.util.List;
 
 import javax.xml.bind.annotation.XmlAttribute;
@@ -19,6 +20,8 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	
 	@XmlTransient public String newsgroups;
 	
+	private static Collator collator = Collator.getInstance();
+	
 	public ArticleHeader(){}
 	
 	public ArticleHeader(String subject, String articleId) {
@@ -28,7 +31,7 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 
 	@Override
 	public int compareTo(ArticleHeader o) {
-		return this.subject.compareTo(o.subject);
+		return collator.compare(this.subject, o.subject);
 	}
 
 	@Override
