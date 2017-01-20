@@ -2468,10 +2468,12 @@
 										if (item && item.getParent()) {
 											var rect = item.domNode
 													.getBoundingClientRect();
+											console.log(rect);
 											if (rect.top >= 0
 													&& rect.left >= 0
-													&& rect.bottom <= (window.innerHeight || document.documentElement.clientHeight)
-													&& rect.right <= (window.innerWidth || document.documentElement.clientWidth)) {
+													&& rect.bottom-1 <= (window.innerHeight || document.documentElement.clientHeight)
+													&& rect.right-1 <= (window.innerWidth || document.documentElement.clientWidth)) {
+												console.log("click");
 												item.onClick();
 											}
 										}
@@ -4684,7 +4686,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.4.3 - &copy; 2015 Mobile
+		<p class="versionLabel">Ni! - Version 6.4.4 - &copy; 2015 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>

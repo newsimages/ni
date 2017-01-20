@@ -1,0 +1,7 @@
+eclipse.preferences.version=1
+org.jboss.tools.openshift.ApplicationId=5332f9725004467e500000ba
+org.jboss.tools.openshift.ApplicationName=ni
+org.jboss.tools.openshift.Connection=https\://edurocher1%40gmail.com@openshift.redhat.com
+org.jboss.tools.openshift.DeployFolder=webapps
+org.jboss.tools.openshift.Domain=mobilefactory
+org.jboss.tools.openshift.RemoteName=origin

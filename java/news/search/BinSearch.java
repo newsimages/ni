@@ -5,11 +5,12 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class BinSearch extends SearchEngine {
 
@@ -21,7 +22,7 @@ public class BinSearch extends SearchEngine {
 	
 	public SearchEngine.Result search(String pattern, String filter, int max,
 			int age, int offset) throws IOException {
-		String host = "http://www.binsearch.info";
+		String host = "https://www.binsearch.info";
 		String req = "/?q="
 				+ URLEncoder.encode(pattern + " " + filter, "UTF-8") + "&max="
 				+ max + "&adv_age=" + age + "&server=" + server;
@@ -30,7 +31,7 @@ public class BinSearch extends SearchEngine {
 
 		String url = host + req;
 
-		HttpURLConnection conn = (HttpURLConnection) new URL(url)
+		HttpsURLConnection conn = (HttpsURLConnection) new URL(url)
 				.openConnection();
 		conn.setRequestMethod("GET");
 		conn.setRequestProperty("Accept", "text/html");
@@ -70,7 +71,7 @@ public class BinSearch extends SearchEngine {
 
 			String nzburl = host + "/fcgi/nzb.fcgi" + req;
 
-			conn = (HttpURLConnection) new URL(nzburl).openConnection();
+			conn = (HttpsURLConnection) new URL(nzburl).openConnection();
 			conn.setRequestProperty("Accept", "text/html");
 			conn.setRequestProperty("Accept-Encoding", "gzip");
 			conn.setRequestProperty("Content-Type",
