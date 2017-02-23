@@ -5,6 +5,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.CookieHandler;
+import java.net.CookieManager;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -35,7 +37,12 @@ public class BinSearch extends SearchEngine {
 				.openConnection();
 		conn.setRequestMethod("GET");
 		conn.setRequestProperty("Accept", "text/html");
+		conn.setRequestProperty("Host", "www.binsearch.info");
+		conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
 		conn.setRequestProperty("Accept-Encoding", "gzip");
+		
+		String cookie = conn.getHeaderField("Set-Cookie").split(";")[0];
+		
 		GZIPInputStream gzip = new GZIPInputStream(conn.getInputStream());
 		BufferedReader reader = new BufferedReader(new InputStreamReader(gzip));
 
@@ -74,10 +81,11 @@ public class BinSearch extends SearchEngine {
 			conn = (HttpsURLConnection) new URL(nzburl).openConnection();
 			conn.setRequestProperty("Accept", "text/html");
 			conn.setRequestProperty("Accept-Encoding", "gzip");
-			conn.setRequestProperty("Content-Type",
-					"application/x-www-form-urlencoded");
+			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 			conn.setRequestProperty("Referer", url);
 			conn.setRequestProperty("Origin", host);
+			conn.setRequestProperty("Cookie", cookie);
+			conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
 			conn.setDoOutput(true);
 			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
 					conn.getOutputStream()));
