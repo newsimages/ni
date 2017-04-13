@@ -1108,7 +1108,7 @@
 
 					var seriesMessage = dom.byId("seriesMessage");
 					if(item._groupItems){
-						seriesMessage.innerHTML = item._groupItems.length;
+						dom.byId("seriesMessageCount").innerHTML = item._groupItems.length;
 						domClass.remove(seriesMessage, "hidden");
 					}
 					
@@ -4029,8 +4029,37 @@ to {
 	visibility: hidden;
 }
 
-.seriesMessage::before {
-	content: "View all ";
+#seriesMessage.hidden {
+	visibility: hidden;
+}
+
+#seriesMessage {
+	background: transparent;
+	pointer-events: none !important;
+}
+
+#seriesMessage #seriesMessageArrowDivs {
+	position: absolute;
+	top: 50%;
+	left: -3px;
+	margin-top: 80px;
+	width: 100%;
+	transform: scale(0.5,0.5);
+	pointer-events: all !important;
+}
+#seriesMessage #seriesMessageArrowDiv1 {
+}
+#seriesMessage #seriesMessageArrowDiv2 {
+	left: 5px;
+}
+#seriesMessage #seriesMessageCount {
+	position: absolute;
+	left: 5px;
+	width: 100%;
+	top: 52px;
+	color: #909090;
+	font-size: 20px;
+	text-align: center;
 }
 
 .directDownloadMessage::before {
@@ -4542,8 +4571,13 @@ to {
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
-			<div id="seriesMessage" class="topRightArticleMessage seriesMessage hidden"
-				onclick="viewSeries()"></div>
+			<div id="seriesMessage" class="arrowContainer rightArrowContainer hidden" onclick="viewSeries()">
+				<div id="seriesMessageArrowDivs">
+					<div class="articleArrow rightArrow seriesMessageArrowDiv" id="seriesMessageArrowDiv1"></div>
+					<div class="articleArrow rightArrow seriesMessageArrowDiv" id="seriesMessageArrowDiv2"></div>
+					<div id="seriesMessageCount"></div>
+				</div>
+			</div>
 			<div id="directDownloadMessage" class="topRightArticleMessage directDownloadMessage hidden"
 				onclick="directDownload()"></div>
 		</div>
