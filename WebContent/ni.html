@@ -1043,7 +1043,7 @@
 								.getBoundingClientRect(), scrollableRect = v.domNode
 								.getBoundingClientRect();
 						if (nodeRect.height < v.getDim().d.h) {
-							if (nodeRect.top < (scrollableRect.top + v.fixedHeaderHeight)) {
+							if (nodeRect.top + 1 < (scrollableRect.top + v.fixedHeaderHeight)) {
 								v.scrollIntoView(node, true);
 							} else if ((nodeRect.top + nodeRect.height) > (scrollableRect.top
 									+ scrollableRect.height - v.fixedFooterHeight)) {
@@ -4040,7 +4040,7 @@ to {
 
 #seriesMessage #seriesMessageArrowDivs {
 	position: absolute;
-	bottom: 50px;
+	top: 50%;
 	left: -3px;
 	margin-top: 80px;
 	width: 100%;
@@ -4720,7 +4720,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.4.6 - &copy; 2017 Mobile
+		<p class="versionLabel">Ni! - Version 6.4.7 - &copy; 2017 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
