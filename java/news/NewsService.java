@@ -812,7 +812,8 @@ public class NewsService implements ProtocolCommandListener {
 	}
 	
 	private String cleanString(String s) {
-		return s.replaceAll("\\P{Print}", "");
+		//return s.replaceAll("\\P{Print}", "");
+		return s;
 	}
 
 	private void readBody(BufferedReader reader, ArticleBody body, int part,
