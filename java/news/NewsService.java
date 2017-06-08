@@ -239,7 +239,7 @@ public class NewsService implements ProtocolCommandListener {
 		boolean cancelled;
 		boolean noChunks;
 		private long lastTime = System.currentTimeMillis();
-		private int maxChunkSize = 10000;
+		private int maxChunkSize = 20000;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
