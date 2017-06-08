@@ -499,6 +499,9 @@
 					if(a.itemClass){
 						domClass.add(item.domNode, a.itemClass);
 					}
+					if(a.vols && a.vols.indexOf(',') > 0){
+						domClass.add(item.domNode, "multiVolumeItem");
+					}
 					item._list = list;
 					item._key = a.key;
 					if (prevItem) {
@@ -3319,7 +3322,7 @@
 						});
 						replaying = null;
 						domClass.remove(document.documentElement, "replaying");
-						dom.byId("loadingScreen").style.display = "none";
+						//dom.byId("loadingScreen").style.display = "none";
 					});
 				}
 
@@ -3363,6 +3366,16 @@ body,html {
 	right: 0;
 	top: 50%;
 	text-align: center;
+}
+
+#loadingVersion {
+	position: absolute;
+	left: 0;
+	right: 10px;
+	bottom: 10px;
+	text-align: right;
+	font-style: italic;
+	font-size: small;
 }
 
 .mblEdgeToEdgeList .mblListItem {
@@ -4320,6 +4333,10 @@ to {
 	color: gray;
 }
 
+.multiVolumeItem {
+	font-weight: bold;
+}
+
 .mblEdgeToEdgeList .mblListItem.series div.similar {
 	font-weight: normal;
 	font-style: italic;
@@ -4720,7 +4737,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.4.7 - &copy; 2017 Mobile
+		<p class="versionLabel">Ni! - Version 6.4.8 - &copy; 2017 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -4792,6 +4809,7 @@ to {
 		data-dojo-id="invisibleButton" class="invisibleButton"></div>
 	<div id="loadingScreen">
 		<div id="loadingDiv">Loading...</div>
+		<div id="loadingVersion">V 6.4.8</div>
 	</div>
 </body>
 </html>

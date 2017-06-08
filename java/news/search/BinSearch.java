@@ -5,8 +5,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.CookieHandler;
-import java.net.CookieManager;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -96,7 +94,7 @@ public class BinSearch extends SearchEngine {
 			writer.flush();
 			writer.close();
 
-			return new SearchEngine.Result(new GZIPInputStream(conn.getInputStream()), available);
+			return new SearchEngine.Result(conn.getInputStream(), available);
 		}
 		
 		return null;

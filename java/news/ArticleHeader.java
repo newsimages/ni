@@ -21,6 +21,7 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 	@XmlAttribute public String key;
 	
 	@XmlTransient public String newsgroups;
+	@XmlTransient public int mvbytes;
 	
 	@SuppressWarnings("unchecked")
 	private static Comparator<String> alphanum = new AlphanumComparator();
@@ -44,6 +45,6 @@ public class ArticleHeader implements Comparable<ArticleHeader> {
 
 	@Override
 	public int hashCode() {
-		return this.subject.hashCode() + this.bytes;
+		return this.subject.hashCode() + (int)this.bytes;
 	}
 }

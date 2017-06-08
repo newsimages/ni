@@ -76,6 +76,8 @@ public class NewsService implements ProtocolCommandListener {
 			.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
 	private static Pattern multivolumePattern = Pattern
 			.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
+	private static Pattern multivolumePattern2 = Pattern
+			.compile("(.*\\.\\w+\\.)(\\d+).*");
 
 	private static Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private static Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
@@ -1125,15 +1127,29 @@ public class NewsService implements ProtocolCommandListener {
 				}
 			}
 		}
+		for (int i = 0; i < list.size(); i++) {
+			ArticleHeader article = list.get(i);
+			if(article.mvbytes > 0){
+				article.bytes = article.mvbytes;
+			}
+		}
 	}
 
 	private int computeMultivolumes(ArticleHeader article) {
+		boolean zeroBased = false;
 		Matcher m = multivolumePattern.matcher(article.subject);
+		if(!(m.matches() && m.groupCount() == 2)){
+			m = multivolumePattern2.matcher(article.subject);
+			zeroBased = true;
+		}
 		if (m.matches() && m.groupCount() == 2) {
 
 			String file = m.group(1);
 			String n = m.group(2);
 			int partNumber = Integer.parseInt(n);
+			if(zeroBased){
+				partNumber++;
+			}
 			int partCount = (int) Math.pow(10, n.length());
 
 			String key = file;
@@ -1149,15 +1165,16 @@ public class NewsService implements ProtocolCommandListener {
 
 			if (parts[0] != null) {
 				parts[0].vols = "";
+				parts[0].mvbytes = parts[0].bytes;
 				for (int i = 0; i < parts.length; i++) {
 					if (parts[i] == null) {
 						break;
 					}
 					if (i > 0) {
 						parts[0].vols += ",";
-						parts[0].bytes += parts[i].bytes;
+						parts[0].mvbytes += parts[i].bytes;
 					}
-					parts[0].vols += parts[i].parts;
+					parts[0].vols += parts[i].parts != null ? parts[i].parts : parts[i].articleId;
 				}
 			}
 
