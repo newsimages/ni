@@ -24,7 +24,7 @@
 
 <script type="text/javascript">
 window.addEventListener("load", function(){
-	var version = "Version 6.5.0";
+	var version = "Version 6.5.1";
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
 		var element = elements[i];
@@ -2108,7 +2108,11 @@ window.addEventListener("load", function(){
 							+ "px";
 					thp.appendChild(t);
 					thp.nameDiv = t;
+					var scrolledToBottom = Math.abs(indexView.getPos().y - -indexView.getDim().o.h) < 20;
 					indexParent.appendChild(thp);
+					if(scrolledToBottom){
+						scroll(indexView, -indexView.getDim().o.h);
+					}
 					return thp;
 				}
 
@@ -2157,7 +2161,7 @@ window.addEventListener("load", function(){
 										}
 									});
 				}
-
+				
 				//---------- Utility methods ----------
 
 				var currentServer, currentRequest, currentUnrar;
@@ -2491,12 +2495,10 @@ window.addEventListener("load", function(){
 										if (item && item.getParent()) {
 											var rect = item.domNode
 													.getBoundingClientRect();
-											console.log(rect);
 											if (rect.top >= 0
 													&& rect.left >= 0
 													&& rect.bottom-1 <= (window.innerHeight || document.documentElement.clientHeight)
 													&& rect.right-1 <= (window.innerWidth || document.documentElement.clientWidth)) {
-												console.log("click");
 												item.onClick();
 											}
 										}
