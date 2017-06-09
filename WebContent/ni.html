@@ -22,6 +22,17 @@
 	href="dojo/dojox/mobile/themes/common/domButtons/DomButtonGreySearch.css"
 	rel="stylesheet"></link>
 
+<script type="text/javascript">
+window.addEventListener("load", function(){
+	var version = "Version 6.5.0";
+	var elements = document.getElementsByClassName("version");
+	for(var i = 0; i < elements.length; i++){
+		var element = elements[i];
+		element.innerHTML = element.innerHTML.replace("$VERSION", version);
+	}
+});
+</script>
+
 <script type="text/javascript" src="dojo/dojo/dojo.js"
 	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
 
@@ -67,6 +78,7 @@
 					slideshowDelay: 1000,
 					optimizeImageDownload: true,
 					listThumbnails: true,
+					asyncThumbnails: false,
 					preload: true,
 					autoload: false,
 					autoloadThumbnails: false
@@ -806,7 +818,7 @@
 					} // item !== itemBeingPreloaded
 					
 					if(catchupPreloading){
-						if (settings.partial) {
+						if (settings.async && settings.partial) {
 							loadImage("", true);
 							showProgressBar(true);
 							showPartialData();
@@ -823,6 +835,9 @@
 										Math.max(mobile.getScreenSize().w, mobile.getScreenSize().h) :
 											0
 					};
+					if(preload){
+						args._preload = true;
+					}
 
 					if (settings.async) { // async + progress
 						data = "";
@@ -1978,7 +1993,7 @@
 							size : settings.thumbnailSize
 						};
 
-						if (settings.async) {
+						if (settings.async && settings.asyncThumbnails) {
 							var f = function(id) {
 								currentAsyncId = null;
 								doRequest("p", {
@@ -2238,6 +2253,9 @@
 					var data = args || {};
 					data.host = buildServerString(server);
 
+					var preload = data._preload;
+					delete data._preload;
+					
 					var handleAs;
 					switch (command) {
 					case "t":
@@ -2279,7 +2297,9 @@
 							if (err.dojoType != "cancel") {
 								if (progressParent)
 									progress();
-								showError(err);
+								if(!preload){
+									showError(err);
+								}
 							}
 						}
 					});
@@ -2720,6 +2740,7 @@
 					stateSwitch.set("value", settings.state ? "on" : "off");
 
 					thumbnailSizeBox.set("value", settings.thumbnailSize);
+					asyncThumbnailsSwitch.set("value", settings.asyncThumbnails ? "on" : "off");
 					listThumbnailsSwitch.set("value", settings.listThumbnails ? "on" : "off");
 					autoloadThumbnailsSwitch.set("value", settings.autoloadThumbnails ? "on" : "off");
 
@@ -2801,6 +2822,7 @@
 
 					settings.thumbnailSize = parseInt(thumbnailSizeBox
 							.get("value"));
+					settings.asyncThumbnails = asyncThumbnailsSwitch.get("value") == "on";
 					settings.listThumbnails = listThumbnailsSwitch.get("value") == "on";
 					settings.autoloadThumbnails = autoloadThumbnailsSwitch.get("value") == "on";
 					if(settings.autoloadThumbnails){
@@ -2832,6 +2854,7 @@
 				function updateLoadingSettingsItems() {
 					disable(progressSwitch, !settings.async);
 					disable(partialSwitch, !settings.async);
+					disable(asyncThumbnailsSwitch, !settings.async);
 					disable(optimizeImageDownloadSwitch, settings.async);
 				}
 
@@ -3322,7 +3345,7 @@
 						});
 						replaying = null;
 						domClass.remove(document.documentElement, "replaying");
-						//dom.byId("loadingScreen").style.display = "none";
+						dom.byId("loadingScreen").style.display = "none";
 					});
 				}
 
@@ -4714,6 +4737,12 @@ to {
 				class="inlineTextBox inlineNumberBox"
 				data-dojo-props="placeHolder:'default 100',onChange:updateThumbnailsSettings">
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show progress in index view
+				<span data-dojo-id="asyncThumbnailsSwitch"
+				data-dojo-type="dojox/mobile/Switch"
+				data-dojo-props="onStateChanged:updateThumbnailsSettings"></span>
+				<div class="itemDisabler"></div>
+			</li>
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Show thumbnails in list
 				<span data-dojo-id="listThumbnailsSwitch"
 				data-dojo-type="dojox/mobile/Switch"
@@ -4737,7 +4766,7 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
-		<p class="versionLabel">Ni! - Version 6.4.8 - &copy; 2017 Mobile
+		<p class="version versionLabel">Ni! - $VERSION - &copy; 2017 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
 	</div>
@@ -4809,7 +4838,7 @@ to {
 		data-dojo-id="invisibleButton" class="invisibleButton"></div>
 	<div id="loadingScreen">
 		<div id="loadingDiv">Loading...</div>
-		<div id="loadingVersion">V 6.4.8</div>
+		<div class="version" id="loadingVersion">$VERSION</div>
 	</div>
 </body>
 </html>

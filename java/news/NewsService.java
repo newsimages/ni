@@ -437,6 +437,10 @@ public class NewsService implements ProtocolCommandListener {
 			Progress progress, int screenSize) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
 
+		if(articleId == null){
+			throw new IOException("No article id");
+		}
+		
 		String[] aids = articleId.split(",");
 
 		NNTPClient client = connect(host);
@@ -1138,10 +1142,12 @@ public class NewsService implements ProtocolCommandListener {
 	private int computeMultivolumes(ArticleHeader article) {
 		boolean zeroBased = false;
 		Matcher m = multivolumePattern.matcher(article.subject);
+		/*
 		if(!(m.matches() && m.groupCount() == 2)){
 			m = multivolumePattern2.matcher(article.subject);
 			zeroBased = true;
 		}
+		*/
 		if (m.matches() && m.groupCount() == 2) {
 
 			String file = m.group(1);
