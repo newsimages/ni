@@ -1470,7 +1470,9 @@ window.addEventListener("load", function(){
 
 				function loadImage(data, partial) {
 					articleImage.partial = partial;
-					articleImage.style.visibility = data ? "visible" : "hidden";
+					if(!data){
+						articleImage.style.visibility = "hidden";
+					}
 					if (!setImageSrc(articleImage, data) && data) {
 						fitImage();
 					}
@@ -1953,7 +1955,6 @@ window.addEventListener("load", function(){
 						indexParent.removeChild(thp);
 					}
 					domClass.add(clearButton.domNode, "disabled");
-					indexView.scrollTo({x:0, y:0});
 				};
 
 				leaveIndexView = function() {
