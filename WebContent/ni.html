@@ -24,7 +24,7 @@
 
 <script type="text/javascript">
 window.addEventListener("load", function(){
-	var version = "Version 6.6.1";
+	var version = "Version 6.6.2";
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
 		var element = elements[i];
@@ -803,10 +803,7 @@ window.addEventListener("load", function(){
 					dom.byId("rightArrow").style.visibility = next(item, true) ? "inherit"
 							: "hidden";
 					
-					var seriesArrow = dom.byId("seriesArrow");
-					domClass.add(seriesArrow, "hidden");
-					seriesArrow = dom.byId("exitSeriesArrow");
-					domClass.add(seriesArrow, "hidden");
+					updateSeriesArrows(item);
 
 					setArticleTitle(item.get("label"));
 
@@ -1139,10 +1136,14 @@ window.addEventListener("load", function(){
 					if(item._groupItems){
 						dom.byId("seriesArrowCount").innerHTML = item._groupItems.length;
 						domClass.remove(seriesArrow, "hidden");
+					} else {
+						domClass.add(seriesArrow, "hidden");
 					}
 					seriesArrow = dom.byId("exitSeriesArrow");
 					if(item._parentGroup){
 						domClass.remove(seriesArrow, "hidden");
+					} else {
+						domClass.add(seriesArrow, "hidden");
 					}
 				}
 				
@@ -1469,9 +1470,7 @@ window.addEventListener("load", function(){
 
 				function loadImage(data, partial) {
 					articleImage.partial = partial;
-					if(!data){
-						articleImage.style.visibility = "hidden";
-					}
+					articleImage.style.visibility = data ? "visible" : "hidden";
 					if (!setImageSrc(articleImage, data) && data) {
 						fitImage();
 					}
