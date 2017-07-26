@@ -94,7 +94,7 @@ public class BinSearch extends SearchEngine {
 			writer.flush();
 			writer.close();
 
-			return new SearchEngine.Result(conn.getInputStream(), available);
+			return new SearchEngine.Result(new GZIPInputStream(conn.getInputStream()), available);
 		}
 		
 		return null;
