@@ -41,8 +41,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import news.search.SearchEngine;
-
 import org.apache.commons.net.ProtocolCommandEvent;
 import org.apache.commons.net.ProtocolCommandListener;
 import org.apache.commons.net.nntp.NNTPClient;
@@ -54,6 +52,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import news.cache.MemoryCache;
+import news.search.SearchEngine;
 
 /**
  * The root resource of our RESTful web service.
@@ -76,9 +77,11 @@ public class NewsService implements ProtocolCommandListener {
 			.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
 	private static Pattern multivolumePattern = Pattern
 			.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
+	/*
 	private static Pattern multivolumePattern2 = Pattern
 			.compile("(.*\\.\\w+\\.)(\\d+).*");
-
+	*/
+	
 	private static Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private static Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
 	private static Map<String, ArticleHeader> groupMap = new HashMap<String, ArticleHeader>();
@@ -100,6 +103,8 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_UU = 2;
 	private static final int CODE_YENC = 3;
 
+	private static MemoryCache articleCache = new MemoryCache();
+	
 	public NewsService() {
 	}
 
@@ -441,6 +446,13 @@ public class NewsService implements ProtocolCommandListener {
 			throw new IOException("No article id");
 		}
 		
+		ArticleBody body;
+
+		body = articleCache.get(articleId);
+		if(body != null){
+			return body;
+		}
+		
 		String[] aids = articleId.split(",");
 
 		NNTPClient client = connect(host);
@@ -487,8 +499,6 @@ public class NewsService implements ProtocolCommandListener {
 
 		disconnect(host, client);
 
-		ArticleBody body;
-
 		if (aids.length == 1) {
 			body = bodies[0];
 		} else {
@@ -524,6 +534,8 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
+		articleCache.put(articleId, body);
+		
 		if (screenSize > 0) {
 			for (int i = 0; i < body.attachments.size(); i++) {
 				Attachment a = body.attachments.get(i);
