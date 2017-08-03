@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.7.0";
+	var version = "Version 6.8.0";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -191,11 +191,7 @@ window.addEventListener("load", function(){
 							}
 							return;
 						}
-						var v = searchView.domNode.style.display != "none" ? searchView
-								: (newsgroupView.domNode.style.display != "none" ? newsgroupView
-										: (seriesView.domNode.style.display != "none" ? seriesView
-												: (seriesView2.domNode.style.display != "none" ? seriesView2
-											: null)));
+						var v = getCurrentListView();
 						if (v) {
 							switch (k) {
 							case keys.BACKSPACE:
@@ -385,7 +381,7 @@ window.addEventListener("load", function(){
 						}
 						if (available > 0) {
 							var moreItem = new ListItem({
-								label : (articles && articles.length > 0) ? "More..." : "Timeout: continue...",
+								label : (articles && articles.length > 0) ? "More..." : "Timeout: retry...",
 								clickable : true,
 								noArrow : true,
 								onClick : function() {
@@ -440,6 +436,9 @@ window.addEventListener("load", function(){
 						list.addChild(noArticlesItem);
 					} else {
 						var children = list.getChildren();
+						if(children.length == 0){
+							addIndexItem(list);
+						}
 						var item = children.length > 0 ? children[children.length - 1]
 								: null;
 						for (var i = 0; i < articles.length; i++) {
@@ -473,6 +472,17 @@ window.addEventListener("load", function(){
 									y : 0
 								});
 					}
+				}
+				
+				function addIndexItem(list){
+					var indexItem = new ListItem({
+						label : "Index",
+						clickable : true,
+						onClick : showThumbnails
+					});
+					indexItem.isIndexItem = true;
+					domClass.add(indexItem.domNode, "grayItem indexItem");
+					list.addChild(indexItem);
 				}
 				
 				function addGroupItems(list, groupItem, groupArticles, label, newsgroup){
@@ -586,6 +596,7 @@ window.addEventListener("load", function(){
 					while ((children = list.getChildren()).length > 0) {
 						list.removeChild(children[0]);
 					}
+					addIndexItem(list);
 					array.forEach(this._groupItems, function(child){
 						list.addChild(child);
 						child._list = list;
@@ -857,6 +868,7 @@ window.addEventListener("load", function(){
 						if (settings.partial) {
 							loadImage("", true);
 						}
+						progress(articleView);
 						} // item !== itemBeingPreloaded
 						var f = function(id) {
 							currentAsyncId = null;
@@ -899,6 +911,7 @@ window.addEventListener("load", function(){
 												filename = p.filename;
 												showPartialData();
 												updateSeriesArrows(item);
+												progress();
 											}
 										} // item !== itemBeingPreloaded
 										if (!p.complete) {
@@ -1900,7 +1913,7 @@ window.addEventListener("load", function(){
 				//---------- Image index ----------
 
 				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 10;
-				var indexParent, thumbnailClicked, down = true, pauseClicked;
+				var indexParent, down = true, pauseClicked;
 
 				function initThumbnails() {
 					indexParent = dom.byId("indexParent");
@@ -1922,13 +1935,14 @@ window.addEventListener("load", function(){
 
 				showThumbnails = function() {
 					record("showThumbnails", null, []);
-					currentItemBeforeThumbails = currentItem;
-					articleView.performTransition("index", 1,
-							replaying ? "none" : "slide");
+					var v = getCurrentListView();
+					indexHeading.set("moveTo", v.id);
+					v.performTransition("index", 1, replaying ? "none" : "slide");
 					if (replaying) {
 						stopThumbnails();
 					} else if (!pauseClicked) {
-						getThumbnail(currentItem);
+						getThumbnail(v.list.getChildren()[1]);
+						scroll(indexView, -indexView.getDim().o.h);
 					}
 					resize(); // ???
 				};
@@ -1962,12 +1976,10 @@ window.addEventListener("load", function(){
 				leaveIndexView = function() {
 					clearRecords("showThumbnails");
 					stopThumbnails();
-					var item = currentItemBeforeThumbails || currentItem;
-					currentItemBeforeThumbails = null;
-					if (!thumbnailClicked && item) {
-						showArticle(item);
-					}
-					thumbnailClicked = false;
+					fixList(searchResultsList);
+					fixList(newsgroupResultsList);
+					fixList(seriesResultsList);
+					fixList(seriesResultsList2);
 				};
 
 				function stopThumbnails() {
@@ -2044,8 +2056,9 @@ window.addEventListener("load", function(){
 										currentThumbnailParent = null;
 										progress();
 										if (p.exception) {
-											thp.innerText = p.exception;
-											showError(p.exception);
+											removeThumbnailParent();
+											if (!replaying)
+												getThumbnail(item, true);
 										} else {
 											if (p.body) {
 												addThumbnails(p.body, item,
@@ -2067,11 +2080,15 @@ window.addEventListener("load", function(){
 						} else {
 							doRequest("th", args, thp, function(result) {
 								addThumbnails(result.articleBody, item, thp);
+							}, function(err){
+								removeThumbnailParent();
+								if (!replaying && err.dojoType != "cancel")
+									getThumbnail(item, true);
 							});
 						}
 					}
 
-					if (!item.isMoreItem) {
+					if (!item.isMoreItem && !item.isIndexItem) {
 						loadThumbnail(item);
 					} else if (prev) {
 						progress(thp);
@@ -2151,8 +2168,9 @@ window.addEventListener("load", function(){
 					th.style.maxHeight = sz;
 					setImageSrc(th, data);
 					on(th, "click", function() {
-						thumbnailClicked = true;
-						indexView.performTransition("article", -1, "slide");
+						articleBackButton.set("moveTo", "index");
+						textHeading.set("moveTo", "index");
+						indexView.performTransition("article", 1, "slide");
 						showArticle(item);
 					});
 					thp.appendChild(th);
@@ -2433,6 +2451,14 @@ window.addEventListener("load", function(){
 					var p = name.toLowerCase().split(".");
 					return p[p.length - 1];
 				}
+				
+				function getCurrentListView() {
+					return searchView.domNode.style.display != "none" ? searchView
+						: (newsgroupView.domNode.style.display != "none" ? newsgroupView
+						: (seriesView.domNode.style.display != "none" ? seriesView
+						: (seriesView2.domNode.style.display != "none" ? seriesView2
+						: null)));
+				}
 
 				//---------- Binary data conversion ----------
 
@@ -2573,11 +2599,7 @@ window.addEventListener("load", function(){
 						autoloadTimer = null;
 					}
 					
-					var v = searchView.domNode.style.display != "none" ? searchView
-							: (newsgroupView.domNode.style.display != "none" ? newsgroupView
-									: (seriesView.domNode.style.display != "none" ? seriesView
-											: (seriesView2.domNode.style.display != "none" ? seriesView2
-										: null)));
+					var v = getCurrentListView();
 					if(v && !currentRequest){
 						var l = v.list;
 						if(l){
@@ -4384,6 +4406,14 @@ to {
 	color: gray;
 }
 
+.mblListItem.mblVariableHeight.indexItem {
+	font-style: italic;
+}
+.mblListItem.mblVariableHeight.indexItem .mblListItemRightIcon {
+	margin-bottom: -10px;
+    margin-top: -5px;
+}
+
 .multiVolumeItem {
 	font-weight: bold;
 }
@@ -4629,13 +4659,6 @@ to {
 				data-dojo-id="articleBackButton" class="articleBackButton"
 				data-dojo-props="moveTo:'search',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
 			</div>
-			<div data-dojo-type="dojox/mobile/ToolBarButton" class="indexButton"
-				data-dojo-props="onClick: showThumbnails">
-				<div class="indexButtonDiv indexButtonDiv1"></div>
-				<div class="indexButtonDiv indexButtonDiv2"></div>
-				<div class="indexButtonDiv indexButtonDiv3"></div>
-				<div class="indexButtonDiv indexButtonDiv4"></div>
-			</div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
 				data-dojo-props="label: 'T', onClick: showArticleText"></div>
@@ -4667,7 +4690,7 @@ to {
 		class="indexView" data-dojo-id="indexView"
 		data-dojo-props="onBeforeTransitionOut:leaveIndexView">
 		<div data-dojo-type="dojox/mobile/Heading" data-dojo-id="indexHeading"
-			data-dojo-props="fixed:'top',label:'Index',moveTo:'article',back:'Back'">
+			data-dojo-props="fixed:'top',label:'Index',back:'Back'">
 			<div data-dojo-type="dojox/mobile/ToolBarButton"
 				class="pauseButton pause" id="pauseButton"
 				data-dojo-id="pauseButton"
