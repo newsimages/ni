@@ -20,7 +20,7 @@ public class MemoryCache {
 	}
 	
 	public MemoryCache(){
-		this(200*1024*1024);
+		this(100*1024*1024);
 	}
 	
 	public void put(String articleId, ArticleBody body){
