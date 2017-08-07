@@ -53,7 +53,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import news.cache.MemoryCache;
+import news.cache.CacheInfo;
+import news.cache.DiskCache;
 import news.search.SearchEngine;
 
 /**
@@ -103,7 +104,7 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_UU = 2;
 	private static final int CODE_YENC = 3;
 
-	private static MemoryCache articleCache = new MemoryCache();
+	private static DiskCache articleCache = new DiskCache();
 	
 	public NewsService() {
 	}
@@ -513,6 +514,7 @@ public class NewsService implements ProtocolCommandListener {
 				if (body.newsgroups == null)
 					body.newsgroups = b.newsgroups;
 				body.text += b.text;
+				body.size += b.size;
 				for (int j = 0; j < b.attachments.size(); j++) {
 					Attachment atti = b.attachments.get(j);
 					Attachment att;
@@ -1511,6 +1513,25 @@ public class NewsService implements ProtocolCommandListener {
 		return Response.ok(in).header("Content-Disposition", "attachment; filename=" + name).build();
 	}
 
+	// ---------
+	// Cache
+	// ---------
+
+	@POST
+	@Path("ci")
+	@Produces(MediaType.APPLICATION_JSON)
+	public CacheInfo getCacheInfo(){
+		return articleCache.getInfo();
+	}
+	
+	@POST
+	@Path("cc")
+	@Produces(MediaType.APPLICATION_JSON)
+	public CacheInfo clearCache(){
+		articleCache.clear();
+		return articleCache.getInfo();
+	}
+	
 	// ---------
 	// Utilities
 	// ---------

@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.8.0";
+	var version = "Version 6.9.0";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -3074,6 +3074,22 @@ window.addEventListener("load", function(){
 					}
 				};
 
+				//---------- Cache ----------
+				
+				getCacheInfo = function(){
+					doRequest("ci", {}, null, showCacheInfo);
+				}
+				
+				clearCache = function(){
+					doRequest("cc", {}, null, showCacheInfo);
+				}
+				
+				function showCacheInfo(info){
+					dom.byId("cacheMaxSizeValue").innerHTML = Math.round(info.cacheInfo.maxSize / (1024*1024)) + " Mb";
+					dom.byId("cacheSizeValue").innerHTML = Math.round(info.cacheInfo.size / (1024*1024)) + " Mb";
+					dom.byId("cacheCountValue").innerHTML = info.cacheInfo.count;
+				}
+				
 				//---------- Current state ----------
 
 				var funcnames = [ "setSearch", "getNewsgroups",
@@ -3774,12 +3790,19 @@ body,html {
 	height: 20px;
 }
 
-.deleteButton {
+.itemBeforeButton {
+	border-bottom: none;
+}
+
+.listItemButton {
 	position: absolute;
 	left: 9px;
 	right: 9px;
 	font-size: medium;
 	height: 40px;
+}
+
+.deleteButton {
 	background: #ed4d15;
 	color: white;
 }
@@ -4708,7 +4731,7 @@ to {
 	</div>
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="settings"
 		data-dojo-id="settingsView"
-		data-dojo-props="onBeforeTransitionOut:cancelRequest">
+		data-dojo-props="onBeforeTransitionIn:getCacheInfo,onBeforeTransitionOut:cancelRequest">
 		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="fixed:'top',label:'Settings',moveTo:'search',back:'Done'"></div>
 		<p class="settingsLabel">Usenet server</p>
@@ -4823,6 +4846,21 @@ to {
 				data-dojo-props="placeHolder:'default 100',onChange:updateSlideshowSettings">
 			</li>
 		</ul>
+		<p class="settingsLabel">Cache</p>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Max size
+				<div id="cacheMaxSizeValue" class="inlineLabel"></div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1">Current size
+				<div id="cacheSizeValue" class="inlineLabel"></div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1" class="itemBeforeButton">Articles cached
+				<div id="cacheCountValue" class="inlineLabel"></div>
+			</li>
+				<button data-dojo-type="dojox/mobile/Button" class="listItemButton clearCacheButton"
+					data-dojo-id="clearCacheButton"
+					data-dojo-props="label:'Clear cache',onClick:clearCache,duration:0"></button>
+		</ul>
 		<p class="version versionLabel">Ni! - $VERSION - &copy; 2017 Mobile
 			Factory</p>
 		<div class="settingsSpacer"></div>
@@ -4879,7 +4917,7 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1"
 				data-dojo-id="replyItem" class="replyItem"></li>
 		</ul>
-		<button data-dojo-type="dojox/mobile/Button" class="deleteButton"
+		<button data-dojo-type="dojox/mobile/Button" class="listButton deleteButton"
 			data-dojo-id="deleteServerButton"
 			data-dojo-props="label:'Forget this server',onClick:deleteServer,duration:0"></button>
 	</div>
