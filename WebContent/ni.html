@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.9.0";
+	var version = "Version 6.9.1";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -4857,9 +4857,11 @@ to {
 			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1" class="itemBeforeButton">Articles cached
 				<div id="cacheCountValue" class="inlineLabel"></div>
 			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" tabIndex="-1" class="itemBeforeButton">
 				<button data-dojo-type="dojox/mobile/Button" class="listItemButton clearCacheButton"
 					data-dojo-id="clearCacheButton"
 					data-dojo-props="label:'Clear cache',onClick:clearCache,duration:0"></button>
+			</li>
 		</ul>
 		<p class="version versionLabel">Ni! - $VERSION - &copy; 2017 Mobile
 			Factory</p>
