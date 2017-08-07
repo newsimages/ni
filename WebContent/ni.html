@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.9.1";
+	var version = "Version 6.9.2";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1913,7 +1913,7 @@ window.addEventListener("load", function(){
 				//---------- Image index ----------
 
 				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 10;
-				var indexParent, down = true, pauseClicked;
+				var indexParent, thumbnailClicked, down = true, pauseClicked;
 
 				function initThumbnails() {
 					indexParent = dom.byId("indexParent");
@@ -1933,15 +1933,16 @@ window.addEventListener("load", function(){
 				var currentThumbnailItem, currentThumbnailParent;
 				var currentItemBeforeThumbails;
 
-				showThumbnails = function() {
+				showThumbnails = function(fromArticle) {
 					record("showThumbnails", null, []);
-					var v = getCurrentListView();
+					var v = getCurrentListView() || articleView;
+					currentItemBeforeThumbails = v === articleView ? currentItem : v.list.getChildren()[1];
 					indexHeading.set("moveTo", v.id);
 					v.performTransition("index", 1, replaying ? "none" : "slide");
 					if (replaying) {
 						stopThumbnails();
 					} else if (!pauseClicked) {
-						getThumbnail(v.list.getChildren()[1]);
+						getThumbnail(currentItemBeforeThumbails);
 						scroll(indexView, -indexView.getDim().o.h);
 					}
 					resize(); // ???
@@ -1976,6 +1977,12 @@ window.addEventListener("load", function(){
 				leaveIndexView = function() {
 					clearRecords("showThumbnails");
 					stopThumbnails();
+					var item = currentItemBeforeThumbails || currentItem;
+					currentItemBeforeThumbails = null;
+					if (!thumbnailClicked && item) {
+						showArticle(item);
+					}
+					thumbnailClicked = false;
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
 					fixList(seriesResultsList);
@@ -2168,8 +2175,9 @@ window.addEventListener("load", function(){
 					th.style.maxHeight = sz;
 					setImageSrc(th, data);
 					on(th, "click", function() {
-						articleBackButton.set("moveTo", "index");
-						textHeading.set("moveTo", "index");
+						//articleBackButton.set("moveTo", "index");
+						//textHeading.set("moveTo", "index");
+						thumbnailClicked = true;
 						indexView.performTransition("article", 1, "slide");
 						showArticle(item);
 					});
@@ -4681,6 +4689,13 @@ to {
 			<div data-dojo-type="dojox/mobile/ToolBarButton"
 				data-dojo-id="articleBackButton" class="articleBackButton"
 				data-dojo-props="moveTo:'search',transition:'slide',transitionDir:-1,arrow:'left',label:'Back'">
+			</div>
+			<div data-dojo-type="dojox/mobile/ToolBarButton" class="indexButton"
+				data-dojo-props="onClick: showThumbnails">
+				<div class="indexButtonDiv indexButtonDiv1"></div>
+				<div class="indexButtonDiv indexButtonDiv2"></div>
+				<div class="indexButtonDiv indexButtonDiv3"></div>
+				<div class="indexButtonDiv indexButtonDiv4"></div>
 			</div>
 			<div data-dojo-type="dojox/mobile/ToolBarButton" class="textButton"
 				data-dojo-id="textButton"
