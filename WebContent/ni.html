@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.9.2";
+	var version = "Version 6.9.3";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -619,12 +619,17 @@ window.addEventListener("load", function(){
 					selectArticle.call(items[1], null, true);
 				};
 				
+				function setArticleBackView(moveTo, saveMoveTo){
+					articleBackButton.savedMoveTo = saveMoveTo ? articleBackButton.moveTo : null;
+					articleBackButton.set("moveTo", moveTo);
+					textHeading.set("moveTo", moveTo);
+				}
+				
 				exitSeries = function() {
 					var moveTo = (gotoSeriesCount % 2 == 0 ? seriesHeading : seriesHeading2).moveTo;
 					leaveSeriesView(moveTo, -1);
 					next(currentItem._parentGroup);
-					articleBackButton.set("moveTo", moveTo);
-					textHeading.set("moveTo", moveTo);
+					setArticleBackView(moveTo);
 				};
 				
 				leaveSeriesView = function(moveTo, dir) {
@@ -781,8 +786,7 @@ window.addEventListener("load", function(){
 					}
 					var view = this.view;
 					view.performTransition("article", 1, (replaying || noTransition) ? "none" : "slide");
-					articleBackButton.set("moveTo", view.id);
-					textHeading.set("moveTo", view.id);
+					setArticleBackView(view.id);
 					showArticle(this);
 				}
 				
@@ -1050,6 +1054,9 @@ window.addEventListener("load", function(){
 					cancelRequest();
 					startStopSlideshow(0);
 					if (to == "index") {
+						if(articleBackButton.savedMoveTo){
+							setArticleBackView(articleBackButton.savedMoveTo);
+						}
 						return;
 					}
 					hideArticle();
@@ -1913,7 +1920,7 @@ window.addEventListener("load", function(){
 				//---------- Image index ----------
 
 				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 10;
-				var indexParent, thumbnailClicked, down = true, pauseClicked;
+				var indexParent, down = true, pauseClicked;
 
 				function initThumbnails() {
 					indexParent = dom.byId("indexParent");
@@ -1931,18 +1938,16 @@ window.addEventListener("load", function(){
 				}
 
 				var currentThumbnailItem, currentThumbnailParent;
-				var currentItemBeforeThumbails;
 
 				showThumbnails = function(fromArticle) {
 					record("showThumbnails", null, []);
 					var v = getCurrentListView() || articleView;
-					currentItemBeforeThumbails = v === articleView ? currentItem : v.list.getChildren()[1];
 					indexHeading.set("moveTo", v.id);
 					v.performTransition("index", 1, replaying ? "none" : "slide");
 					if (replaying) {
 						stopThumbnails();
 					} else if (!pauseClicked) {
-						getThumbnail(currentItemBeforeThumbails);
+						getThumbnail(v === articleView ? currentItem : v.list.getChildren()[1]);
 						scroll(indexView, -indexView.getDim().o.h);
 					}
 					resize(); // ???
@@ -1977,12 +1982,6 @@ window.addEventListener("load", function(){
 				leaveIndexView = function() {
 					clearRecords("showThumbnails");
 					stopThumbnails();
-					var item = currentItemBeforeThumbails || currentItem;
-					currentItemBeforeThumbails = null;
-					if (!thumbnailClicked && item) {
-						showArticle(item);
-					}
-					thumbnailClicked = false;
 					fixList(searchResultsList);
 					fixList(newsgroupResultsList);
 					fixList(seriesResultsList);
@@ -2060,7 +2059,6 @@ window.addEventListener("load", function(){
 									} else {
 										currentAsyncId = null;
 										currentThumbnailItem = null;
-										currentThumbnailParent = null;
 										progress();
 										if (p.exception) {
 											removeThumbnailParent();
@@ -2107,6 +2105,9 @@ window.addEventListener("load", function(){
 				}
 
 				function addThumbnails(body, item, thp, th) {
+					
+					currentThumbnailParent = null;
+					
 					record("addThumbnails", null, [ body, item ]);
 					array.forEach(ensureArray(body.attachments), function(att) {
 
@@ -2175,9 +2176,7 @@ window.addEventListener("load", function(){
 					th.style.maxHeight = sz;
 					setImageSrc(th, data);
 					on(th, "click", function() {
-						//articleBackButton.set("moveTo", "index");
-						//textHeading.set("moveTo", "index");
-						thumbnailClicked = true;
+						setArticleBackView("index", true);
 						indexView.performTransition("article", 1, "slide");
 						showArticle(item);
 					});
