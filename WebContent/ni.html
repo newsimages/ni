@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.9.3";
+	var version = "Version 6.10.0";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1490,14 +1490,63 @@ window.addEventListener("load", function(){
 					videoHeading.set("label", s);
 				}
 
+				var startFade, startFadeOut, endFadeOut, startFadeIn, endFadeIn;
+				
 				function loadImage(data, partial) {
 					articleImage.partial = partial;
 					if(!data){
 						articleImage.style.visibility = "hidden";
 					}
-					if (!setImageSrc(articleImage, data) && data) {
+					if(data && !partial && !articleImage.partialNonEmpty){
+						// fade
+						if(startFade){
+							clearTimeout(startFade);
+						}
+						if(startFadeOut){
+							clearTimeout(startFadeOut);
+						}
+						if(endFadeOut){
+							endFadeOut.remove();
+						}
+						if(startFadeIn){
+							clearTimeout(startFadeIn);
+						}
+						if(endFadeIn){
+							endFadeIn.remove();
+						}
+						articleImage.style.transition = "none";
+						articleImage.style.opacity = 1;
+						startFade = setTimeout(function(){
+							startFade = null;
+							articleImage.style.transition = "opacity 0.2s linear";
+							startFadeOut = setTimeout(function() {
+								startFadeOut = null;
+								//console.log("start out");
+								articleImage.style.opacity = 0;
+								endFadeOut = on.once(articleImage, "transitionend", function(){
+									endFadeOut = null;
+									//console.log("end out");
+									if(!setImageSrc(articleImage, data)) {
+										fitImage();
+									}
+									articleImage.style.transition = "opacity 0.3s linear";
+									startFadeIn = setTimeout(function() {
+										startFadeIn = null;
+										//console.log("start in");
+										articleImage.style.opacity = 1;
+										endFadeIn = on.once(articleImage, "transitionend", function(){
+											endFadeIn = null;
+											//console.log("end in");
+											articleImage.style.transition = "none";
+										});
+									});
+								});
+							});
+						});
+					} else if (!setImageSrc(articleImage, data) && data) {
 						fitImage();
 					}
+					articleImage.partialNonEmpty = partial && data;
 				}
 				
 				function setImageSrc(img, data) {
@@ -3993,6 +4042,17 @@ body,html {
 	perspective: 1000;
 	background-color: #808080;
 	visibility: hidden;
+	transition: none;
+}
+
+.articleImage.fadeOut {
+	transition:opacity 0.2s linear;
+	opacity: 0;
+}
+
+.articleImage.fadeIn {
+	transition:opacity 0.3s linear;
+	opacity: 1;
 }
 
 .articleControls,.indexControls {
