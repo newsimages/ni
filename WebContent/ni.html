@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.10.0";
+	var version = "Version 6.10.1";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -40,8 +40,8 @@ window.addEventListener("load", function(){
 
 <script>
 	require(
-			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch",
-					"dojo/keys", "dojo/_base/event", "dojo/aspect",
+			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch", "dojo/keys",
+					"dojo/_base/event", "dojo/aspect",	"dojo/Deferred", "dojo/when",
 					"dojo/json", "dojo/_base/array", "dojo/_base/lang",
 					"dojo/dom", "dojo/dom-construct", "dojo/dom-class",
 					"dojo/request", "dojo/request/handlers", "dijit/registry", "dojox/mobile/ListItem",
@@ -49,8 +49,8 @@ window.addEventListener("load", function(){
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
 					"dojox/mobile/ToolBarButton", "dojox/mobile",
 					"js-unzip.js", "js-inflate.js", "unrar.js" ],
-			function(ready, parser, has, on, touch, keys, event, aspect, json,
-					array, lang, dom, domConstruct, domClass, request, handlers,
+			function(ready, parser, has, on, touch, keys, event, aspect, Deferred, when,
+					json, array, lang, dom, domConstruct, domClass, request, handlers,
 					registry, ListItem, Progressindicator, viewRegistry,
 					ScrollableView, ToolBarButton, mobile, JSUnzip, JSInflate,
 					unrar) {
@@ -1497,56 +1497,46 @@ window.addEventListener("load", function(){
 					if(!data){
 						articleImage.style.visibility = "hidden";
 					}
-					if(data && !partial && !articleImage.partialNonEmpty){
-						// fade
-						if(startFade){
-							clearTimeout(startFade);
-						}
-						if(startFadeOut){
-							clearTimeout(startFadeOut);
-						}
-						if(endFadeOut){
-							endFadeOut.remove();
-						}
-						if(startFadeIn){
-							clearTimeout(startFadeIn);
-						}
-						if(endFadeIn){
-							endFadeIn.remove();
-						}
-						articleImage.style.transition = "none";
-						articleImage.style.opacity = 1;
-						startFade = setTimeout(function(){
-							startFade = null;
-							articleImage.style.transition = "opacity 0.2s linear";
-							startFadeOut = setTimeout(function() {
-								startFadeOut = null;
-								//console.log("start out");
-								articleImage.style.opacity = 0;
-								endFadeOut = on.once(articleImage, "transitionend", function(){
-									endFadeOut = null;
-									//console.log("end out");
-									if(!setImageSrc(articleImage, data)) {
-										fitImage();
-									}
-									articleImage.style.transition = "opacity 0.3s linear";
-									startFadeIn = setTimeout(function() {
-										startFadeIn = null;
-										//console.log("start in");
-										articleImage.style.opacity = 1;
-										endFadeIn = on.once(articleImage, "transitionend", function(){
-											endFadeIn = null;
-											//console.log("end in");
-											articleImage.style.transition = "none";
-										});
-									});
-								});
-							});
+					if(data && !partial && !(articleImage.wasPartial && !articleImage.wasEmpty) && !replaying){
+						when(articleImage.wasEmpty || fade(articleImage, 1, 0, 0.2), function(){
+							setArticleImage(data);
+							fade(articleImage, 0, 1, 0.3);
 						});
-					} else if (!setImageSrc(articleImage, data) && data) {
-						fitImage();
+					} else {
+						setArticleImage(data);
 					}
-					articleImage.partialNonEmpty = partial && data;
+					articleImage.wasPartial = partial;
+					articleImage.wasEmpty = !data
+				}
+				
+				function setArticleImage(data){
+					if (!setImageSrc(articleImage, data) && data) {
+						fitImage();
+					}					
+				}
+				
+				function fade(node, from, to, duration){
+					
+					node._fadeStart && clearTimeout(node._fadeStart);
+					node._fadeEnd && node._fadeEnd.remove();
+					node._fadeDeferred && node._fadeDeferred.reject();
+
+					var d = node._fadeDeferred = new Deferred();
+					
+					node.style.transition = "opacity " + duration + "s linear";
+					node.style.opacity = from;
+					node._fadeStart = setTimeout(function(){
+						delete node._fadeStart;
+						node._fadeEnd = on.once(node, "transitionend", function(){
+							node.style.transition = "none";
+							delete node._fadeEnd;
+							delete node._fadeDeferred;
+							d.resolve();
+						});
+						node.style.opacity = to;
+					});
+					
+					return d.promise;
 				}
 				
 				function setImageSrc(img, data) {
@@ -2170,6 +2160,9 @@ window.addEventListener("load", function(){
 							th = createThumbnail(att.data, item, thp);
 						} else {
 							setImageSrc(th, att.data);
+						}
+						if(!replaying){
+							fade(th, 0, 1, 0.2);
 						}
 
 						item.thumbnailBody = body;
