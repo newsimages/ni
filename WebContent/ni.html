@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.10.1";
+	var version = "Version 6.10.2";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1490,17 +1490,15 @@ window.addEventListener("load", function(){
 					videoHeading.set("label", s);
 				}
 
-				var startFade, startFadeOut, endFadeOut, startFadeIn, endFadeIn;
-				
 				function loadImage(data, partial) {
 					articleImage.partial = partial;
 					if(!data){
 						articleImage.style.visibility = "hidden";
 					}
-					if(data && !partial && !(articleImage.wasPartial && !articleImage.wasEmpty) && !replaying){
-						when(articleImage.wasEmpty || fade(articleImage, 1, 0, 0.2), function(){
+					if(data && !(articleImage.wasPartial && !articleImage.wasEmpty) && !replaying){
+						when(articleImage.wasEmpty || fade(articleImage, 1, 0, 0.1), function(){
 							setArticleImage(data);
-							fade(articleImage, 0, 1, 0.3);
+							fade(articleImage, 0, 1, 0.2);
 						});
 					} else {
 						setArticleImage(data);
@@ -4036,16 +4034,6 @@ body,html {
 	background-color: #808080;
 	visibility: hidden;
 	transition: none;
-}
-
-.articleImage.fadeOut {
-	transition:opacity 0.2s linear;
-	opacity: 0;
-}
-
-.articleImage.fadeIn {
-	transition:opacity 0.3s linear;
-	opacity: 1;
 }
 
 .articleControls,.indexControls {
