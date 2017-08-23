@@ -58,7 +58,7 @@ public class DiskCache {
 	}
 	
 	public DiskCache(){
-		this(100*1024*1024);
+		this(500*1024*1024);
 	}
 	
 	public void put(String articleId, ArticleBody body){
