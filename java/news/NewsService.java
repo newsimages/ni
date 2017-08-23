@@ -135,7 +135,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		list.total = infos.length;
 
-		for (int i = 0; i < infos.length && i < max; i++) {
+		for (int i = 0; i < infos.length /* && i < max*/; i++) {
 			NewsgroupInfo info = infos[i];
 			String name = info.getNewsgroup();
 			list.newsgroups.add(new Newsgroup(name, info.getArticleCountLong(),
