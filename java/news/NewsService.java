@@ -10,9 +10,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -104,6 +106,14 @@ public class NewsService implements ProtocolCommandListener {
 	private static Map<String, User> users = new HashMap<String, User>();
 	
 	public NewsService() {
+		try {
+			System.setProperty("file.encoding","UTF-8");
+			Field charset;
+			charset = Charset.class.getDeclaredField("defaultCharset");
+			charset.setAccessible(true);
+			charset.set(null,null);
+		} catch (Exception e) {
+		}
 	}
 
 	@POST

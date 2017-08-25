@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.11.3";
+	var version = "Version 6.11.4";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -2414,6 +2414,8 @@ require(["dojo/has"], function(has){
 								}
 							}
 						});
+					}, function(err){
+						showError(err);
 					});
 				}
 
