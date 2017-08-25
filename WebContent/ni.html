@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.11.1";
+	var version = "Version 6.11.2";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -39,6 +39,12 @@ window.addEventListener("load", function(){
 	data-dojo-config="async:1, parseOnLoad:true, locale:'en-us'"></script>
 
 <script>
+require(["dojo/has"], function(has){
+	
+	if(has("chrome")){
+		has.add("pointer-events", false, true, true);
+	}
+	
 	require(
 			[ "dojo/ready", "dojo/parser", "dojo/has", "dojo/on", "dojo/touch", "dojo/keys",
 					"dojo/_base/event", "dojo/aspect",	"dojo/Deferred", "dojo/when",
@@ -3494,6 +3500,7 @@ window.addEventListener("load", function(){
 					}
 				}
 			});
+		});
 </script>
 
 <style type="text/css">
