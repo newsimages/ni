@@ -21,8 +21,6 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.ws.rs.FormParam;
@@ -53,6 +51,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import news.HeaderGroupMatcher.HeaderGroupMatchResult;
 import news.cache.CacheInfo;
 import news.cache.DiskCache;
 import news.search.SearchEngine;
@@ -74,15 +73,6 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static HashMap<String, Stack<ClientInfo>> clientPool = new HashMap<String, Stack<ClientInfo>>();
 
-	private static Pattern multipartPattern = Pattern
-			.compile("(.*)\\((\\d+)/(\\d+)\\)(.*)");
-	private static Pattern multivolumePattern = Pattern
-			.compile(".*\"(.*)\\.part(\\d+)\\.rar\".*");
-	/*
-	private static Pattern multivolumePattern2 = Pattern
-			.compile("(.*\\.\\w+\\.)(\\d+).*");
-	*/
-	
 	private static Map<String, ArticleHeader[]> multipartMap = new HashMap<String, ArticleHeader[]>();
 	private static Map<String, ArticleHeader[]> multivolumeMap = new HashMap<String, ArticleHeader[]>();
 	private static Map<String, ArticleHeader> groupMap = new HashMap<String, ArticleHeader>();
@@ -106,6 +96,13 @@ public class NewsService implements ProtocolCommandListener {
 
 	private static DiskCache articleCache = new DiskCache();
 	
+	private static class User {
+		public String username;
+		public String password;
+	}
+	
+	private static Map<String, User> users = new HashMap<String, User>();
+	
 	public NewsService() {
 	}
 
@@ -115,6 +112,19 @@ public class NewsService implements ProtocolCommandListener {
 		return "Usenet News (NNTP) REST Service";
 	}
 
+	@POST
+	@Path("l")
+	@Produces(MediaType.TEXT_PLAIN)
+	public String login(@FormParam("host") String host)
+			throws SocketException, IOException {
+		connect(host);
+		String token = String.valueOf(System.currentTimeMillis());
+		User user = new User();
+		parseUser(host, user);
+		users.put(token,  user);
+		return token;
+	}
+	
 	@POST
 	@Path("g")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -685,6 +695,24 @@ public class NewsService implements ProtocolCommandListener {
 		return reply;
 	}
 
+	private String parseUser(String host, User user) {
+		String username = null;
+		String password = null;
+		int userIndex = host.lastIndexOf('@');
+		if (userIndex >= 0) {
+			username = host.substring(0, userIndex);
+			int passIndex = username.indexOf(':');
+			if (passIndex >= 0) {
+				password = username.substring(passIndex + 1);
+				username = username.substring(0, passIndex);
+			}
+			host = host.substring(userIndex + 1);
+		}
+		user.username = username;
+		user.password = password;
+		return host;
+	}
+	
 	private NNTPClient connect(String host) throws SocketException, IOException {
 
 		Stack<ClientInfo> clients = clientPool.get(host);
@@ -709,23 +737,16 @@ public class NewsService implements ProtocolCommandListener {
 				host = host.substring(0, portIndex);
 			}
 		}
-
-		String username = null;
-		String password = null;
-
-		int userIndex = host.lastIndexOf('@');
-		if (userIndex >= 0) {
-			username = host.substring(0, userIndex);
-			int passIndex = username.indexOf(':');
-			if (passIndex >= 0) {
-				password = username.substring(passIndex + 1);
-				username = username.substring(0, passIndex);
-			} else {
-				password = "";
+		
+		User user = new User();
+		host = parseUser(host, user);
+		if(user.username != null && user.password == null){
+			user = users.get(user.username);
+			if(user == null){
+				throw new IOException("502 User logged out: retry to login again");
 			}
-			host = host.substring(userIndex + 1);
 		}
-
+		
 		InetAddress addr = InetAddress.getByName(host);
 
 		NNTPClient client = new NNTPClient();
@@ -734,8 +755,8 @@ public class NewsService implements ProtocolCommandListener {
 
 		client.connect(addr, port);
 
-		if (username != null)
-			client.authenticate(username, password);
+		if (user.username != null)
+			client.authenticate(user.username, user.password);
 
 		return client;
 	}
@@ -1080,42 +1101,31 @@ public class NewsService implements ProtocolCommandListener {
 	private boolean computeMultipart(ArticleHeader article,
 			Map<String, ArticleHeader[]> map) {
 
-		Matcher m = multipartPattern.matcher(article.subject);
-		if (m.matches() && m.groupCount() == 4) {
-			int partNumber = Integer.parseInt(m.group(2));
-			int partCount = Integer.parseInt(m.group(3));
-
-			if (partCount != 1 && partNumber != 0) {
-
-				String prefix = m.group(1);
-				String suffix = m.group(4);
-
-				String key = prefix + "X/" + partCount + suffix;
-
-				ArticleHeader[] parts = map.get(key);
-				if (parts == null) {
-					parts = new ArticleHeader[partCount];
-					map.put(key, parts);
-				}
-				parts[partNumber - 1] = article;
-
-				if (parts[0] != null) {
-					parts[0].parts = "";
-					for (int i = 0; i < parts.length; i++) {
-						if (parts[i] == null) {
-							parts[0].parts = "incomplete";
-							break;
-						}
-						if (i > 0) {
-							parts[0].parts += ",";
-							parts[0].bytes += parts[i].bytes;
-						}
-						parts[0].parts += parts[i].articleId;
-					}
-				}
-
-				return partNumber > 1;
+		HeaderGroupMatchResult r = HeaderGroupMatcher.matchMultipart(article.subject);
+		if (r != null) {
+			ArticleHeader[] parts = map.get(r.getKey());
+			if (parts == null) {
+				parts = new ArticleHeader[r.getPartCount()];
+				map.put(r.getKey(), parts);
 			}
+			parts[r.getPartNumber() - 1] = article;
+
+			if (parts[0] != null) {
+				parts[0].parts = "";
+				for (int i = 0; i < parts.length; i++) {
+					if (parts[i] == null) {
+						parts[0].parts = "incomplete";
+						break;
+					}
+					if (i > 0) {
+						parts[0].parts += ",";
+						parts[0].bytes += parts[i].bytes;
+					}
+					parts[0].parts += parts[i].articleId;
+				}
+			}
+
+			return r.getPartNumber() > 1;
 		}
 
 		return false;
@@ -1154,34 +1164,17 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	private int computeMultivolumes(ArticleHeader article) {
-		boolean zeroBased = false;
-		Matcher m = multivolumePattern.matcher(article.subject);
-		/*
-		if(!(m.matches() && m.groupCount() == 2)){
-			m = multivolumePattern2.matcher(article.subject);
-			zeroBased = true;
-		}
-		*/
-		if (m.matches() && m.groupCount() == 2) {
-
-			String file = m.group(1);
-			String n = m.group(2);
-			int partNumber = Integer.parseInt(n);
-			if(zeroBased){
-				partNumber++;
-			}
-			int partCount = (int) Math.pow(10, n.length());
-
-			String key = file;
-
+		HeaderGroupMatchResult m = HeaderGroupMatcher.matchMultivolume(article.subject);
+		
+		if (m != null) {
 			Map<String, ArticleHeader[]> map = multivolumeMap;
 
-			ArticleHeader[] parts = map.get(key);
+			ArticleHeader[] parts = map.get(m.getKey());
 			if (parts == null) {
-				parts = new ArticleHeader[partCount];
-				map.put(key, parts);
+				parts = new ArticleHeader[m.getPartCount()];
+				map.put(m.getKey(), parts);
 			}
-			parts[partNumber - 1] = article;
+			parts[m.getPartNumber() - 1] = article;
 
 			if (parts[0] != null) {
 				parts[0].vols = "";
@@ -1198,7 +1191,7 @@ public class NewsService implements ProtocolCommandListener {
 				}
 			}
 
-			return partNumber;
+			return m.getPartNumber();
 		}
 		
 		return 0;

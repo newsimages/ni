@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.10.3";
+	var version = "Version 6.11.0";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -2252,17 +2252,16 @@ window.addEventListener("load", function(){
 				
 				//---------- Utility methods ----------
 
-				var currentServer, currentRequest, currentUnrar;
+				var currentServer, currentToken, currentRequest, currentUnrar;
 
 				function buildServerString(server) {
+					var token = !server && currentToken;
 					server = server || currentServer;
 					var s = server.hostname;
-					if (server.username) {
-						if (server.password)
-							s = server.username + ":" + server.password + "@"
-									+ s;
-						else
-							s = server.username + "@" + s;
+					if(token){
+						s = token + "@" + s;
+					} else 	if (server.username) {
+						s = server.username + ":" + (server.password||"") + "@" + s;
 					}
 					if (server.port) {
 						s += ":" + server.port;
@@ -2343,7 +2342,6 @@ window.addEventListener("load", function(){
 					var url = serviceUrl + command;
 
 					var data = args || {};
-					data.host = buildServerString(server);
 
 					var preload = data._preload;
 					delete data._preload;
@@ -2365,35 +2363,50 @@ window.addEventListener("load", function(){
 						break;
 					}
 
-					currentRequest = request.post(
-							url,
+					var login = server || currentToken || request.post(
+							serviceUrl + "l",
 							{
-								data : data,
-								preventCache : command == "t"
-										|| command == "ba" || command == "tha"
-										|| command == "p",
-								handleAs : handleAs
-							}).then(function(response) {
-						if (handleAs === "arraybuffer") {
-							response = decodeBinaryResponse(response);
+								data : { host: buildServerString() },
+								preventCache : true,
+								handleAs : "text"
+							});
+					
+					when(login, function(token){
+						if(!server && !currentToken){
+							console.log("User logged in: " + buildServerString() + " -> " + token);
+							currentToken = token;
 						}
-						currentRequest = null;
-						if (progressParent)
-							progress();
-						success(response);
-					}, function(err) {
-						currentRequest = null;
-						if (error) {
-							error(err);
-						} else {
-							if (err.dojoType != "cancel") {
-								if (progressParent)
-									progress();
-								if(!preload){
-									showError(err);
+						data.host = buildServerString(server);
+						currentRequest = request.post(
+								url,
+								{
+									data : data,
+									preventCache : command == "t"
+											|| command == "ba" || command == "tha"
+											|| command == "p",
+									handleAs : handleAs
+								}).then(function(response) {
+							if (handleAs === "arraybuffer") {
+								response = decodeBinaryResponse(response);
+							}
+							currentRequest = null;
+							if (progressParent)
+								progress();
+							success(response);
+						}, function(err) {
+							currentRequest = null;
+							if (error) {
+								error(err);
+							} else {
+								if (err.dojoType != "cancel") {
+									if (progressParent)
+										progress();
+									if(!preload){
+										showError(err);
+									}
 								}
 							}
-						}
+						});
 					});
 				}
 
@@ -2441,7 +2454,8 @@ window.addEventListener("load", function(){
 				}
 
 				function makeErrorMessage(error, defaultMessage) {
-					var m = error.responseText
+					var m = (typeof error === "string" && error) 
+							|| error.responseText
 							|| (error.response && 
 									(error.response.text ||
 											(error.response.data instanceof ArrayBuffer &&
@@ -2452,8 +2466,11 @@ window.addEventListener("load", function(){
 							var code = m.substring(0, i);
 							if (code >= 100 && code < 600) {
 								m = m.substring(i + 1);
-								if (code == 501)
+								if(code == 501){
 									m = "Syntax error: " + m;
+								} else if(code == 502){
+									currentToken = null;
+								}
 								return m;
 							}
 						}
