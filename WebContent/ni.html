@@ -3131,6 +3131,8 @@ require(["dojo/has"], function(has){
 														item._server == server ? "mblDomButtonDarkBlueCheck"
 																: "mblDomButtonTransparent20");
 									});
+					
+					getCacheInfo();
 				}
 
 				nameBoxChanged = function() {
@@ -3149,11 +3151,13 @@ require(["dojo/has"], function(has){
 				//---------- Cache ----------
 				
 				getCacheInfo = function(){
-					doRequest("ci", {}, null, showCacheInfo);
+					if(currentServer)
+						doRequest("ci", {}, null, showCacheInfo);
 				}
 				
 				clearCache = function(){
-					doRequest("cc", {}, null, showCacheInfo);
+					if(currentServer)
+						doRequest("cc", {}, null, showCacheInfo);
 				}
 				
 				function showCacheInfo(info){
@@ -4812,7 +4816,7 @@ to {
 	</div>
 	<div data-dojo-type="dojox/mobile/ScrollableView" id="settings"
 		data-dojo-id="settingsView"
-		data-dojo-props="onBeforeTransitionIn:getCacheInfo,onBeforeTransitionOut:cancelRequest">
+		data-dojo-props="onBeforeTransitionOut:cancelRequest">
 		<div data-dojo-type="dojox/mobile/Heading"
 			data-dojo-props="fixed:'top',label:'Settings',moveTo:'search',back:'Done'"></div>
 		<p class="settingsLabel">Usenet server</p>
