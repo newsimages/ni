@@ -9,7 +9,7 @@ public abstract class HeaderGroupMatcher {
 	private static HeaderGroupMatcher[] multiVolumeMatchers = new HeaderGroupMatcher[] {
 			new MultivolumeMatcher(".*\"(.*)\\.part(\\d+)\\.rar\".*", false),
 			new MultivolumeMatcher("(.*\\.\\w+\\.)(\\d\\d\\d)[\"\\s].*", false),
-			new MultivolumeMatcher("(.*\\.\\w+\\.r)(\\d\\d)[\"\\s].*", true)
+			new MultivolumeMatcher("(.*\\.r)(\\d\\d)[\"\\s].*", true)
 	};
 	
 	public static HeaderGroupMatchResult matchMultipart(String subject) {
