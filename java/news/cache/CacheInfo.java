@@ -5,7 +5,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class CacheInfo {
-	@XmlAttribute public int maxSize;
-	@XmlAttribute public int size;
+	@XmlAttribute public long maxSize;
+	@XmlAttribute public long size;
 	@XmlAttribute public int count;
 }

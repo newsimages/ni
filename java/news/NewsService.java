@@ -55,7 +55,7 @@ import org.xml.sax.SAXException;
 
 import news.HeaderGroupMatcher.HeaderGroupMatchResult;
 import news.cache.CacheInfo;
-import news.cache.DiskCache;
+import news.cache.ReaderCache;
 import news.search.SearchEngine;
 
 /**
@@ -96,7 +96,7 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_UU = 2;
 	private static final int CODE_YENC = 3;
 
-	private static DiskCache articleCache = new DiskCache();
+	private static ReaderCache readerCache = new ReaderCache();
 	
 	private static class User {
 		public String username;
@@ -469,11 +469,6 @@ public class NewsService implements ProtocolCommandListener {
 		
 		ArticleBody body;
 
-		body = articleCache.get(articleId);
-		if(body != null){
-			return body;
-		}
-		
 		String[] aids = articleId.split(",");
 
 		NNTPClient client = connect(host);
@@ -499,22 +494,37 @@ public class NewsService implements ProtocolCommandListener {
 			if (aid.charAt(aid.length() - 1) != '>')
 				aid = aid + ">";
 
-			BufferedReader reader = (BufferedReader) client
-					.retrieveArticle(aid);
-
-			if (reader == null)
-				throw new IOException(client.getReplyString());
-
+			BufferedReader reader = readerCache.get(aid);
+			
+			if(reader == null){
+				reader = (BufferedReader) client.retrieveArticle(aid);
+	
+				if (reader == null)
+					throw new IOException(client.getReplyString());
+	
+				reader = readerCache.put(aid, reader);
+			}
+			
 			if (progress != null) {
 				reader = new ProgressReader(reader, progress);
 			}
 
 			ArticleBody part = new ArticleBody();
 
-			readHeaders(reader, part, fileInfo);
-
-			readBody(reader, part, i, bodies, fileInfo);
-
+			try {
+				readHeaders(reader, part, fileInfo);
+				readBody(reader, part, i, bodies, fileInfo);
+			} catch(IOException ioex) {
+				reader.close();
+				reader = null;
+				readerCache.remove(aid);
+				throw ioex;
+			} finally {
+				if(reader != null){
+					reader.close();
+				}
+			}
+			
 			bodies[i] = part;
 		}
 
@@ -556,8 +566,6 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
-		articleCache.put(articleId, body);
-		
 		if (screenSize > 0) {
 			for (int i = 0; i < body.attachments.size(); i++) {
 				Attachment a = body.attachments.get(i);
@@ -1524,15 +1532,15 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("ci")
 	@Produces(MediaType.APPLICATION_JSON)
 	public CacheInfo getCacheInfo(){
-		return articleCache.getInfo();
+		return readerCache.getInfo();
 	}
 	
 	@POST
 	@Path("cc")
 	@Produces(MediaType.APPLICATION_JSON)
 	public CacheInfo clearCache(){
-		articleCache.clear();
-		return articleCache.getInfo();
+		readerCache.clear();
+		return readerCache.getInfo();
 	}
 	
 	// ---------
