@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.12.1";
+	var version = "Version 6.12.3";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -801,6 +801,8 @@ require(["dojo/has"], function(has){
 				// async progress state
 				var data, filename;
 				
+				var loadBodyStartTime;
+				
 				function showArticle(item, preload) {
 					
 					var catchupPreloading = false;
@@ -870,6 +872,8 @@ require(["dojo/has"], function(has){
 						args._preload = true;
 					}
 
+					loadBodyStartTime = new Date().getTime();
+					
 					if (settings.async) { // async + progress
 						data = "";
 						filename = null;
@@ -940,6 +944,9 @@ require(["dojo/has"], function(has){
 												if (p.body) {
 													if (multi && data) {
 														multi.push(data);
+													}
+													if(p.partCount == 0){
+														p.body.fromCache = true;
 													}
 													gotBody(item, p.body, multi
 															|| [ data ]);
@@ -1051,6 +1058,8 @@ require(["dojo/has"], function(has){
 						if (progress.partCount > 1) {
 							label += " - part " + progress.part + " of "
 									+ progress.partCount;
+						} else if(progress.partCount === 0) {
+							label += " - from cache";
 						}
 					}
 					progressBar.set("label", label);
@@ -1128,6 +1137,8 @@ require(["dojo/has"], function(has){
 
 				function gotBody(item, body, data) {
 
+					body.loadTime = new Date().getTime() - loadBodyStartTime;
+					
 					if (!body.attachments)
 						body.attachments = [];
 					else if (!(body.attachments instanceof Array))
@@ -1428,7 +1439,7 @@ require(["dojo/has"], function(has){
 					dom.byId("from").innerHTML = body.from || "";
 					dom.byId("date").innerHTML = body.date || "";
 					dom.byId("newsgroups").innerHTML = body.newsgroups || "";
-					dom.byId("textRect").innerHTML = text;
+					dom.byId("stats").innerHTML = "(loaded in " + body.loadTime + " ms. from " + (body.fromCache ? "cache" : currentServer.hostname) + ")";
 					progress();
 				}
 				
@@ -4487,6 +4498,15 @@ to {
 	font-weight: bold;
 }
 
+.headerRow.statsRow {
+	opacity: 0.5;
+	font-style: italic;
+}
+
+.headerRow.statsRow .headerValue {
+	padding-top: 10px;
+}
+
 .textRect {
 	padding-left: 12px;
 	padding-right: 12px;
@@ -4736,6 +4756,9 @@ to {
 				<tr class="headerRow">
 					<td class="headerLabel">Newsgroups:</td>
 					<td id="newsgroups" class="headerValue"></td>
+				</tr>
+				<tr class="headerRow statsRow">
+					<td id="stats" class="headerValue"></td>
 				</tr>
 			</table>
 			<div id="textRect" class="textRect"></div>

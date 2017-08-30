@@ -263,6 +263,8 @@ public class NewsService implements ProtocolCommandListener {
 		return createMultiPart(getBody(host, articleId, null, screenSize));
 	}
 
+	private static int maxChunkSize = 50000;
+	
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
@@ -270,7 +272,6 @@ public class NewsService implements ProtocolCommandListener {
 		boolean cancelled;
 		boolean noChunks;
 		private long lastTime = System.currentTimeMillis();
-		private int maxChunkSize = 20000;
 
 		public synchronized void write(int c) {
 			if (!cancelled) {
@@ -514,8 +515,7 @@ public class NewsService implements ProtocolCommandListener {
 							byte[] data = att.data;
 							if(data != null && data.length > 0){
 								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, body.attachments.size() > 1 && i >= 1);
-								int size = 10000;
-								
+								int size = maxChunkSize;
 								for(int off = 0; off < data.length; off += size){
 									int n = Math.min(size, data.length-off);
 									bytes.write(data, off, n);
