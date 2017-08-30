@@ -54,6 +54,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import news.HeaderGroupMatcher.HeaderGroupMatchResult;
+import news.cache.BodyCache;
 import news.cache.CacheInfo;
 import news.cache.ReaderCache;
 import news.search.SearchEngine;
@@ -96,7 +97,8 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_UU = 2;
 	private static final int CODE_YENC = 3;
 
-	private static ReaderCache readerCache = new ReaderCache();
+	private static ReaderCache readerCache;
+	private static BodyCache bodyCache;
 	
 	private static class User {
 		public String username;
@@ -114,6 +116,9 @@ public class NewsService implements ProtocolCommandListener {
 			charset.set(null,null);
 		} catch (Exception e) {
 		}
+		
+		bodyCache = new BodyCache();
+		//readerCache = new ReaderCache();
 	}
 
 	@POST
@@ -287,6 +292,16 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
+		public synchronized void write(byte[] bytes, int off, int len) {
+			if (!cancelled) {
+				super.write(bytes, off, len);
+				if (!noChunks) {
+					chunk.write(bytes, off, len);
+					waitForClient();
+				}
+			}
+		}
+
 		private synchronized void waitForClient() {
 			while (chunk.size() > maxChunkSize) {
 				try {
@@ -320,7 +335,7 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	@XmlRootElement
-	public static class Progress {
+	public static class Progress implements Cloneable {
 		@XmlAttribute
 		public boolean complete;
 		@XmlAttribute
@@ -351,7 +366,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		private ProgressByteArrayOutputStream buffer;
 
-		public ProgressByteArrayOutputStream getBuffer() {
+		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, boolean multi) {
 			if (buffer == null)
 				buffer = new ProgressByteArrayOutputStream();
 			else
@@ -359,9 +374,30 @@ public class NewsService implements ProtocolCommandListener {
 			if (thumbnailSize > 0) {
 				buffer.noChunks = true;
 			}
+			if (filename != null)
+				this.filename = filename;
+			if (multi) {
+				// multiple attachments
+				attSizes = new ArrayList<Integer>();
+				for (int i = 0; i < body.attachments.size(); i++) {
+					attSizes.add(body.attachments.get(i).data.length);
+				}
+			}
 			return buffer;
 		}
-
+		
+		public synchronized void update(int bytesRead) {
+			this.bytesRead += bytesRead;
+			updated = true;
+			notify();
+		}
+		
+		public synchronized void complete() {
+			complete = true;
+			updated = true;
+			notify();
+		}
+		
 		public void getProgress() throws InterruptedException {
 			// estimate connection speed and adjust max chunk size if necessary:
 			if (buffer != null) {
@@ -394,7 +430,7 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
-		void attachmentDecoded(Attachment att, int part, ArticleBody[] bodies) {
+		public void endDecode(Attachment att, int part, ArticleBody[] bodies) {
 			if (thumbnailSize > 0 && isImage(filename) && bodies.length > 1) {
 				thumbnailData = concatData(att, part, bodies);
 			}
@@ -431,29 +467,26 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			return data;
 		}
+		
+		protected Progress copy () throws CloneNotSupportedException {
+			return (Progress)super.clone();
+		}
 	}
 
 	private static class ProgressReader extends BufferedReader {
 
 		private Progress progress;
+		private int sepLen = System.lineSeparator().length();
 
 		public ProgressReader(BufferedReader reader, Progress progress) {
 			super(reader);
 			this.progress = progress;
 		}
 
-		public ByteArrayOutputStream getBuffer() {
-			return progress.getBuffer();
-		}
-
 		public String readLine() throws IOException {
 			String line = super.readLine();
 			if (line != null) {
-				synchronized (progress) {
-					progress.bytesRead += line.length() + 2;
-					progress.updated = true;
-					progress.notify();
-				}
+				progress.update(line.length() + sepLen);
 			}
 			return line;
 		}
@@ -468,6 +501,39 @@ public class NewsService implements ProtocolCommandListener {
 		}
 		
 		ArticleBody body;
+		
+		if(bodyCache != null){
+			body = bodyCache.get(articleId);
+			if(body != null){
+				if(progress != null){
+					// let the client display some progress
+					ArrayList<Attachment> atts = body.attachments;
+					if(atts != null){
+						for(int i = 0; i < atts.size(); i++){
+							Attachment att = atts.get(i);
+							byte[] data = att.data;
+							if(data != null && data.length > 0){
+								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, body.attachments.size() > 1 && i >= 1);
+								int size = 10000;
+								
+								for(int off = 0; off < data.length; off += size){
+									int n = Math.min(size, data.length-off);
+									bytes.write(data, off, n);
+									if(body.bytes > 0){
+										n = (int)(n * body.bytes / data.length);
+									}
+									progress.update(n);
+								}
+								bytes.toByteArray();
+								bytes.reset();
+								progress.endDecode(att, 1, new ArticleBody[] { body });
+							}
+						}
+					}
+				}
+				return body;
+			}
+		}
 
 		String[] aids = articleId.split(",");
 
@@ -494,7 +560,12 @@ public class NewsService implements ProtocolCommandListener {
 			if (aid.charAt(aid.length() - 1) != '>')
 				aid = aid + ">";
 
-			BufferedReader reader = readerCache.get(aid);
+			
+			BufferedReader reader = null;
+			
+			if(readerCache != null){
+				reader = readerCache.get(aid);
+			}
 			
 			if(reader == null){
 				reader = (BufferedReader) client.retrieveArticle(aid);
@@ -502,7 +573,9 @@ public class NewsService implements ProtocolCommandListener {
 				if (reader == null)
 					throw new IOException(client.getReplyString());
 	
-				reader = readerCache.put(aid, reader);
+				if(readerCache != null){
+					reader = readerCache.put(aid, reader);
+				}
 			}
 			
 			if (progress != null) {
@@ -595,6 +668,10 @@ public class NewsService implements ProtocolCommandListener {
 			}
 		}
 
+		if(bodyCache != null){
+			bodyCache.put(articleId, body);
+		}
+		
 		return body;
 	}
 
@@ -620,11 +697,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				synchronized (progress) {
-					progress.complete = true;
-					progress.updated = true;
-					progress.notify();
-				}
+				progress.complete();
 			}
 		}.start();
 
@@ -635,7 +708,7 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("p")
 	@Produces("multipart/mixed")
 	public OutMultiPart getProgress(@FormParam("id") final String id)
-			throws SocketException, IOException, InterruptedException {
+			throws SocketException, IOException, InterruptedException, CloneNotSupportedException {
 		Progress progress = progressById.get(id);
 		if (progress != null) {
 			synchronized (progress) {
@@ -647,7 +720,7 @@ public class NewsService implements ProtocolCommandListener {
 					progressById.remove(id);
 				}
 				progress.updated = false;
-				return createMultiPart(progress);
+				return createMultiPart(progress.copy());
 			}
 		}
 		return null;
@@ -852,6 +925,10 @@ public class NewsService implements ProtocolCommandListener {
 							body.date = s[1];
 						} else if (h.equals("newsgroups")) {
 							body.newsgroups = s[1];
+						} else if (h.equals("bytes")) {
+							try {
+								body.bytes = Long.parseLong(s[1]);
+							} catch(NumberFormatException ex){}
 						}
 					}
 				}
@@ -934,17 +1011,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		ByteArrayOutputStream bytes;
 		if (reader instanceof ProgressReader) {
-			bytes = ((ProgressReader) reader).getBuffer();
-			Progress p = ((ProgressReader) reader).progress;
-			if (fileInfo.filename != null)
-				p.filename = fileInfo.filename;
-			if (body.attachments.size() > 0) {
-				// multiple attachments
-				p.attSizes = new ArrayList<Integer>();
-				for (int i = 0; i < body.attachments.size(); i++) {
-					p.attSizes.add(body.attachments.get(i).data.length);
-				}
-			}
+			bytes = ((ProgressReader) reader).progress.beginDecode(fileInfo.filename, body, body.attachments.size() > 0);
 		} else {
 			bytes = new ByteArrayOutputStream();
 		}
@@ -968,8 +1035,7 @@ public class NewsService implements ProtocolCommandListener {
 			body.size += data.length;
 			if (reader instanceof ProgressReader) {
 				// notify Progress, e.g. to send a thumbnail
-				Progress progress = ((ProgressReader) reader).progress;
-				progress.attachmentDecoded(att, part, bodies);
+				((ProgressReader) reader).progress.endDecode(att, part, bodies);
 			}
 		}
 	}
@@ -1413,11 +1479,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				synchronized (progress) {
-					progress.complete = true;
-					progress.updated = true;
-					progress.notify();
-				}
+				progress.complete();
 			}
 		}.start();
 
@@ -1479,11 +1541,7 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
-				synchronized (progress) {
-					progress.complete = true;
-					progress.updated = true;
-					progress.notify();
-				}
+				progress.complete();
 			}
 		}.start();
 		new Thread() {
@@ -1532,15 +1590,28 @@ public class NewsService implements ProtocolCommandListener {
 	@Path("ci")
 	@Produces(MediaType.APPLICATION_JSON)
 	public CacheInfo getCacheInfo(){
-		return readerCache.getInfo();
+		if(bodyCache != null){
+			return bodyCache.getInfo();
+		} else if(readerCache != null){
+			return readerCache.getInfo();
+		} else {
+			return new CacheInfo();
+		}
 	}
 	
 	@POST
 	@Path("cc")
 	@Produces(MediaType.APPLICATION_JSON)
 	public CacheInfo clearCache(){
-		readerCache.clear();
-		return readerCache.getInfo();
+		if(bodyCache != null){
+			bodyCache.clear();
+			return bodyCache.getInfo();
+		} else if(readerCache != null){
+			readerCache.clear();
+			return readerCache.getInfo();
+		} else {
+			return new CacheInfo();
+		}
 	}
 	
 	// ---------

@@ -13,6 +13,7 @@ public class ArticleBody {
 	@XmlAttribute public String date;
 	@XmlAttribute public String newsgroups;
 	@XmlAttribute public String text;
+	@XmlAttribute public long bytes;
 	@XmlElement public ArrayList<Attachment> attachments = new ArrayList<Attachment>();
 	@XmlTransient public int size;
 	@XmlElement public ArrayList<ArticleHeader> articles;
@@ -24,6 +25,7 @@ public class ArticleBody {
 		b.date = date;
 		b.newsgroups = newsgroups;
 		b.size = size;
+		b.bytes = bytes;
 		for(int i = 0; i < attachments.size(); i++){
 			Attachment att = attachments.get(i);
 			Attachment a = new Attachment(att.filename, null);

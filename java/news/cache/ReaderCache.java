@@ -21,7 +21,7 @@ public class ReaderCache {
 		if(dir == null){
 			dir = "data";
 		}
-		dir += File.separator  + ".ni" + File.separator + "cache";
+		dir += File.separator  + ".ni" + File.separator + "cache" + File.separator + "reader";
 		cacheDir = new File(dir);
 		
 		if(!cacheDir.exists()){
