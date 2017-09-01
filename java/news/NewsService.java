@@ -97,6 +97,8 @@ public class NewsService implements ProtocolCommandListener {
 	private static final int CODE_UU = 2;
 	private static final int CODE_YENC = 3;
 
+	private static int chunkSize = 20000;
+	
 	private static ReaderCache readerCache;
 	private static BodyCache bodyCache;
 	
@@ -263,14 +265,13 @@ public class NewsService implements ProtocolCommandListener {
 		return createMultiPart(getBody(host, articleId, null, screenSize));
 	}
 
-	private static int maxChunkSize = 50000;
-	
 	private static class ProgressByteArrayOutputStream extends
 			ByteArrayOutputStream {
 		private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
 
 		boolean cancelled;
 		boolean noChunks;
+		private int maxChunkSize = chunkSize;
 		private long lastTime = System.currentTimeMillis();
 
 		public synchronized void write(int c) {
@@ -515,7 +516,7 @@ public class NewsService implements ProtocolCommandListener {
 							byte[] data = att.data;
 							if(data != null && data.length > 0){
 								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, body.attachments.size() > 1 && i >= 1);
-								int size = maxChunkSize;
+								int size = chunkSize;
 								for(int off = 0; off < data.length; off += size){
 									int n = Math.min(size, data.length-off);
 									bytes.write(data, off, n);
@@ -1529,8 +1530,13 @@ public class NewsService implements ProtocolCommandListener {
 			@PathParam("id") String id,
 			@PathParam("name") final String name) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
-		PipedInputStream in = new PipedInputStream();
-		final PipedOutputStream out = new PipedOutputStream(in);
+		final PipedOutputStream pout = new PipedOutputStream();
+		PipedInputStream pin = new PipedInputStream(pout){
+			public void close() throws IOException {
+				super.close();
+				pout.close();
+			}
+		};
 		final Progress progress = new Progress();
 		String longId = articleIdByShortId.get(id);
 		final String articleId =  longId != null ? longId : id;
@@ -1558,8 +1564,8 @@ public class NewsService implements ProtocolCommandListener {
 						try {
 							progress.getProgress();
 							if(name.equals(progress.filename)){
-								out.write(progress.chunk);
-								out.flush();
+								pout.write(progress.chunk);
+								pout.flush();
 							}
 						} catch (Exception ex) {
 							ex.printStackTrace();
@@ -1573,13 +1579,13 @@ public class NewsService implements ProtocolCommandListener {
 					}
 				}
 				try {
-					out.flush();
+					pout.flush();
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				}
 			}
 		}.start();
-		return Response.ok(in).header("Content-Disposition", "attachment; filename=" + name).build();
+		return Response.ok(pin).header("Content-Disposition", "attachment; filename=" + name).build();
 	}
 
 	// ---------

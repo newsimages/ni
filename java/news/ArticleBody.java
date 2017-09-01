@@ -15,7 +15,7 @@ public class ArticleBody {
 	@XmlAttribute public String text;
 	@XmlAttribute public long bytes;
 	@XmlElement public ArrayList<Attachment> attachments = new ArrayList<Attachment>();
-	@XmlTransient public int size;
+	@XmlAttribute public int size;
 	@XmlElement public ArrayList<ArticleHeader> articles;
 	
 	public ArticleBody cloneWithoutData(){

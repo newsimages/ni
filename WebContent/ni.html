@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.12.4";
+	var version = "Version 6.12.5";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1439,8 +1439,24 @@ require(["dojo/has"], function(has){
 					dom.byId("from").innerHTML = body.from || "";
 					dom.byId("date").innerHTML = body.date || "";
 					dom.byId("newsgroups").innerHTML = body.newsgroups || "";
-					dom.byId("stats").innerHTML = "(loaded in " + body.loadTime + " ms. from " + (body.fromCache ? "cache" : currentServer.hostname) + ")";
+					var b = showBytes(body.size);
+					var t = body.loadTime;
+					var s = showBytes(body.size * 1000 / t, "/s");
+					dom.byId("stats").innerHTML = b + " loaded in " + t + " ms. (" + s + ") from " + (body.fromCache ? "cache" : currentServer.hostname);
+					dom.byId("textRect").innerHTML = text;
 					progress();
+				}
+				
+				function showBytes(b, suff) {
+					var u = "K", k = 1024;
+					if(b > k*k){
+						u = "M";
+						k *= 1024;
+						b = (b/k).toFixed(1);
+					} else {
+						b = Math.round(b/k);
+					}
+					return b + " " + u + "b" + (suff||"");
 				}
 				
 				function getDownloadLink(att, item) {
@@ -2342,6 +2358,24 @@ require(["dojo/has"], function(has){
 					return result;
 				}
 
+				function login(server) {
+					return server || currentToken || request.post(
+							serviceUrl + "l",
+							{
+								data : { host: buildServerString() },
+								preventCache : true,
+								handleAs : "text"
+							})
+					.then(function(token){
+						if(!server && !currentToken){
+							console.log("User logged in: " + buildServerString() + " -> " + token);
+							currentToken = token;
+						}
+					}, function(err){
+						showError(err);
+					});
+				}
+				
 				function doRequest(command, args, progressParent, success,
 						error, server) {
 
@@ -2381,19 +2415,7 @@ require(["dojo/has"], function(has){
 						break;
 					}
 
-					var login = server || currentToken || request.post(
-							serviceUrl + "l",
-							{
-								data : { host: buildServerString() },
-								preventCache : true,
-								handleAs : "text"
-							});
-					
-					when(login, function(token){
-						if(!server && !currentToken){
-							console.log("User logged in: " + buildServerString() + " -> " + token);
-							currentToken = token;
-						}
+					when(login(server), function(){
 						data.host = buildServerString(server);
 						currentRequest = request.post(
 								url,
