@@ -1525,9 +1525,8 @@ public class NewsService implements ProtocolCommandListener {
 	}
 	
 	@GET
-	@Path("a/{action}/{host}/{id}/{name}")
-	public Response getAttachment(@PathParam("action") final String action,
-			@PathParam("host") final String host,
+	@Path("a/{host}/{id}/{name}")
+	public Response getAttachment(@PathParam("host") final String host,
 			@PathParam("id") String id,
 			@PathParam("name") final String name) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
@@ -1607,9 +1606,6 @@ public class NewsService implements ProtocolCommandListener {
 		
 		ResponseBuilder b = Response.ok(streamingOutput);
 		b.header("Content-Type", contentType);
-		if(action.equals("d")){ // download
-			b.header("Content-Disposition", "attachment; filename=" + name);
-		}
 		return b.build();
 	}
 

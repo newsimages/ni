@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.13.1";
+	var version = "Version 6.13.2";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1359,7 +1359,7 @@ require(["dojo/has"], function(has){
 											from : body.from,
 											date : body.date,
 											newsgroups : body.newsgroups,
-											text : makeDownloadLinks(att, item),
+											text : getDownloadLink(att, item),
 											attachments: []
 										}
 									});
@@ -1430,7 +1430,7 @@ require(["dojo/has"], function(has){
 					}
 					if(body.attachments){
 						array.forEach(ensureArray(body.attachments), function(att){
-							text += makeDownloadLinks(att, item);
+							text += getDownloadLink(att, item);
 						});
 					}
 					textView.scrollTo({
@@ -1460,16 +1460,9 @@ require(["dojo/has"], function(has){
 					return b + " " + u + "b" + (suff||"");
 				}
 				
-				function makeDownloadLinks(att, item) {
-					return '<br>Attachment: ' + att.filename +
-					' (' + getAttachmentLink(item, att.filename, "download", true) +
-					' or ' + getAttachmentLink(item, att.filename, "view", false) +
-					')';
-				}
-				
 				var downloadLinkCounter = 1;
 				
-				function getAttachmentLink(item, filename, text, download) {
+				function getDownloadLink(att, item) {
 					var downloadLinkId = "downloadLink" + downloadLinkCounter++;
 					request.post(
 							serviceUrl + "i",
@@ -1483,8 +1476,8 @@ require(["dojo/has"], function(has){
 									var l = dom.byId(downloadLinkId);
 									if(l){
 										var host = encodeURIComponent(buildServerString()),
-											name = encodeURIComponent(filename);
-										l.href = "svc/a/" + (download ? "d" : "v") + "/" + host + "/" + id + "/" + name;
+											name = encodeURIComponent(att.filename);
+										l.href = "svc/a/" + host + "/" + id + "/" + name;
 									} else {
 										setTimeout(f, 100);
 									}
@@ -1493,7 +1486,7 @@ require(["dojo/has"], function(has){
 							}, function(err){
 								showError(err)
 							});
-					return '<a id="' + downloadLinkId + '" href="#" target="_blank">' + (text||filename) + '</a>';
+					return '<br>Attachment: <a id="' + downloadLinkId + '" href="#" target="_blank">' + att.filename + '</a>';
 				}
 				
 				showArticleText = function() {
