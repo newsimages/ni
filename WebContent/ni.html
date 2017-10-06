@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.12.6";
+	var version = "Version 6.13.1";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1000,6 +1000,7 @@ require(["dojo/has"], function(has){
 						case "avi":
 						case "ogg":
 						case "ogv":
+						case "mov":
 							if (showVideos
 									&& showVideosWhileLoading) {
 								setVideoTitle(filename);
@@ -1358,7 +1359,7 @@ require(["dojo/has"], function(has){
 											from : body.from,
 											date : body.date,
 											newsgroups : body.newsgroups,
-											text : getDownloadLink(att, item),
+											text : makeDownloadLinks(att, item),
 											attachments: []
 										}
 									});
@@ -1429,7 +1430,7 @@ require(["dojo/has"], function(has){
 					}
 					if(body.attachments){
 						array.forEach(ensureArray(body.attachments), function(att){
-							text += getDownloadLink(att, item);
+							text += makeDownloadLinks(att, item);
 						});
 					}
 					textView.scrollTo({
@@ -1459,45 +1460,42 @@ require(["dojo/has"], function(has){
 					return b + " " + u + "b" + (suff||"");
 				}
 				
-				function getDownloadLink(att, item) {
-					var a;
-					if(has("ios") || !att.data){
-						// download attachment from server as IOS home screen web app cant read blobs...
-						if(item.articleId){
-							request.post(
-									serviceUrl + "i",
-									{
-										data : {
-											articleId: item.articleId,
-										},
-										handleAs : "text"
-									}).then(function(id){
-										function f() {
-											var l = dom.byId("downloadLink");
-											if(l){
-												l.href = "download.html?host=" + encodeURIComponent(buildServerString()) + "&id=" + id + "&bytes=" + item.bytes + "&name=" + encodeURIComponent(att.filename);
-											} else {
-												setTimeout(f, 100);
-											}
-										}
-										f();
-									}, function(err){
-										showError(err)
-									});
-							a = '<a id="downloadLink" href="#" target="_blank">' + att.filename + '</a>';
-						} else {
-							a = att.filename;
-						}
-					} else {
-						var url = makeBlobUrl(att.data, "application/octet-stream");
-						a = '<a download="' + att.filename + '" href="' + url + '">' + att.filename + '</a>';
-					}
-					return '<br>Attachment: ' + a;
+				function makeDownloadLinks(att, item) {
+					return '<br>Attachment: ' + att.filename +
+					' (' + getAttachmentLink(item, att.filename, "download", true) +
+					' or ' + getAttachmentLink(item, att.filename, "view", false) +
+					')';
 				}
 				
-				downloadAttachment = function() {
-				};
-
+				var downloadLinkCounter = 1;
+				
+				function getAttachmentLink(item, filename, text, download) {
+					var downloadLinkId = "downloadLink" + downloadLinkCounter++;
+					request.post(
+							serviceUrl + "i",
+							{
+								data : {
+									articleId: item.articleId,
+								},
+								handleAs : "text"
+							}).then(function(id){
+								function f() {
+									var l = dom.byId(downloadLinkId);
+									if(l){
+										var host = encodeURIComponent(buildServerString()),
+											name = encodeURIComponent(filename);
+										l.href = "svc/a/" + (download ? "d" : "v") + "/" + host + "/" + id + "/" + name;
+									} else {
+										setTimeout(f, 100);
+									}
+								}
+								f();
+							}, function(err){
+								showError(err)
+							});
+					return '<a id="' + downloadLinkId + '" href="#" target="_blank">' + (text||filename) + '</a>';
+				}
+				
 				showArticleText = function() {
 					if (currentItem && currentItem.body) {
 						domClass.add(textView.domNode, "showArticleText");

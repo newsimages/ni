@@ -8,8 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -33,6 +32,8 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -1524,48 +1525,52 @@ public class NewsService implements ProtocolCommandListener {
 	}
 	
 	@GET
-	@Path("a/{host}/{id}/{name}")
-	@Produces("application/octet-stream")
-	public Response getAttachment(@PathParam("host") final String host,
+	@Path("a/{action}/{host}/{id}/{name}")
+	public Response getAttachment(@PathParam("action") final String action,
+			@PathParam("host") final String host,
 			@PathParam("id") String id,
 			@PathParam("name") final String name) throws SocketException,
 			IOException, ParserConfigurationException, SAXException {
-		final PipedOutputStream pout = new PipedOutputStream();
-		PipedInputStream pin = new PipedInputStream(pout){
-			public void close() throws IOException {
-				super.close();
-				pout.close();
-			}
-		};
+		
 		final Progress progress = new Progress();
+		
 		String longId = articleIdByShortId.get(id);
 		final String articleId =  longId != null ? longId : id;
 		new Thread() {
 			public void run() {
 				try {
+					System.out.println("get body...");
 					getBody(host, articleId, progress, 0);
+					System.out.println("get body done.");
 				} catch (Throwable ex) {
+					System.out.println("exception getting body: " + ex);
 					progress.exception = ex.getMessage();
 				}
 				progress.complete();
+				System.out.println("get thread exiting.");
 			}
 		}.start();
-		new Thread() {
-			public void run() {
+		
+		StreamingOutput streamingOutput = new StreamingOutput() {
+			public void write(OutputStream out) throws IOException {
 				while (true) {
 					synchronized (progress) {
 						while (!progress.updated) {
 							try {
+								System.out.println("wait for progress...");
 								progress.wait();
 							} catch (InterruptedException ex) {
 								ex.printStackTrace();
 							}
 						}
 						try {
+							System.out.println("get progress...");
 							progress.getProgress();
+							System.out.println("progress: " + progress.filename);
 							if(name.equals(progress.filename)){
-								pout.write(progress.chunk);
-								pout.flush();
+								System.out.println("chunk: " + (progress.chunk != null ? progress.chunk.length : "null") + " bytes");
+								out.write(progress.chunk);
+								out.flush();
 							}
 						} catch (Exception ex) {
 							ex.printStackTrace();
@@ -1573,19 +1578,39 @@ public class NewsService implements ProtocolCommandListener {
 							break;
 						}
 						if (progress.complete) {
+							System.out.println("progress complete");
 							break;
 						}
 						progress.updated = false;
 					}
 				}
 				try {
-					pout.flush();
+					out.flush();
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				}
+				System.out.println("streaming output finished writing.");
 			}
-		}.start();
-		return Response.ok(pin).header("Content-Disposition", "attachment; filename=" + name).build();
+		};
+		
+		int dot = name.lastIndexOf('.');
+		String suffix = dot >= 0 ? name.substring(dot+1) : name;
+		suffix = suffix.toLowerCase();
+		String contentType;
+		if(suffix.equals("jpg")||suffix.equals("jpeg")||suffix.equals("gif")||suffix.equals("png")){
+			contentType = "image/" + suffix;
+		} else if(suffix.equals("mpg")||suffix.equals("mp4")||suffix.equals("avi")||suffix.equals("ogg")||suffix.equals("ogv")||suffix.equals("mov")) {
+			contentType = "video/" + suffix;
+		} else {
+			contentType = "application/octet-stream";
+		}
+		
+		ResponseBuilder b = Response.ok(streamingOutput);
+		b.header("Content-Type", contentType);
+		if(action.equals("d")){ // download
+			b.header("Content-Disposition", "attachment; filename=" + name);
+		}
+		return b.build();
 	}
 
 	// ---------
