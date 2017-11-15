@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.13.2";
+	var version = "Version 6.13.3";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -1981,7 +1981,7 @@ require(["dojo/has"], function(has){
 
 				//---------- Image index ----------
 
-				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 10;
+				var thumbnailColWidth, thumbnailMargin = 6, thumbnailNameHeight = 12;
 				var indexParent, down = true, pauseClicked;
 
 				function initThumbnails() {
@@ -4335,7 +4335,7 @@ to {
 	vertical-align: middle;
 	position: relative;
 	cursor: pointer;
-	font-size: x-small;
+	font-size: 12px;
 	color: #c0c0c0;
 	text-align: center;
 }
@@ -4344,9 +4344,13 @@ to {
 	position: absolute;
 	left: 0;
 	right: 0;
-	font-size: x-small;
+	font-size: 12px;
 	color: #c0c0c0;
 	text-align: center;
+	text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    direction: rtl;
 }
 
 .indexThumbnail {
@@ -4392,7 +4396,7 @@ to {
 
 .mblProgressBarMsg {
 	top: 5px !important;
-	font-size: x-small;
+	font-size: 12px;
 	color: #c0c0c0;
 }
 

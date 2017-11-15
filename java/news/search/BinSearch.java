@@ -3,6 +3,7 @@ package news.search;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
@@ -94,7 +95,11 @@ public class BinSearch extends SearchEngine {
 			writer.flush();
 			writer.close();
 
-			return new SearchEngine.Result(new GZIPInputStream(conn.getInputStream()), available);
+			InputStream nzbStream = conn.getInputStream();
+			if("gzip".equals(conn.getHeaderField("Content-Encoding"))){
+				nzbStream = new GZIPInputStream(nzbStream);
+			}
+			return new SearchEngine.Result(nzbStream, available);
 		}
 		
 		return null;
