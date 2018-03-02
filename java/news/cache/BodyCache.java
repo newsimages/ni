@@ -21,6 +21,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import news.ArticleBody;
 import news.Attachment;
+import news.Utils;
 
 public class BodyCache {
 
@@ -62,12 +63,7 @@ public class BodyCache {
 	}
 	
 	private String getCacheDir() {
-		String dir = System.getenv("OPENSHIFT_DATA_DIR");
-		if(dir == null){
-			dir = "data";
-		}
-		dir += File.separator  + ".ni" + File.separator + "cache" + File.separator + "body";
-		return dir;
+		return Utils.getDataDir() + File.separator + "cache" + File.separator + "body";
 	}
 	
 	public void put(String articleId, ArticleBody body){

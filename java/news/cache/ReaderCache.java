@@ -8,6 +8,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import news.Utils;
+
 public class ReaderCache {
 
 	private long maxSize = 500*1024*1024;
@@ -17,11 +19,7 @@ public class ReaderCache {
 	
 	public ReaderCache() {
 		
-		String dir = System.getenv("OPENSHIFT_DATA_DIR");
-		if(dir == null){
-			dir = "data";
-		}
-		dir += File.separator  + ".ni" + File.separator + "cache" + File.separator + "reader";
+		String dir = Utils.getDataDir() + File.separator + "cache" + File.separator + "reader";
 		cacheDir = new File(dir);
 		
 		if(!cacheDir.exists()){

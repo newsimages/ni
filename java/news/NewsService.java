@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -14,6 +15,8 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +57,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import de.innosystec.unrar.Archive;
+import de.innosystec.unrar.NativeStorage;
+import de.innosystec.unrar.exception.RarException;
+import de.innosystec.unrar.rarfile.FileHeader;
 import news.HeaderGroupMatcher.HeaderGroupMatchResult;
 import news.cache.BodyCache;
 import news.cache.CacheInfo;
@@ -67,6 +74,7 @@ import news.search.SearchEngine;
 public class NewsService implements ProtocolCommandListener {
 
 	private static boolean NZB = true; // parse nzb index files on the server?
+	private static boolean RAR = true; // unpack RAR files on the server?
 	private static boolean HIDE_PAR_FILES = true;
 
 	class ClientInfo {
@@ -262,7 +270,7 @@ public class NewsService implements ProtocolCommandListener {
 	public OutMultiPart getBody(@FormParam("host") String host,
 			@FormParam("articleId") String articleId,
 			@FormParam("screenSize") int screenSize) throws SocketException,
-			IOException, ParserConfigurationException, SAXException {
+			IOException, ParserConfigurationException, SAXException, RarException {
 		return createMultiPart(getBody(host, articleId, null, screenSize));
 	}
 
@@ -374,7 +382,7 @@ public class NewsService implements ProtocolCommandListener {
 				buffer = new ProgressByteArrayOutputStream();
 			else
 				buffer.reset();
-			if (thumbnailSize > 0) {
+			if (thumbnailSize > 0 || (RAR && isRAR(filename))) {
 				buffer.noChunks = true;
 			}
 			if (filename != null)
@@ -409,7 +417,7 @@ public class NewsService implements ProtocolCommandListener {
 					return;
 				}
 				synchronized (buffer) {
-					if (filename != null) {
+					if (filename != null && !buffer.noChunks) {
 						if (thumbnailSize > 0) {
 							if (isImage(filename)) {
 								byte[] data = buffer.toByteArray();
@@ -497,7 +505,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	public ArticleBody getBody(final String host, String articleId,
 			Progress progress, int screenSize) throws SocketException,
-			IOException, ParserConfigurationException, SAXException {
+			IOException, ParserConfigurationException, SAXException, RarException {
 
 		if(articleId == null){
 			throw new IOException("No article id");
@@ -666,6 +674,8 @@ public class NewsService implements ProtocolCommandListener {
 					body.articles = new ArrayList<ArticleHeader>();
 					parseNzb(new ByteArrayInputStream(a.data), "",
 							body.articles);
+				} else if (RAR && isRAR(a.filename)) {
+					unRAR(body);
 				}
 			}
 		}
@@ -694,8 +704,7 @@ public class NewsService implements ProtocolCommandListener {
 				ArticleBody body;
 				try {
 					body = getBody(host, articleId, progress, 0);
-					progress.body = progress.chunk != null ? body
-							.cloneWithoutData() : body;
+					progress.body = progress.chunk != null ? body.cloneWithoutData() : body;
 				} catch (Throwable ex) {
 					progress.exception = ex.getMessage();
 				}
@@ -1446,6 +1455,41 @@ public class NewsService implements ProtocolCommandListener {
 	}
 
 	// ------------------------------
+	// UnRAR
+	// ------------------------------
+
+	private void unRAR(ArticleBody body) throws IOException, RarException {
+		Attachment a = body.attachments.get(0);
+		
+		String rarDirPath = Utils.getDataDir() + File.separator + "rar";
+		Files.createDirectories(Paths.get(rarDirPath));
+		
+		String rarFilePath = rarDirPath + File.separator + System.currentTimeMillis() + ".rar";
+		Files.write(Paths.get(rarFilePath), a.data);
+		
+		File rarFile = new File(rarFilePath);
+		
+		Archive archive = new Archive(new NativeStorage(rarFile));
+
+		body.attachments.clear();
+
+		try {
+			for(FileHeader fileHeader: archive.getFileHeaders()){
+				if(!fileHeader.isDirectory()){
+					ByteArrayOutputStream out = new ByteArrayOutputStream();
+					archive.extractFile(fileHeader, out);
+					byte[] fileData = out.toByteArray();
+					String fileName = fileHeader.getFileNameString();
+					body.attachments.add(new Attachment(fileName, fileData));
+				}
+			}
+		} finally {
+			archive.close();
+			rarFile.delete();
+		}
+	}
+	
+	// ------------------------------
 	// Index thumbnails
 	// ------------------------------
 
@@ -1455,7 +1499,7 @@ public class NewsService implements ProtocolCommandListener {
 	public OutMultiPart getThumbnail(@FormParam("host") String host,
 			@FormParam("articleId") String articleId,
 			@FormParam("size") int size) throws SocketException, IOException,
-			ParserConfigurationException, SAXException {
+			ParserConfigurationException, SAXException, RarException {
 		return createMultiPart(getThumbnail(host, articleId, size, null));
 	}
 
@@ -1490,7 +1534,7 @@ public class NewsService implements ProtocolCommandListener {
 
 	private ArticleBody getThumbnail(String host, String articleId, int size,
 			Progress progress) throws SocketException, IOException,
-			ParserConfigurationException, SAXException {
+			ParserConfigurationException, SAXException, RarException {
 
 		ArticleBody body = getBody(host, articleId, progress, 0);
 
@@ -1649,6 +1693,11 @@ public class NewsService implements ProtocolCommandListener {
 		String name = filename.toLowerCase();
 		return name.endsWith(".jpg") || name.endsWith(".gif")
 				|| name.endsWith(".png");
+	}
+
+	private static boolean isRAR(String filename) {
+		String name = filename.toLowerCase();
+		return name.endsWith(".rar") || name.endsWith(".r00") || name.endsWith(".cbr");
 	}
 
 	private boolean isHidden(String subject, String filter) {
