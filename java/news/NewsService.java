@@ -399,12 +399,20 @@ public class NewsService implements ProtocolCommandListener {
 		
 		public synchronized void update(int bytesRead) {
 			this.bytesRead += bytesRead;
+			message = null;
 			updated = true;
 			notify();
 		}
 		
 		public synchronized void complete() {
 			complete = true;
+			message = null;
+			updated = true;
+			notify();
+		}
+		
+		public synchronized void message(String message) {
+			this.message = message;
 			updated = true;
 			notify();
 		}
@@ -668,13 +676,15 @@ public class NewsService implements ProtocolCommandListener {
 				if (NZB && a.filename.endsWith(".nzb")) {
 					// parse NZB index files
 					if (progress != null) {
-						progress.message = "Parsing NZB index...";
-						Thread.yield();
+						progress.message("Parsing NZB index...");
 					}
 					body.articles = new ArrayList<ArticleHeader>();
 					parseNzb(new ByteArrayInputStream(a.data), "",
 							body.articles);
 				} else if (RAR && isRAR(a.filename)) {
+					if (progress != null) {
+						progress.message("Unpacking RAR archive...");
+					}
 					unRAR(body);
 				}
 			}
