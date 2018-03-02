@@ -2439,6 +2439,10 @@ require(["dojo/has"], function(has){
 									}
 								}
 							}
+						}, function(xhrprogress){
+							if(xhrprogress.loaded !== undefined){
+								console.log("loaded = " + xhrprogress.loaded + " / total = " + xhrprogress.total);
+							}
 						});
 					}, function(err){
 						showError(err);
