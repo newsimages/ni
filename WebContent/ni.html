@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.14.1";
+	var version = "Version 6.15.0";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -54,7 +54,7 @@ require(["dojo/has"], function(has){
 					"dojox/mobile/ProgressIndicator",
 					"dojox/mobile/viewRegistry", "dojox/mobile/ScrollableView",
 					"dojox/mobile/ToolBarButton", "dojox/mobile",
-					"js-unzip.js", "js-inflate.js", "unrar.js" ],
+					"js-unzip.js", "js-inflate.js"/*, "unrar.js"*/ ],
 			function(ready, parser, has, on, touch, keys, event, aspect, Deferred, when,
 					json, array, lang, dom, domConstruct, domClass, request, handlers,
 					registry, ListItem, Progressindicator, viewRegistry,
@@ -2282,12 +2282,12 @@ require(["dojo/has"], function(has){
 				var currentServer, currentToken, currentRequest, currentUnrar;
 
 				function buildServerString(server) {
-					var token = !server && currentToken;
+					if(!server && currentToken){
+						return currentToken;
+					}
 					server = server || currentServer;
 					var s = server.hostname;
-					if(token){
-						s = token + "@" + s;
-					} else 	if (server.username) {
+					if (server.username) {
 						s = server.username + ":" + (server.password||"") + "@" + s;
 					}
 					if (server.port) {

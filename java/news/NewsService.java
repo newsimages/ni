@@ -114,6 +114,7 @@ public class NewsService implements ProtocolCommandListener {
 	private static class User {
 		public String username;
 		public String password;
+		public String host;
 	}
 	
 	private static Map<String, User> users = new HashMap<String, User>();
@@ -145,9 +146,8 @@ public class NewsService implements ProtocolCommandListener {
 			throws SocketException, IOException {
 		connect(host);
 		String token = String.valueOf(System.currentTimeMillis());
-		User user = new User();
-		parseUser(host, user);
-		users.put(token,  user);
+		User user = parseUser(host);
+		users.put(token, user);
 		return token;
 	}
 	
@@ -376,13 +376,15 @@ public class NewsService implements ProtocolCommandListener {
 		int thumbnailSize;
 
 		private ProgressByteArrayOutputStream buffer;
+		
+		private boolean downloading;
 
 		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, boolean multi) {
 			if (buffer == null)
 				buffer = new ProgressByteArrayOutputStream();
 			else
 				buffer.reset();
-			if (thumbnailSize > 0 || (RAR && isRAR(filename))) {
+			if (thumbnailSize > 0 || (!downloading && RAR && isRAR(filename))) {
 				buffer.noChunks = true;
 			}
 			if (filename != null)
@@ -681,7 +683,7 @@ public class NewsService implements ProtocolCommandListener {
 					body.articles = new ArrayList<ArticleHeader>();
 					parseNzb(new ByteArrayInputStream(a.data), "",
 							body.articles);
-				} else if (RAR && isRAR(a.filename)) {
+				} else if (!(progress != null && progress.downloading) && RAR && isRAR(a.filename)) {
 					if (progress != null) {
 						progress.message("Unpacking RAR archive...");
 					}
@@ -807,22 +809,20 @@ public class NewsService implements ProtocolCommandListener {
 		return reply;
 	}
 
-	private String parseUser(String host, User user) {
-		String username = null;
-		String password = null;
+	private User parseUser(String host) {
+		User user = null;
 		int userIndex = host.lastIndexOf('@');
 		if (userIndex >= 0) {
-			username = host.substring(0, userIndex);
-			int passIndex = username.indexOf(':');
+			user = new User();
+			user.username = host.substring(0, userIndex);
+			int passIndex = user.username.indexOf(':');
 			if (passIndex >= 0) {
-				password = username.substring(passIndex + 1);
-				username = username.substring(0, passIndex);
+				user.password = user.username.substring(passIndex + 1);
+				user.username = user.username.substring(0, passIndex);
 			}
-			host = host.substring(userIndex + 1);
+			user.host = host.substring(userIndex + 1);
 		}
-		user.username = username;
-		user.password = password;
-		return host;
+		return user;
 	}
 	
 	private NNTPClient connect(String host) throws SocketException, IOException {
@@ -839,6 +839,16 @@ public class NewsService implements ProtocolCommandListener {
 			} while (clients.size() > 0);
 		}
 
+		User user = parseUser(host);
+		if(user == null){
+			user = users.get(host);
+			if(user == null){
+				throw new IOException("502 User logged out: retry to login again");
+			}
+		}
+		
+		host = user.host;
+		
 		int port = NNTPClient.DEFAULT_PORT;
 
 		int portIndex = host.lastIndexOf(':');
@@ -847,15 +857,6 @@ public class NewsService implements ProtocolCommandListener {
 			if (portString.matches("\\d*")) {
 				port = Integer.valueOf(portString);
 				host = host.substring(0, portIndex);
-			}
-		}
-		
-		User user = new User();
-		host = parseUser(host, user);
-		if(user.username != null && user.password == null){
-			user = users.get(user.username);
-			if(user == null){
-				throw new IOException("502 User logged out: retry to login again");
 			}
 		}
 		
@@ -1489,13 +1490,17 @@ public class NewsService implements ProtocolCommandListener {
 					ByteArrayOutputStream out = new ByteArrayOutputStream();
 					archive.extractFile(fileHeader, out);
 					byte[] fileData = out.toByteArray();
-					String fileName = fileHeader.getFileNameString();
+					String fileName = fileHeader.getFileNameString().replaceAll("[\\\\\\/]", "_");
 					body.attachments.add(new Attachment(fileName, fileData));
 				}
 			}
 		} finally {
 			archive.close();
 			rarFile.delete();
+		}
+		
+		if(body.attachments.size() == 1 && isRAR(body.attachments.get(0).filename)){
+			unRAR(body);
 		}
 	}
 	
@@ -1586,6 +1591,7 @@ public class NewsService implements ProtocolCommandListener {
 			IOException, ParserConfigurationException, SAXException {
 		
 		final Progress progress = new Progress();
+		progress.downloading = true;
 		
 		String longId = articleIdByShortId.get(id);
 		final String articleId =  longId != null ? longId : id;
