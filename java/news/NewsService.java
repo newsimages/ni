@@ -379,7 +379,7 @@ public class NewsService implements ProtocolCommandListener {
 		
 		private boolean downloading;
 
-		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, boolean multi) {
+		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, int multi) {
 			if (buffer == null)
 				buffer = new ProgressByteArrayOutputStream();
 			else
@@ -389,10 +389,10 @@ public class NewsService implements ProtocolCommandListener {
 			}
 			if (filename != null)
 				this.filename = filename;
-			if (multi) {
+			if (multi > 0) {
 				// multiple attachments
 				attSizes = new ArrayList<Integer>();
-				for (int i = 0; i < body.attachments.size(); i++) {
+				for (int i = 0; i < multi; i++) {
 					attSizes.add(body.attachments.get(i).data.length);
 				}
 			}
@@ -534,7 +534,7 @@ public class NewsService implements ProtocolCommandListener {
 							Attachment att = atts.get(i);
 							byte[] data = att.data;
 							if(data != null && data.length > 0){
-								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, body.attachments.size() > 1 && i >= 1);
+								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, i);
 								int size = chunkSize;
 								for(int off = 0; off < data.length; off += size){
 									int n = Math.min(size, data.length-off);
@@ -1033,7 +1033,7 @@ public class NewsService implements ProtocolCommandListener {
 
 		ByteArrayOutputStream bytes;
 		if (reader instanceof ProgressReader) {
-			bytes = ((ProgressReader) reader).progress.beginDecode(fileInfo.filename, body, body.attachments.size() > 0);
+			bytes = ((ProgressReader) reader).progress.beginDecode(fileInfo.filename, body, body.attachments.size());
 		} else {
 			bytes = new ByteArrayOutputStream();
 		}
@@ -1598,15 +1598,11 @@ public class NewsService implements ProtocolCommandListener {
 		new Thread() {
 			public void run() {
 				try {
-					System.out.println("get body...");
 					getBody(host, articleId, progress, 0);
-					System.out.println("get body done.");
 				} catch (Throwable ex) {
-					System.out.println("exception getting body: " + ex);
 					progress.exception = ex.getMessage();
 				}
 				progress.complete();
-				System.out.println("get thread exiting.");
 			}
 		}.start();
 		
@@ -1616,18 +1612,14 @@ public class NewsService implements ProtocolCommandListener {
 					synchronized (progress) {
 						while (!progress.updated) {
 							try {
-								System.out.println("wait for progress...");
 								progress.wait();
 							} catch (InterruptedException ex) {
 								ex.printStackTrace();
 							}
 						}
 						try {
-							System.out.println("get progress...");
 							progress.getProgress();
-							System.out.println("progress: " + progress.filename);
 							if(name.equals(progress.filename)){
-								System.out.println("chunk: " + (progress.chunk != null ? progress.chunk.length : "null") + " bytes");
 								out.write(progress.chunk);
 								out.flush();
 							}
@@ -1637,7 +1629,6 @@ public class NewsService implements ProtocolCommandListener {
 							break;
 						}
 						if (progress.complete) {
-							System.out.println("progress complete");
 							break;
 						}
 						progress.updated = false;
@@ -1648,7 +1639,6 @@ public class NewsService implements ProtocolCommandListener {
 				} catch (IOException ex) {
 					ex.printStackTrace();
 				}
-				System.out.println("streaming output finished writing.");
 			}
 		};
 		

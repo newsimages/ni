@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 6.15.0";
+	var version = "Version 6.15.1";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -2361,7 +2361,6 @@ require(["dojo/has"], function(has){
 							})
 					.then(function(token){
 						if(!server && !currentToken){
-							console.log("User logged in: " + buildServerString() + " -> " + token);
 							currentToken = token;
 						}
 					}, function(err){
@@ -2438,10 +2437,6 @@ require(["dojo/has"], function(has){
 										showError(err);
 									}
 								}
-							}
-						}, function(xhrprogress){
-							if(xhrprogress.loaded !== undefined){
-								console.log("loaded = " + xhrprogress.loaded + " / total = " + xhrprogress.total);
 							}
 						});
 					}, function(err){
