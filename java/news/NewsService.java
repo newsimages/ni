@@ -369,6 +369,8 @@ public class NewsService implements ProtocolCommandListener {
 		public ArticleBody body;
 		@XmlElement
 		public ArrayList<Integer> attSizes;
+		@XmlAttribute
+		public String resetMessage;
 
 		boolean cancelled;
 		boolean updated;
@@ -379,7 +381,7 @@ public class NewsService implements ProtocolCommandListener {
 		
 		private boolean downloading;
 		
-		public void reset() {
+		public void reset(String resetMessage) {
 			complete = false;
 			bytesRead = 0;
 			part = 0;
@@ -397,6 +399,7 @@ public class NewsService implements ProtocolCommandListener {
 			thumbnailSize = 0;
 			buffer = null;
 			downloading = false;
+			this.resetMessage = resetMessage;
 		}
 
 		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, int multi) {
@@ -687,7 +690,7 @@ public class NewsService implements ProtocolCommandListener {
 					}
 					unRAR(body);
 					if (progress != null) {
-						progress.reset();
+						progress.reset("attachment");
 						sendBody(body, progress, false);
 					}
 				}
