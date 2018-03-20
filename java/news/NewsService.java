@@ -378,6 +378,26 @@ public class NewsService implements ProtocolCommandListener {
 		private ProgressByteArrayOutputStream buffer;
 		
 		private boolean downloading;
+		
+		public void reset() {
+			complete = false;
+			bytesRead = 0;
+			part = 0;
+			partCount = 0;
+			exception = null;
+			chunk = null;
+			hasChunk = false;
+			filename = null;
+			message = null;
+			body = null;
+			attSizes = null;
+			cancelled = false;
+			updated = false;
+			thumbnailData = null;
+			thumbnailSize = 0;
+			buffer = null;
+			downloading = false;
+		}
 
 		public ByteArrayOutputStream beginDecode(String filename, ArticleBody body, int multi) {
 			if (buffer == null)
@@ -526,30 +546,8 @@ public class NewsService implements ProtocolCommandListener {
 		if(bodyCache != null){
 			body = bodyCache.get(articleId);
 			if(body != null){
-				if(progress != null){
-					// let the client display some progress
-					ArrayList<Attachment> atts = body.attachments;
-					if(atts != null){
-						for(int i = 0; i < atts.size(); i++){
-							Attachment att = atts.get(i);
-							byte[] data = att.data;
-							if(data != null && data.length > 0){
-								ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, i);
-								int size = chunkSize;
-								for(int off = 0; off < data.length; off += size){
-									int n = Math.min(size, data.length-off);
-									bytes.write(data, off, n);
-									if(body.bytes > 0){
-										n = (int)(n * body.bytes / data.length);
-									}
-									progress.update(n);
-								}
-								bytes.toByteArray();
-								bytes.reset();
-								progress.endDecode(att, 1, new ArticleBody[] { body });
-							}
-						}
-					}
+				if (progress != null) {
+					sendBody(body, progress, true);
 				}
 				return body;
 			}
@@ -688,6 +686,10 @@ public class NewsService implements ProtocolCommandListener {
 						progress.message("Unpacking RAR archive...");
 					}
 					unRAR(body);
+					if (progress != null) {
+						progress.reset();
+						sendBody(body, progress, false);
+					}
 				}
 			}
 		}
@@ -697,6 +699,38 @@ public class NewsService implements ProtocolCommandListener {
 		}
 		
 		return body;
+	}
+
+	private void sendBody(ArticleBody body, Progress progress, boolean fromCache) {
+		// let the client display some progress
+		ArrayList<Attachment> atts = body.attachments;
+		if(atts != null){
+			if (!fromCache) {
+				progress.partCount = atts.size();
+			}
+			for(int i = 0; i < atts.size(); i++){
+				if (!fromCache) {
+					progress.part = i + 1;
+				}
+				Attachment att = atts.get(i);
+				byte[] data = att.data;
+				if(data != null && data.length > 0){
+					ByteArrayOutputStream bytes = progress.beginDecode(att.filename, body, i);
+					int size = chunkSize;
+					for(int off = 0; off < data.length; off += size){
+						int n = Math.min(size, data.length-off);
+						bytes.write(data, off, n);
+						if(body.bytes > 0){
+							n = (int)(n * body.bytes / data.length);
+						}
+						progress.update(n);
+					}
+					bytes.toByteArray();
+					bytes.reset();
+					progress.endDecode(att, 1, new ArticleBody[] { body });
+				}
+			}
+		}
 	}
 
 	@POST
