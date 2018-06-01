@@ -1531,6 +1531,7 @@ public class NewsService implements ProtocolCommandListener {
 					body.attachments.add(new Attachment(fileName, fileData));
 				}
 			}
+			Collections.sort(body.attachments);
 		} finally {
 			archive.close();
 			rarFile.delete();
