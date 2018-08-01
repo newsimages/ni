@@ -25,7 +25,7 @@
 <script type="text/javascript">
 window.addEventListener("load", function(){
 	/********** VERSION *********/
-	var version = "Version 7.0.1";
+	var version = "Version 7.0.2";
 	/****************************/
 	var elements = document.getElementsByClassName("version");
 	for(var i = 0; i < elements.length; i++){
@@ -853,7 +853,9 @@ require(["dojo/has"], function(has){
 						if (settings.async && settings.partial) {
 							loadImage("", true);
 							showProgressBar(true);
-							showPartialData();
+							if(!p.resetMessage){ // dont show partial images while receiving unrared attachments
+								showPartialData();
+							}
 							updateSeriesArrows(item);
 						} else {
 							loadImage("");
